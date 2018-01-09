@@ -1,0 +1,102 @@
+import { Operation } from "./Operation";
+import { Job, JobPrerequisite, JobFactory } from "./Job";
+import { log } from "./lib/logger/log"
+import u from "./Utility";
+
+function upgrade_site(job : JobUpgrade, worker : Creep, site : Controller) : Operation {
+  return () => {
+    let res = worker.upgradeController(site);
+    switch (res) {
+      case ERR_NOT_OWNER:
+      case ERR_INVALID_ARGS:
+      case ERR_INVALID_TARGET:
+      case ERR_NOT_ENOUGH_RESOURCES:
+      case ERR_BUSY:
+      default:
+        log.error(`${job.id()}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
+        break;
+      case ERR_NOT_IN_RANGE: {
+        const res = worker.moveTo(site);
+          if (res == OK) {
+            log.info(`${job.id()}: ${worker} moved towards controller ${site})`);
+          }
+          else {
+            log.warning(`${job.id()}: ${worker} failed moving to controller-${site} (${u.errstr(res)})`);
+          }
+        }
+        break;
+      case OK:
+        log.info(`${job.id()}: ${worker} upgraded controller ${site})`);
+        break;
+    }
+  }
+}
+
+export class JobUpgrade implements Job {
+
+  static readonly TYPE = 'upgrade';
+
+  readonly _site : Controller;
+  readonly _priority : number;
+
+  constructor(site : Controller, priority? : number) {
+    this._site = site;
+    this._priority = priority || 2;
+  }
+
+  id() : string {
+    return `job-${JobUpgrade.TYPE}-${this._site.id}-${this._priority}`;
+  }
+
+
+  toString() : string {
+    return this.id();
+  }
+
+  priority() : number {
+    return this._priority;
+  }
+
+  site() : RoomPosition {
+    return this._site.pos;
+  }
+
+  isSatisfied(_ : Creep[]) : boolean {
+    return false;
+  }
+
+  completion(worker? : Creep) : number {
+    if (worker) {
+      return 1.0 - worker.availableEnergy()/worker.carryCapacity;
+    }
+
+    return 0.0;
+  }
+
+  satisfiesPrerequisite(_ : JobPrerequisite) : boolean {
+    return false;
+  }
+
+  prerequisite(worker : Creep) : JobPrerequisite {
+    if (worker.availableEnergy() == 0) {
+      return JobPrerequisite.COLLECT_ENERGY;
+    }
+    return JobPrerequisite.NONE;
+  }
+
+  baseWorkerBody() : BodyPartConstant[] {
+    return [WORK, CARRY, WORK, CARRY];
+  }
+
+  work(worker : Creep) : Operation[] {
+    return [ upgrade_site(this, worker, this._site) ];
+  }
+}
+
+
+JobFactory.addBuilder(JobUpgrade.TYPE, (id: string): Job|undefined => {
+  const frags = id.split('-');
+  const site = <Controller>Game.getObjectById(frags[2]);
+  if (!site) return undefined;
+  return new JobUpgrade(site);
+});

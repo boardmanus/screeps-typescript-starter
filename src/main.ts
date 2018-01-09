@@ -1,8 +1,9 @@
-import * as CreepManager from "./components/creeps/creepManager";
-import * as Config from "./config/config";
-
 import * as Profiler from "screeps-profiler";
 import { log } from "./lib/logger/log";
+import { King } from "./King";
+import { Operation } from "./Operation";
+import "./extensions";
+
 
 // Any code written outside the `loop()` method is executed only when the
 // Screeps system reloads your script.
@@ -14,38 +15,40 @@ import { log } from "./lib/logger/log";
 // by setting USE_PROFILER through webpack, if you want to permanently
 // remove it on deploy
 // Start the profiler
-if (Config.USE_PROFILER) {
-  Profiler.enable();
-}
+Profiler.enable();
 
 log.info(`Scripts bootstrapped`);
 if (__REVISION__) {
   log.info(`Revision ID: ${__REVISION__}`);
 }
 
+
 function mloop() {
-  // Check memory for null or out of bounds custom objects
-  if (!Memory.uuid || Memory.uuid > 100) {
-    Memory.uuid = 0;
-  }
 
-  for (const i in Game.rooms) {
-    const room: Room = Game.rooms[i];
+  log.info(`***** TICK ${Game.time} *****`);
 
-    CreepManager.run(room);
-
-    // Clears any non-existing creep memory.
-    for (const name in Memory.creeps) {
-      const creep: any = Memory.creeps[name];
-
-      if (creep.room === room.name) {
-        if (!Game.creeps[name]) {
-          log.info("Clearing non-existing creep memory:", name);
-          delete Memory.creeps[name];
-        }
-      }
+  for (const i in Memory.creeps) {
+    if (!Game.creeps[i]) {
+      delete Memory.creeps[i];
     }
   }
+
+  for (const i in Memory.rooms) {
+    if (!Game.rooms[i]) {
+      delete Memory.rooms[i];
+    }
+  }
+
+  let king = new King();
+
+  const operations = king.rule();
+
+  king.save();
+
+  log.debug(`About to perform ${operations.length} operations`);
+  _.each(operations, (op : Operation) : void => {
+    op();
+  });
 }
 
 /**
@@ -56,4 +59,5 @@ function mloop() {
  *
  * @export
  */
-export const loop = !Config.USE_PROFILER ? mloop : () => { Profiler.wrap(mloop); };
+export const loop = () => { Profiler.wrap(mloop); }
+//export const loop = mloop;

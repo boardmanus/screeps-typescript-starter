@@ -1,8 +1,33 @@
 // memory extension samples
 interface CreepMemory {
-  role: string;
+  job: string | undefined;
+  jobState: string | undefined;
+  employed: boolean | undefined;
+  homeTown: string;
   room: string;
-  working: boolean;
+}
+
+interface RoomMemory {
+  expats: string[];
+  bosses: BossMemory[];
+  cloneCount: number;
+}
+
+interface SubcontractorMemory {
+  worker: string;
+  job: string;
+}
+
+interface BossMemory {
+  job: string;
+  workers: string[];
+  subcontractors: SubcontractorMemory[];
+}
+
+interface AssignmentMemory {
+  worker: string;
+  job: string;
+  prerequisite: AssignmentMemory | undefined;
 }
 
 // add objects to `global` here
@@ -17,4 +42,7 @@ interface Memory {
   log: any;
 }
 
+
 declare const __REVISION__: string
+
+
