@@ -13,20 +13,20 @@ function upgrade_site(job : JobUpgrade, worker : Creep, site : Controller) : Ope
       case ERR_NOT_ENOUGH_RESOURCES:
       case ERR_BUSY:
       default:
-        log.error(`${job.id()}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE: {
         const res = worker.moveTo(site);
           if (res == OK) {
-            log.info(`${job.id()}: ${worker} moved towards controller ${site})`);
+            log.info(`${job}: ${worker} moved towards controller ${site} (${worker.pos.getRangeTo(site)} sq)`);
           }
           else {
-            log.warning(`${job.id()}: ${worker} failed moving to controller-${site} (${u.errstr(res)})`);
+            log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
           }
         }
         break;
       case OK:
-        log.info(`${job.id()}: ${worker} upgraded controller ${site})`);
+        log.info(`${job}: ${worker} upgraded controller ${site})`);
         break;
     }
   }
@@ -41,7 +41,7 @@ export class JobUpgrade implements Job {
 
   constructor(site : Controller, priority? : number) {
     this._site = site;
-    this._priority = priority || 2;
+    this._priority = (priority !== undefined)? priority : 2;
   }
 
   id() : string {
@@ -54,11 +54,24 @@ export class JobUpgrade implements Job {
   }
 
   priority() : number {
-    return this._priority;
+    let priority : number = 1;
+    if (this._site.ticksToDowngrade < 100) {
+      priority = 10;
+    }
+    else if (this._site.ticksToDowngrade < 1000) {
+      priority = 5;
+    }
+    else if (this._site.ticksToDowngrade < 2000) {
+      priority = 2;
+    }
+    else {
+      priority = 1;
+    }
+    return priority;
   }
 
-  site() : RoomPosition {
-    return this._site.pos;
+  site() : RoomObject {
+    return this._site;
   }
 
   isSatisfied(_ : Creep[]) : boolean {

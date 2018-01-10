@@ -13,7 +13,21 @@ import u from "./Utility";
 
 
 function worker_rating(worker : Creep, boss : Boss) : number {
-  return boss.job.site().getRangeTo(worker.pos.x, worker.pos.y);
+  //const suitability = boss.job.suitability(worker);
+  const jobSite = boss.job.site();
+  const lastJobSite = worker.getlastJobSite();
+  if (jobSite === lastJobSite) {
+    return 10000;
+  }
+  else if (boss.job instanceof JobUnload &&
+          boss.job.site() instanceof StructureContainer &&
+          lastJobSite && lastJobSite instanceof StructureContainer) {
+    // Don't pickup/unload between containers.
+    return 10000;
+  }
+
+  const closeness = boss.job.site().pos.getRangeTo(worker);
+  return closeness;
 }
 
 function find_best_worker(boss : Boss, workers : Creep[]) : Creep|undefined {
@@ -31,12 +45,19 @@ function find_best_workers(boss : Boss, workers : Creep[]) : Creep[] {
   if (workers.length == 1) {
     return workers;
   }
-  return _.sortBy(workers, (w : Creep) => { return worker_rating(w, boss); });
+  const orderedWorkers = _.sortBy(workers, (w : Creep) => { return worker_rating(w, boss); });
+  log.debug(`bestworkers for ${boss}: ${orderedWorkers}`);
+  return orderedWorkers;
 }
 
 function find_best_boss(worker : Creep, bosses : Boss[]) : Boss|undefined {
   log.debug(`finding best job for ${worker.id} from ${bosses.length} bosses`);
-  const satisfiedBosses = _.filter(bosses, (b : Boss) => { return b.job.prerequisite(worker) == JobPrerequisite.NONE && b.needsWorkers(); });
+  const satisfiedBosses = _.filter(bosses, (b : Boss) => {
+    return (b.job.prerequisite(worker) == JobPrerequisite.NONE
+      && b.needsWorkers()
+      && b.job.site() !== worker.getlastJobSite());
+  });
+
   if (satisfiedBosses.length == 0) {
     return undefined;
   }
@@ -155,11 +176,21 @@ export class Mayor {
   }
 
   pickupJobs() : Job[] {
-    const jobs : Job[] = _.map(
+    const scavengeJobs : Job[] = _.map(
       this._city.room.find<Resource>(FIND_DROPPED_RESOURCES),
       (r : Resource) : Job => {
         return new JobPickup(r);
       });
+
+    const takeJobs : Job[] = _.map(
+      this._city.room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : StructureContainer) => {
+        return s.structureType == STRUCTURE_CONTAINER && s.availableEnergy() > 0;
+      }}),
+      (s : StructureContainer) : Job => {
+        return new JobPickup(s, 1);
+      });
+
+    const jobs = scavengeJobs.concat(takeJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
     return jobs;
   }
@@ -169,20 +200,8 @@ export class Mayor {
     if (!controller) {
       return [];
     }
-    let priority : number = 1;
-    if (controller.ticksToDowngrade < 1000) {
-      priority = 5;
-    }
-    else if (controller.ticksToDowngrade < 5000) {
-      priority = 3;
-    }
-    else if (controller.ticksToDowngrade < 10000) {
-      priority = 2;
-    }
-    else {
-      priority = 1;
-    }
-    return [ new JobUpgrade(controller, priority) ];
+
+    return [ new JobUpgrade(controller) ];
   }
 
   unloadJobs() : Job[] {

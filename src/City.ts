@@ -49,8 +49,8 @@ export class City {
 
   constructor(room : Room) {
     this._room = room;
-    log.debug(`Constructing ${this.id()}`);
-    log.debug(`${this.id()} : room=${room.name}`)
+    log.debug(`Constructing ${this}`);
+    log.debug(`${this} : room=${room.name}`)
 
     if (!room.memory.expats) room.memory.expats = [];
 

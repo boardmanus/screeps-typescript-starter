@@ -58,6 +58,7 @@ export class Boss implements Work {
           activeWorkers.push(worker);
         }
         else {
+          worker.setLastJobSite(job.site());
           worker.setEmployed(false);
         }
         return activeWorkers;
@@ -66,7 +67,7 @@ export class Boss implements Work {
 
     const subcontractors = map_valid_subcontractors(memory.subcontractors);
     const boss = new Boss(job, workers, subcontractors);
-    log.debug(`${boss.id()}: from boss memory ${memory.job}, ${memory.workers}, ${memory.subcontractors}`);
+    log.debug(`${boss}: from boss memory ${memory.job}, ${memory.workers}, ${memory.subcontractors}`);
     return boss;
   }
 
@@ -77,7 +78,7 @@ export class Boss implements Work {
       subcontractors: _.map(this._subcontractors, (sc : Subcontractor) : SubcontractorMemory => { return sc.toMemory() })
     };
 
-    log.debug(`${this.id()}: to boss memory <${memory.job}, ${memory.workers}, ${memory.subcontractors}>`);
+    log.debug(`${this}: to boss memory <${memory.job}, ${memory.workers}, ${memory.subcontractors}>`);
     return memory;
   }
 
@@ -90,15 +91,11 @@ export class Boss implements Work {
   }
 
   id() : string {
-    return `boss-${this.job.id()}`;
+    return `boss-${this.job}`;
   }
 
   toString() : string {
     return this.id();
-  }
-
-  satisfaction(worker : Creep) : number {
-    return 0.5;
   }
 
   hasWorkers() : boolean {
@@ -132,7 +129,7 @@ export class Boss implements Work {
   assignWorker(worker : Creep) {
     worker.memory.job = this.job.id();
     if (_.find(this._workers, (w : Creep) => { return worker.id == w.id; })) {
-      log.error(`ASSIGNED CREEP(${worker.id}) ALREADY ON ${this.id()}`)
+      log.error(`ASSIGNED CREEP(${worker.id}) ALREADY ON ${this}`)
       return;
     }
     worker.setEmployed(true);

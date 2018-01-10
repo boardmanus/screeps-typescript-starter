@@ -11,21 +11,21 @@ function withdraw_from_site(job : JobPickup, worker : Creep, site : Structure) :
     let res = worker.withdraw(site, RESOURCE_ENERGY);
     switch (res) {
       default:
-        log.error(`${job.id()}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE: {
         const res = worker.moveTo(site);
           if (res == OK) {
-            log.info(`${job.id()}: ${worker} moved towards ${site}`);
+            log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
           }
           else {
-            log.warning(`${job.id()}: ${worker} failed to move towards ${site} (${u.errstr(res)})`);
+            log.warning(`${job}: ${worker} failed to move towards ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
           }
         }
+        break;
       case OK:
         // Finished job.
-        log.info(`${job.id()}: ${worker} withdrew resources from ${site}`);
-        delete worker.memory.job;
+        log.info(`${job}: ${worker} withdrew resources from ${site}`);
         break;
     }
   }
@@ -36,22 +36,21 @@ function pickup_at_site(job : JobPickup, worker : Creep, site : Resource) : Oper
     let res = worker.pickup(site);
     switch (res) {
       default:
-        log.error(`${job.id()}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE: {
         const res = worker.moveTo(site);
           if (res == OK) {
-            log.info(`${job.id()}: ${worker} moved towards resources-${site}`);
+            log.info(`${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
           }
           else {
-            log.warning(`${job.id()}: ${worker} failed moving to resources-${site} (${u.errstr(res)})`);
+            log.warning(`${job}: ${worker} failed moving to resources-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
           }
         }
         break;
       case OK:
         // Finished job.
-        log.info(`${job.id()}: ${worker} picked up resources from ${site}`);
-        delete worker.memory.job;
+        log.info(`${job}: ${worker} picked up resources from ${site}`);
         break;
     }
   }
@@ -66,7 +65,8 @@ export class JobPickup implements Job {
 
   constructor(site : PickupSite, priority? : number) {
     this._site = site;
-    this._priority = priority || 4;
+    this._priority = (priority !== undefined)? priority : 4;
+    log.debug(`${this}: creating pickup job with priority-${this._priority} (passed ${priority})`);
   }
 
   id() : string {
@@ -82,8 +82,8 @@ export class JobPickup implements Job {
     return this._priority;
   }
 
-  site() : RoomPosition {
-    return this._site.pos;
+  site() : RoomObject {
+    return this._site;
   }
 
   isSatisfied(workers : Creep[]) : boolean {
@@ -142,5 +142,6 @@ JobFactory.addBuilder(JobPickup.TYPE, (id: string): Job|undefined => {
   const frags = id.split('-');
   const site = <PickupSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobPickup(site);
+  const priority = Number(frags[3]);
+  return new JobPickup(site, priority);
 });

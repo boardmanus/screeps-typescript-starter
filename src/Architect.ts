@@ -144,10 +144,10 @@ class BuildingWork implements Work {
       const res = this.room.createConstructionSite(this.site.x, this.site.y, this.type);
       switch (res) {
         case OK:
-          log.info(`${this.id()}: created construction site`);
+          log.info(`${this}: created construction site`);
           break;
         default:
-          log.error(`${this.id()}: failed to create construction site (${u.errstr(res)})`);
+          log.error(`${this}: failed to create construction site (${u.errstr(res)})`);
           break;
       }
     } ];
@@ -171,7 +171,7 @@ export class Architect implements Expert {
   }
 
   survey() : void {
-    log.debug(`${this.id()} surveying...`);
+    log.debug(`${this} surveying...`);
   }
 
   designExtensions() : Work[] {
@@ -184,15 +184,15 @@ export class Architect implements Expert {
       room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTENSION } }).length;
 
     const allowedNumExtensions = CONTROLLER_STRUCTURES.extension[controller.level];
-    log.info(`${this.id()}: current num extensions ${numExtensions} - allowed ${allowedNumExtensions}`)
+    log.info(`${this}: current num extensions ${numExtensions} - allowed ${allowedNumExtensions}`)
 
     if (numExtensions == allowedNumExtensions) {
-      log.info(`${this.id()}: already have all the required extensions (${numExtensions}).`)
+      log.info(`${this}: already have all the required extensions (${numExtensions}).`)
       return [];
     }
 
     if (numExtensions > allowedNumExtensions) {
-      log.error(`${this.id()}: have more extensions than allowed??? (${numExtensions} > ${allowedNumExtensions}`);
+      log.error(`${this}: have more extensions than allowed??? (${numExtensions} > ${allowedNumExtensions}`);
       return [];
     }
 
@@ -206,7 +206,7 @@ export class Architect implements Expert {
       desiredNumExtensions);
 
     return _.map(extensionPos, (pos : RoomPosition) : Work => {
-      log.info(`${this.id()}: creating new building work ${room} ... ${pos}`)
+      log.info(`${this}: creating new building work ${room} ... ${pos}`)
       return new BuildingWork(room, pos, STRUCTURE_EXTENSION);
     });
   }
@@ -218,18 +218,18 @@ export class Architect implements Expert {
 
     const numContainers =
       room.find(FIND_MY_CONSTRUCTION_SITES, { filter: { structureType: STRUCTURE_CONTAINER } }).length +
-      room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_CONTAINER } }).length;
+      room.find(FIND_STRUCTURES, { filter: { structureType: STRUCTURE_CONTAINER } }).length;
 
     const allowedNumContainers = CONTROLLER_STRUCTURES.container[controller.level];
-    log.info(`${this.id()}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
+    log.info(`${this}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
 
     if (numContainers == allowedNumContainers) {
-      log.info(`${this.id()}: already have all the required containers (${numContainers}).`)
+      log.info(`${this}: already have all the required containers (${numContainers}).`)
       return [];
     }
 
     if (numContainers > allowedNumContainers) {
-      log.error(`${this.id()}: have more containers than allowed??? (${numContainers} > ${allowedNumContainers}`);
+      log.error(`${this}: have more containers than allowed??? (${numContainers} > ${allowedNumContainers}`);
       return [];
     }
 
@@ -240,7 +240,7 @@ export class Architect implements Expert {
       }));
 
     return _.map(containerPos, (pos : RoomPosition) : Work => {
-      log.info(`${this.id()}: creating new building work ${room} ... ${pos}`)
+      log.info(`${this}: creating new building work ${room} ... ${pos}`)
       return new BuildingWork(room, pos, STRUCTURE_CONTAINER);
     });
   }
@@ -252,7 +252,7 @@ export class Architect implements Expert {
   }
 
   schedule() : Job[] {
-    log.debug(`${this.id()} scheduling...`);
+    log.debug(`${this} scheduling...`);
 
     const room = this._city.room;
 
@@ -274,7 +274,7 @@ export class Architect implements Expert {
 
   report() : string[] {
     let r = new Array<string>();
-    r.push(`*** Architectural report by ${this.id()}`);
+    r.push(`*** Architectural report by ${this}`);
     return r;
   }
 

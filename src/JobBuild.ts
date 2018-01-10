@@ -9,19 +9,19 @@ function build_site(job : JobBuild, worker : Creep, site : ConstructionSite) {
     const res = worker.build(site);
     switch (res) {
       case OK:
-        log.info(`${job.id()}: ${worker} built stuff at ${site}`);
+        log.info(`${job}: ${worker} built stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
         const moveRes = worker.moveTo(site);
         if (moveRes == OK) {
-          log.info(`${job.id()}: ${worker} moved to construction site ${site}`);
+          log.info(`${job}: ${worker} moved to construction site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job.id()}: ${worker} failed to move towards construction site ${site} (${u.errstr(moveRes)})`);
+          log.warning(`${job}: ${worker} failed to move towards construction site ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(moveRes)})`);
         }
         break;
       default:
-        log.warning(`${job.id()}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -38,7 +38,7 @@ export class JobBuild implements Job {
   constructor(site : ConstructionSite, priority? : number) {
 
     this._site = site;
-    this._priority = priority || 10;
+    this._priority = (priority !== undefined)? priority : 10;
   }
 
   id() : string {
@@ -49,8 +49,8 @@ export class JobBuild implements Job {
     return this.id();
   }
 
-  site() : RoomPosition {
-    return this._site.pos;
+  site() : RoomObject {
+    return this._site;
   }
   priority() : number {
     return this._priority;

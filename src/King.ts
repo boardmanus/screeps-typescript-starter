@@ -13,7 +13,7 @@ export class King {
     let controller = (myRooms.length)? myRooms[0].controller : undefined;
     this._name = (controller)? controller.owner.username : "of-nothing";
     this._cities = _.map(myRooms, (room : Room) : City => { return new City(room); });
-    log.debug(`${this.id()}: ${this._cities.length} cities`)
+    log.debug(`${this}: ${this._cities.length} cities`)
   }
 
   id() : string {
@@ -26,19 +26,19 @@ export class King {
   }
 
   survey() : void {
-    log.debug(`${this.id()} surveying...`);
+    log.debug(`${this} surveying...`);
     _.each(this._cities, (city : City) => { city.mayor.survey(); });
   }
 
   report() : string[] {
     let r = new Array<string>();
-    r.push(`* Royal report by ${this.id()}`);
+    r.push(`* Royal report by ${this}`);
     _.each(this._cities, (city : City) => { r.concat(city.mayor.report()); });
     return r;
   }
 
   rule() : Operation[] {
-    log.debug(`${this.id()} about to rule the world...`);
+    log.debug(`${this} about to rule the world...`);
     this.survey();
 
     const ops = _.reduce(
@@ -52,7 +52,7 @@ export class King {
       },
       []);
 
-    log.debug(`${this.id()} has ${ops.length} operations scheduled...`);
+    log.debug(`${this} has ${ops.length} operations scheduled...`);
 
     return ops;
   }

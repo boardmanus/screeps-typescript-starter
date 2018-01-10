@@ -10,8 +10,11 @@ interface RoomObject {
 
 interface Creep {
   _employed : boolean;
+  _lastJobSite : RoomObject;
   setEmployed(employed : boolean) : void;
   isEmployed() : boolean;
+  setLastJobSite(lastJobSite : RoomObject) : void;
+  getlastJobSite() : RoomObject|undefined;
 }
 
 RoomPosition.prototype.surroundingPositions = function (radius : number, filter? : (p : RoomPosition) => boolean) : RoomPosition[] {
@@ -117,4 +120,10 @@ Creep.prototype.setEmployed = function(employed : boolean) : void {
 }
 Creep.prototype.isEmployed = function() : boolean {
   return this._employed;
+}
+Creep.prototype.setLastJobSite = function(lastJobSite : RoomObject) : void {
+  this._lastJobSite = lastJobSite;
+}
+Creep.prototype.getlastJobSite = function() : RoomObject {
+  return this._lastJobSite;
 }

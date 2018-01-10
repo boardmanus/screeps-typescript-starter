@@ -1,10 +1,8 @@
 // memory extension samples
 interface CreepMemory {
   job: string | undefined;
-  jobState: string | undefined;
   employed: boolean | undefined;
   homeTown: string;
-  room: string;
 }
 
 interface RoomMemory {

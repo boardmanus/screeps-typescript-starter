@@ -14,10 +14,10 @@ function repair_site(job : JobRepair, worker : Creep, site : Structure) {
       case ERR_NOT_IN_RANGE:
         const moveRes = worker.moveTo(site);
         if (moveRes == OK) {
-          log.info(`${job}: ${worker} moved to repair site ${site}`);
+          log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job}: ${worker} failed to move towards repair site ${site} (${u.errstr(moveRes)})`);
+          log.warning(`${job}: ${worker} failed to move towards repair site ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(moveRes)})`);
         }
         break;
       default:
@@ -37,7 +37,7 @@ export class JobRepair implements Job {
   constructor(site : Structure, priority? : number) {
 
     this._site = site;
-    this._priority = priority || 10;
+    this._priority = (priority !== undefined)? priority : 10;
   }
 
   id() : string {
@@ -48,15 +48,20 @@ export class JobRepair implements Job {
     return this.id();
   }
 
-  site() : RoomPosition {
-    return this._site.pos;
+  site() : RoomObject {
+    return this._site;
   }
   priority() : number {
     return this._priority;
   }
 
   isSatisfied(workers : Creep[]) : boolean {
-    return workers.length > 2;
+    const energy = _.sum(workers, (w : Creep) : number => { return w.availableEnergy(); });
+    const workParts = _.sum(workers, (w : Creep) : number => {
+      return _.sum(w.body, (b : BodyPartDefinition) : number => { return b.type == WORK? 1 : 0; });
+    });
+    const damage = this._site.hitsMax - this._site.hitsMax;
+    return (energy*100*workParts > damage);
   }
 
   completion(worker? : Creep) : number {

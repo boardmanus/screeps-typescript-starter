@@ -19,23 +19,23 @@ function harvest_energy_from_site(job : JobHarvest, worker : Creep, site : Sourc
       case ERR_NO_BODYPART:
       case ERR_BUSY:
       default:
-        log.error(`${job.id()}: unexpected failure when ${worker} tried withdrawing energy from ${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected failure when ${worker} tried withdrawing energy from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_ENOUGH_RESOURCES:
         // The site is empty - this job is complete
-        log.warning(`${job.id()}: ${site.id} doesn't have any energy for ${worker} to harvest (${u.errstr(res)})`);
+        log.warning(`${job}: ${site.id} doesn't have any energy for ${worker} to harvest (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
         res = worker.moveTo(site);
         if (res == OK) {
-          log.info(`${job.id()}: ${worker} is moving to harvest at ${site}`);
+          log.info(`${job}: ${worker} is moving to harvest at ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job.id()}: ${worker} failed to move to ${site} (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed to move to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       case OK:
-        log.info(`${job.id()}: ${worker} is harvesting at ${site}`);
+        log.info(`${job}: ${worker} is harvesting at ${site}`);
         break;
     }
   }
@@ -133,7 +133,7 @@ export class JobHarvest implements Job {
 
   constructor(site : HarvestSite, priority? : number) {
     this._site = site;
-    this._priority = priority || 5;
+    this._priority = (priority !== undefined)? priority : 5;
   }
 
   id() : string {
@@ -149,8 +149,8 @@ export class JobHarvest implements Job {
     return this._priority;
   }
 
-  site() : RoomPosition {
-    return this._site.pos;
+  site() : RoomObject {
+    return this._site;
   }
 
   baseWorkerBody() : BodyPartConstant[] {
@@ -164,6 +164,17 @@ export class JobHarvest implements Job {
 
     return false;
   }
+
+  /*
+  efficiency(worker : Creep) : number {
+    const space = worker.freeSpace();
+    const numWorkerParts = u.numWorkerParts(worker);
+    const harvestEnergyPerTick = numWorkerParts*HARVEST_POWER;
+    const timeToFill = space/harvestEnergyPerTick;
+    const distance = worker.pos.getRangeTo(this._site);
+    return 0;
+  }
+  */
 
   prerequisite(worker : Creep) : JobPrerequisite {
     if (_.sum(worker.carry) == worker.carryCapacity) {
@@ -190,7 +201,7 @@ export class JobHarvest implements Job {
   completion(worker : Creep) : number {
     if (worker) {
       const c = _.sum(worker.carry)/worker.carryCapacity;
-      log.debug(`${this.id()}: completion of ${worker} => ${c}`);
+      log.debug(`${this}: completion of ${worker} => ${c}`);
       return c;
     }
 
