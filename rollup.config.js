@@ -25,7 +25,9 @@ export default {
   plugins: [
     clean(),
     resolve(),
-    commonjs(),
+    commonjs({namedExports: {
+        'node_modules/screeps-profiler/screeps-profiler.js': ['enable', 'wrap']
+      }}),
     typescript({tsconfig: "./tsconfig.json"}),
     screeps({config: cfg, dryRun: cfg == null})
   ]
