@@ -28,7 +28,7 @@ function unload_at_site(job : JobUnload, worker : Creep, site : UnloadSite) : Op
   }
 }
 
-export type UnloadSite = Extension | Spawn | Storage | Container | Link | Creep;
+export type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | Creep;
 export class JobUnload implements Job {
 
   static readonly TYPE = 'unload';

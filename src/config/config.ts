@@ -1,4 +1,5 @@
 import { LogLevels } from "../lib/logger/logLevels";
+import * as data from "../../package.json";
 
 /**
  * Enable this if you want a lot of text to be logged to console.
@@ -47,7 +48,7 @@ export const LOG_MAX_PAD: number = 100;
  * Repo and revision are filled in at build time for git repositories.
  */
 // export const LOG_VSC = { repo: "@@_repo_@@", revision: "@@_revision_@@", valid: false };
-export const LOG_VSC = { repo: "@@_repo_@@", revision: __REVISION__, valid: false };
+export const LOG_VSC = { repo: "@@_repo_@@", revision: (<any>data).version, valid: false };
 
 /**
  * URL template for VSC links, this one works for github and gitlab.

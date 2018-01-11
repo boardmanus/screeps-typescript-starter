@@ -129,7 +129,7 @@ export class Mayor {
     const newBosses = _.reduce(
       allJobs,
       (bosses : Boss[], job : Job) : Boss[] => {
-        if (!_.find(this._bosses, (boss : Boss) : boolean => { return boss.job.id() == job.id(); })) {
+        if (!_.find(this._bosses, {filter: (boss : Boss) : boolean => { return boss.job.id() == job.id(); }})) {
           bosses.push(new Boss(job));
         }
         return bosses;
@@ -153,7 +153,7 @@ export class Mayor {
 
     log.debug(`${this}: ${vacancies.length} vacant jobs`);
 
-    const unemployed = this._city.room.find<Creep>(FIND_MY_CREEPS, { filter: (worker : Creep) => { return !worker.isEmployed(); }});
+    const unemployed : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (worker : Creep) => { return !worker.isEmployed(); }});
     log.debug(`${this}: ${unemployed.length} unemployed workers`)
     const lazyWorkers = this.assignWorkers(bosses, unemployed);
 
@@ -177,13 +177,13 @@ export class Mayor {
 
   pickupJobs() : Job[] {
     const scavengeJobs : Job[] = _.map(
-      this._city.room.find<Resource>(FIND_DROPPED_RESOURCES),
+      this._city.room.find(FIND_DROPPED_RESOURCES),
       (r : Resource) : Job => {
         return new JobPickup(r);
       });
 
     const takeJobs : Job[] = _.map(
-      this._city.room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : StructureContainer) => {
+      this._city.room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
         return s.structureType == STRUCTURE_CONTAINER && s.availableEnergy() > 0;
       }}),
       (s : StructureContainer) : Job => {
@@ -205,12 +205,12 @@ export class Mayor {
   }
 
   unloadJobs() : Job[] {
-    const storage : (Storage|Container)[] = this._city.room.find(FIND_STRUCTURES, { filter: (s : Structure) => {
+    const storage = this._city.room.find<StructureStorage|StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
       return s.freeSpace() > 0 && (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE);
     }});
-    const jobs =  _.map(storage, (s : Storage|Container) : JobUnload => {
+    const jobs =  _.map(storage, (s : StructureStorage|StructureContainer) : JobUnload => {
       return new JobUnload(s);
-    })
+    });
     log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
   }

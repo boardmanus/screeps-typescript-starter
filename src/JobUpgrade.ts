@@ -3,7 +3,7 @@ import { Job, JobPrerequisite, JobFactory } from "./Job";
 import { log } from "./lib/logger/log"
 import u from "./Utility";
 
-function upgrade_site(job : JobUpgrade, worker : Creep, site : Controller) : Operation {
+function upgrade_site(job : JobUpgrade, worker : Creep, site : StructureController) : Operation {
   return () => {
     let res = worker.upgradeController(site);
     switch (res) {
@@ -36,10 +36,10 @@ export class JobUpgrade implements Job {
 
   static readonly TYPE = 'upgrade';
 
-  readonly _site : Controller;
+  readonly _site : StructureController;
   readonly _priority : number;
 
-  constructor(site : Controller, priority? : number) {
+  constructor(site : StructureController, priority? : number) {
     this._site = site;
     this._priority = (priority !== undefined)? priority : 2;
   }
@@ -109,7 +109,7 @@ export class JobUpgrade implements Job {
 
 JobFactory.addBuilder(JobUpgrade.TYPE, (id: string): Job|undefined => {
   const frags = id.split('-');
-  const site = <Controller>Game.getObjectById(frags[2]);
+  const site = <StructureController>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   return new JobUpgrade(site);
 });

@@ -53,7 +53,7 @@ function surrounding_positions(pos : RoomPosition, radius : number) : RoomPositi
 }
 */
 
-function possible_extension_sites(spawn : Spawn, numExtensions : number) : RoomPosition[] {
+function possible_extension_sites(spawn : StructureSpawn, numExtensions : number) : RoomPosition[] {
   let radius = 1;
   let sites : RoomPosition[] = [];
   while (sites.length < numExtensions && radius++ < 5) {
@@ -122,10 +122,10 @@ function possible_container_sites(source : Source) : RoomPosition[] {
 class BuildingWork implements Work {
 
   readonly site : RoomPosition;
-  readonly type : StructureConstant;
+  readonly type : BuildableStructureConstant;
   readonly room : Room;
 
-  constructor(room : Room, pos : RoomPosition, type : StructureConstant) {
+  constructor(room : Room, pos : RoomPosition, type : BuildableStructureConstant) {
     this.site = pos
     this.type = type;
     this.room = room;
@@ -179,9 +179,7 @@ export class Architect implements Expert {
     const controller = room.controller;
     if (!controller) return [];
 
-    const numExtensions =
-      room.find(FIND_MY_CONSTRUCTION_SITES, { filter: { structureType: STRUCTURE_EXTENSION } }).length +
-      room.find(FIND_MY_STRUCTURES, { filter: { structureType: STRUCTURE_EXTENSION } }).length;
+    const numExtensions = u.find_num_building_sites(room, STRUCTURE_EXTENSION);
 
     const allowedNumExtensions = CONTROLLER_STRUCTURES.extension[controller.level];
     log.info(`${this}: current num extensions ${numExtensions} - allowed ${allowedNumExtensions}`)
@@ -199,8 +197,8 @@ export class Architect implements Expert {
     const desiredNumExtensions = allowedNumExtensions - numExtensions;
 
     const extensionPos : RoomPosition[] = _.take(_.flatten(_.map(
-      room.find<Spawn>(FIND_MY_SPAWNS),
-      (spawn : Spawn) : RoomPosition[] => {
+      room.find(FIND_MY_SPAWNS),
+      (spawn : StructureSpawn) : RoomPosition[] => {
         return possible_extension_sites(spawn, desiredNumExtensions);
       })),
       desiredNumExtensions);
@@ -216,10 +214,7 @@ export class Architect implements Expert {
     const controller = room.controller;
     if (!controller) return [];
 
-    const numContainers =
-      room.find(FIND_MY_CONSTRUCTION_SITES, { filter: { structureType: STRUCTURE_CONTAINER } }).length +
-      room.find(FIND_STRUCTURES, { filter: { structureType: STRUCTURE_CONTAINER } }).length;
-
+    const numContainers = u.find_num_building_sites(room, STRUCTURE_CONTAINER);
     const allowedNumContainers = CONTROLLER_STRUCTURES.container[controller.level];
     log.info(`${this}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
 
@@ -234,7 +229,7 @@ export class Architect implements Expert {
     }
 
     const containerPos : RoomPosition[] = _.flatten(_.map(
-      room.find<Source>(FIND_SOURCES),
+      room.find(FIND_SOURCES),
       (source : Source) : RoomPosition[] => {
         return possible_container_sites(source);
       }));

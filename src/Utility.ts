@@ -74,6 +74,54 @@ namespace u {
     log.debug(`generate_body: newBody=${body}=${body_cost(body)} => remainingFunds=${funds}`)
     return body;
   }
+
+  export function find_num_building_sites(room : Room, type : StructureConstant) : number {
+    const numConstuctionSites =
+      room.find(FIND_CONSTRUCTION_SITES, { filter: (c : ConstructionSite) => { return c.structureType == type }}).length;
+    const numStructures =
+      room.find(FIND_STRUCTURES, { filter: (s : AnyStructure) => { return s.structureType == type }}).length;
+
+    return numConstuctionSites + numStructures;
+  }
+
+  export function terrain_cost(pos : RoomPosition|null) : number {
+    if (!pos) {
+      return 100000;
+    }
+
+    const structures = pos.lookFor(LOOK_STRUCTURES);
+    if (_.find(structures, (s : Structure) => { return s.structureType == STRUCTURE_ROAD; })) {
+      return 2;
+    }
+
+    const terrain = pos.lookFor(LOOK_TERRAIN)[0];
+    switch (terrain) {
+      case "plain" : return 2;
+      case "swamp" : return 10;
+      default:
+      case "wall" : return 1000000;
+    }
+  }
+
+  export function movement_time(worker : Creep, path : PathStep[]) : number {
+    const [m, c] = _.reduce(
+      worker.body,
+      ([n, c], b : BodyPartDefinition) : [number, number] => {
+        return [ (b.type == MOVE)? n+1 : n, (b.type == CARRY)? c+1 : c ];
+    });
+
+    const w = worker.body.length - m - c*(worker.freeSpace()/worker.carryCapacity);
+    const f = _.sum(path, (p : PathStep) : number => {
+      const t = terrain_cost(worker.room.getPositionAt(p.x, p.y));
+      return w*t - 2*m;
+    });
+
+    // time waiting for fatigue
+    const t_f = f/(2*m);
+
+    // total time is waiting time + traversal time
+    return t_f + path.length;
+  }
 }
 
 export default u;

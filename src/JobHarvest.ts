@@ -165,16 +165,19 @@ export class JobHarvest implements Job {
     return false;
   }
 
-  /*
+
   efficiency(worker : Creep) : number {
     const space = worker.freeSpace();
-    const numWorkerParts = u.numWorkerParts(worker);
+    const numWorkerParts = _.sum(worker.body, (b : BodyPartDefinition) : number => { return (b.type == WORK)? 1 : 0; });
     const harvestEnergyPerTick = numWorkerParts*HARVEST_POWER;
     const timeToFill = space/harvestEnergyPerTick;
-    const distance = worker.pos.getRangeTo(this._site);
-    return 0;
+    const path = worker.pos.findPathTo(this._site);
+    const timeToMove = u.movement_time(worker, path);
+
+    // Efficiency ithe energy harvest per second from where the creep is.
+    return space / (timeToFill + timeToMove);
   }
-  */
+
 
   prerequisite(worker : Creep) : JobPrerequisite {
     if (_.sum(worker.carry) == worker.carryCapacity) {

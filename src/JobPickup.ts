@@ -3,7 +3,7 @@ import { Job, JobFactory, JobPrerequisite } from "./Job";
 import { log } from "./lib/logger/log"
 import u from "./Utility"
 
-export type PickupSite = Resource|Container|Storage|Link|Extension|Spawn;
+export type PickupSite = Resource|StructureContainer|StructureStorage|StructureLink|StructureExtension|StructureSpawn;
 
 
 function withdraw_from_site(job : JobPickup, worker : Creep, site : Structure) : Operation {

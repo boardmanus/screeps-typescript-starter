@@ -1,5 +1,6 @@
 "use strict";
 
+import gitversion from "rollup-plugin-git-version";
 import clean from "rollup-plugin-clean";
 import resolve from "rollup-plugin-node-resolve";
 import commonjs from "rollup-plugin-commonjs";
@@ -23,6 +24,7 @@ export default {
   },
 
   plugins: [
+    gitversion(),
     clean(),
     resolve(),
     commonjs({namedExports: {

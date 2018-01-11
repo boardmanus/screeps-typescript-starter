@@ -3,6 +3,7 @@ import { log } from "./lib/logger/log";
 import { King } from "./King";
 import { Operation } from "./Operation";
 import "./extensions";
+import * as data from "../package.json";
 
 
 // Any code written outside the `loop()` method is executed only when the
@@ -18,9 +19,7 @@ import "./extensions";
 Profiler.enable();
 
 log.info(`Scripts bootstrapped`);
-if (__REVISION__) {
-  log.info(`Revision ID: ${__REVISION__}`);
-}
+log.info(`Revision ID: ${(<any>data).version}`);
 
 
 function mloop() {

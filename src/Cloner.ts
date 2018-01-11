@@ -19,11 +19,13 @@ function get_cloning_energy(city : City) : [number, number] {
 }
 
 function get_spawners(city : City) : StructureSpawn[] {
-  return city.room.find(FIND_MY_STRUCTURES, { filter : { structureType: STRUCTURE_SPAWN }});
+  return city.room.find<StructureSpawn>(FIND_MY_STRUCTURES, { filter: (s : AnyStructure) =>
+    { return s.structureType == STRUCTURE_SPAWN;
+  }});
 }
 
 function get_spawners_and_extensions(room : Room) : CloningStructure[] {
-  return room.find(FIND_MY_STRUCTURES, { filter : (s : Structure) => {
+  return room.find<CloningStructure>(FIND_MY_STRUCTURES, { filter: (s : Structure) => {
     if (s.structureType != STRUCTURE_SPAWN && s.structureType != STRUCTURE_EXTENSION) {
       return false;
     }
@@ -57,11 +59,11 @@ const MIN_SAFE_WORKERS = 3;
 
 class CloningWork implements Work {
 
-  readonly site : Spawn;
+  readonly site : StructureSpawn;
   readonly name : string;
   readonly body : BodyPartConstant[];
 
-  constructor(site : Spawn, name : string, body : BodyPartConstant[]) {
+  constructor(site : StructureSpawn, name : string, body : BodyPartConstant[]) {
     this.site = site;
     this.name = name;
     this.body = body;
@@ -109,7 +111,7 @@ export class Cloner implements Expert {
   survey() : void {
     log.debug(`${this} surveying...`);
     //let pendingJobs = find_pending_jobs(this._city.jobs);
-    this._currentWorkers = this._city.room.find<Creep>(FIND_MY_CREEPS);
+    this._currentWorkers = this._city.room.find(FIND_MY_CREEPS);
     this._numWorkers = this._currentWorkers.length;
     this._maxWorkers = max_workers_allowed(this._city.room);
   }
