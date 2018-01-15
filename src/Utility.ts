@@ -1,4 +1,5 @@
 import { log } from "./lib/logger/log";
+import { FunctionCache } from "./Cache";
 
 namespace u {
   export function map_valid<T, U>(objs : T[], f : (obj : T) => U|undefined|null) : U[] {
@@ -84,6 +85,12 @@ namespace u {
     return numConstuctionSites + numStructures;
   }
 
+  export function is_passible_structure(s : StructureConstant) : boolean {
+    return (s !== STRUCTURE_ROAD
+          && s !== STRUCTURE_CONTAINER
+          && s !== STRUCTURE_RAMPART);
+  }
+
   export function terrain_cost(pos : RoomPosition|null) : number {
     if (!pos) {
       return 100000;
@@ -91,7 +98,7 @@ namespace u {
 
     const structures = pos.lookFor(LOOK_STRUCTURES);
     if (_.find(structures, (s : Structure) => { return s.structureType == STRUCTURE_ROAD; })) {
-      return 2;
+      return 1;
     }
 
     const terrain = pos.lookFor(LOOK_TERRAIN)[0];
@@ -103,13 +110,17 @@ namespace u {
     }
   }
 
-  export function movement_time(worker : Creep, path : PathStep[]) : number {
+  export type Site = Creep|Structure|Resource|Source|Mineral|ConstructionSite;
+
+  export function movement_time(worker : Creep, site : Site) : number {
     const [m, c] = _.reduce(
       worker.body,
       ([n, c], b : BodyPartDefinition) : [number, number] => {
         return [ (b.type == MOVE)? n+1 : n, (b.type == CARRY)? c+1 : c ];
-    });
+      },
+      [0, 0]);
 
+    const path = get_path(worker, site);
     const w = worker.body.length - m - c*(worker.freeSpace()/worker.carryCapacity);
     const f = _.sum(path, (p : PathStep) : number => {
       const t = terrain_cost(worker.room.getPositionAt(p.x, p.y));
@@ -119,8 +130,27 @@ namespace u {
     // time waiting for fatigue
     const t_f = f/(2*m);
 
+    log.debug(`movement_time: ${worker}-${site} ${m},${c},${path},${w},${f},${t_f}`);
+
     // total time is waiting time + traversal time
     return t_f + path.length;
+  }
+
+  const _pathCache : FunctionCache<PathStep[]> = new FunctionCache();
+  export function get_path(from : Site, to : Site) : PathStep[] {
+    return _pathCache.getValue(`${from.id}-${to.id}`, () => { return from.pos.findPathTo(to); });
+  }
+
+  export function work_efficiency(worker : Creep, site : Site, energy : number, energyPerPart : number) : number {
+    const numWorkerParts = _.sum(worker.body, (b : BodyPartDefinition) : number => { return (b.type == WORK)? 1 : 0; });
+    const buildEnergyPerTick = Math.max(1, numWorkerParts)*energyPerPart;
+    const timeToBuild = energy/buildEnergyPerTick;
+    const timeToMove = u.movement_time(worker, site);
+
+    // Efficiency ithe energy harvest per second from where the creep is.
+    const e = energy / Math.max(1, timeToBuild + timeToMove);
+    log.debug(`worker_efficiency: ${worker}-${site} efficiency=${e} (${energy},${numWorkerParts},${buildEnergyPerTick},${timeToBuild},${timeToMove})`);
+    return e;
   }
 }
 

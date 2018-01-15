@@ -43,6 +43,7 @@ export interface Job {
   site() : RoomObject;
   priority() : number;
   isSatisfied(workers : Creep[]) : boolean;
+  efficiency(worker : Creep) : number;
   completion(worker? : Creep) : number;
   work(worker : Creep) : Operation[];
   satisfiesPrerequisite(prerequisite : JobPrerequisite) : boolean;

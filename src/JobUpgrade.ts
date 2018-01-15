@@ -70,6 +70,10 @@ export class JobUpgrade implements Job {
     return priority;
   }
 
+  efficiency(worker : Creep) : number {
+    return u.work_efficiency(worker, this._site, worker.availableEnergy(), UPGRADE_CONTROLLER_POWER);
+  }
+
   site() : RoomObject {
     return this._site;
   }

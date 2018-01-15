@@ -82,6 +82,10 @@ export class JobPickup implements Job {
     return this._priority;
   }
 
+  efficiency(worker : Creep) : number {
+    return u.work_efficiency(worker, this._site, worker.freeSpace(), 10000);
+  }
+
   site() : RoomObject {
     return this._site;
   }

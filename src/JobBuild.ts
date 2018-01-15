@@ -60,6 +60,10 @@ export class JobBuild implements Job {
     return workers.length > 2;
   }
 
+  efficiency(worker : Creep) : number {
+    return u.work_efficiency(worker, this._site, worker.availableEnergy(), BUILD_POWER);
+  }
+
   completion(worker? : Creep) : number {
     const completion = this._site.progress/this._site.progressTotal;
     if (!worker || completion == 1.0) {

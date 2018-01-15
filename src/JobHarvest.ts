@@ -57,11 +57,6 @@ function harvest_per_tick(workers : Creep[]) : number {
   return workParts * 2;
 }
 
-function is_passible_structure(s : StructureConstant) : boolean {
-  return (s !== STRUCTURE_ROAD
-        && s !== STRUCTURE_CONTAINER
-        && s !== STRUCTURE_RAMPART);
-}
 
 function harvest_spaces(source : HarvestSite) : RoomPosition[] {
   const positions = source.pos.surroundingPositions(1, (p : RoomPosition) : boolean => {
@@ -72,7 +67,7 @@ function harvest_spaces(source : HarvestSite) : RoomPosition[] {
       }
       switch (t.type) {
         case LOOK_STRUCTURES:
-          return !t.structure || is_passible_structure(t.structure.structureType);
+          return !t.structure || u.is_passible_structure(t.structure.structureType);
         case LOOK_TERRAIN:
           return (t.terrain !== 'wall');
         default:
@@ -167,15 +162,7 @@ export class JobHarvest implements Job {
 
 
   efficiency(worker : Creep) : number {
-    const space = worker.freeSpace();
-    const numWorkerParts = _.sum(worker.body, (b : BodyPartDefinition) : number => { return (b.type == WORK)? 1 : 0; });
-    const harvestEnergyPerTick = numWorkerParts*HARVEST_POWER;
-    const timeToFill = space/harvestEnergyPerTick;
-    const path = worker.pos.findPathTo(this._site);
-    const timeToMove = u.movement_time(worker, path);
-
-    // Efficiency ithe energy harvest per second from where the creep is.
-    return space / (timeToFill + timeToMove);
+    return u.work_efficiency(worker, this._site, worker.freeSpace(), HARVEST_POWER);
   }
 
 

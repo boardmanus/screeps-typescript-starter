@@ -55,6 +55,10 @@ export class JobRepair implements Job {
     return this._priority;
   }
 
+  efficiency(worker : Creep) : number {
+    return u.work_efficiency(worker, this._site, worker.availableEnergy(), REPAIR_POWER);
+  }
+
   isSatisfied(workers : Creep[]) : boolean {
     const energy = _.sum(workers, (w : Creep) : number => { return w.availableEnergy(); });
     const workParts = _.sum(workers, (w : Creep) : number => {

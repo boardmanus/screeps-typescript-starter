@@ -26,8 +26,9 @@ function worker_rating(worker : Creep, boss : Boss) : number {
     return 10000;
   }
 
-  const closeness = boss.job.site().pos.getRangeTo(worker);
-  return closeness;
+  //const closeness = boss.job.site().pos.getRangeTo(worker);
+  //return closeness;
+  return -boss.job.efficiency(worker);
 }
 
 function find_best_worker(boss : Boss, workers : Creep[]) : Creep|undefined {

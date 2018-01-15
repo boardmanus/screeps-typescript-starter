@@ -55,6 +55,7 @@ export class Boss implements Work {
       u.map_valid_creeps(memory.workers),
       (activeWorkers : Creep[], worker : Creep) => {
         if (job.completion(worker) < 1.0) {
+          worker.setEmployed(true);
           activeWorkers.push(worker);
         }
         else {
@@ -67,7 +68,6 @@ export class Boss implements Work {
 
     const subcontractors = map_valid_subcontractors(memory.subcontractors);
     const boss = new Boss(job, workers, subcontractors);
-    log.debug(`${boss}: from boss memory ${memory.job}, ${memory.workers}, ${memory.subcontractors}`);
     return boss;
   }
 
@@ -78,7 +78,7 @@ export class Boss implements Work {
       subcontractors: _.map(this._subcontractors, (sc : Subcontractor) : SubcontractorMemory => { return sc.toMemory() })
     };
 
-    log.debug(`${this}: to boss memory <${memory.job}, ${memory.workers}, ${memory.subcontractors}>`);
+    //log.debug(`${this}: to boss memory <${memory.job}, ${memory.workers}, ${memory.subcontractors}>`);
     return memory;
   }
 
