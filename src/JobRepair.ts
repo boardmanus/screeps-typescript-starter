@@ -51,8 +51,9 @@ export class JobRepair implements Job {
   site() : RoomObject {
     return this._site;
   }
-  priority() : number {
-    return this._priority;
+
+ priority(workers : Creep[]) : number {
+    return this._priority/(workers.length + 1);
   }
 
   efficiency(worker : Creep) : number {

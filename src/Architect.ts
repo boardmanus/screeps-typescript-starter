@@ -171,7 +171,7 @@ function storage_site_viability(pos : RoomPosition, room : Room) : number {
               return 0;
             }
             else if (t.terrain == 'swamp') {
-              viability *= 0.25;
+              viability *= 1.0;
             }
             break;
           default:

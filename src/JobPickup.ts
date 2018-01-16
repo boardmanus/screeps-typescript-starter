@@ -35,22 +35,25 @@ function pickup_at_site(job : JobPickup, worker : Creep, site : Resource) : Oper
   return () => {
     let res = worker.pickup(site);
     switch (res) {
-      default:
-        log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
-        break;
-      case ERR_NOT_IN_RANGE: {
-        const res = worker.moveTo(site);
-          if (res == OK) {
-            log.info(`${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
-          }
-          else {
-            log.warning(`${job}: ${worker} failed moving to resources-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-          }
-        }
-        break;
       case OK:
         // Finished job.
         log.info(`${job}: ${worker} picked up resources from ${site}`);
+        break;
+      case ERR_NOT_IN_RANGE: {
+        let res = worker.moveTo(site);
+        if (res == OK) {
+          log.info(`${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
+          if (worker.pickup(site) == OK) {
+            log.info(`${job}: ... and ${worker} picked up resources from ${site}`);
+          }
+        }
+        else {
+          log.warning(`${job}: ${worker} failed moving to resources-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+        }
+        break;
+      }
+      default:
+        log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -66,7 +69,6 @@ export class JobPickup implements Job {
   constructor(site : PickupSite, priority? : number) {
     this._site = site;
     this._priority = (priority !== undefined)? priority : 4;
-    log.debug(`${this}: creating pickup job with priority-${this._priority} (passed ${priority})`);
   }
 
   id() : string {
@@ -78,7 +80,7 @@ export class JobPickup implements Job {
     return this.id();
   }
 
-  priority() : number {
+  priority(workers : Creep[]) : number {
     return this._priority;
   }
 
@@ -91,11 +93,8 @@ export class JobPickup implements Job {
   }
 
   isSatisfied(workers : Creep[]) : boolean {
-    const space = _.reduce(workers, (a : number, w : Creep) : number => {
-      return a + w.freeSpace();
-    });
-
-    return space >= this._site.availableEnergy();
+    const space = _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
+    return this._site.availableEnergy() < space;
   }
 
   completion(worker? : Creep) : number {

@@ -12,7 +12,7 @@ import { log } from "./lib/logger/log"
 import u from "./Utility";
 
 
-function worker_rating(worker : Creep, boss : Boss) : number {
+function worker_rating(worker : Creep, boss : Boss, minPriority : number) : number {
   //const suitability = boss.job.suitability(worker);
   const jobSite = boss.job.site();
   const lastJobSite = worker.getlastJobSite();
@@ -28,7 +28,8 @@ function worker_rating(worker : Creep, boss : Boss) : number {
 
   //const closeness = boss.job.site().pos.getRangeTo(worker);
   //return closeness;
-  return -boss.job.efficiency(worker);
+  const p = Math.max(minPriority, boss.priority());
+  return -boss.job.efficiency(worker)*p;
 }
 
 function find_best_worker(boss : Boss, workers : Creep[]) : Creep|undefined {
@@ -46,13 +47,13 @@ function find_best_workers(boss : Boss, workers : Creep[]) : Creep[] {
   if (workers.length == 1) {
     return workers;
   }
-  const orderedWorkers = _.sortBy(workers, (w : Creep) => { return worker_rating(w, boss); });
+  const orderedWorkers = _.sortBy(workers, (w : Creep) => { return worker_rating(w, boss, 0); });
   log.debug(`bestworkers for ${boss}: ${orderedWorkers}`);
   return orderedWorkers;
 }
 
-function find_best_boss(worker : Creep, bosses : Boss[]) : Boss|undefined {
-  log.debug(`finding best job for ${worker.id} from ${bosses.length} bosses`);
+function find_best_boss(worker : Creep, bosses : Boss[], minPriority : number) : Boss|undefined {
+  log.debug(`finding best job for ${worker} from ${bosses.length} bosses`);
   const satisfiedBosses = _.filter(bosses, (b : Boss) => {
     return (b.job.prerequisite(worker) == JobPrerequisite.NONE
       && b.needsWorkers()
@@ -66,7 +67,7 @@ function find_best_boss(worker : Creep, bosses : Boss[]) : Boss|undefined {
     return satisfiedBosses[1];
   }
 
-  const bestBosses = _.sortBy(satisfiedBosses, (b : Boss) => { return worker_rating(worker, b); });
+  const bestBosses = _.sortBy(satisfiedBosses, (b : Boss) => { return worker_rating(worker, b, minPriority); });
   return bestBosses[0];
 }
 
@@ -130,7 +131,7 @@ export class Mayor {
     const newBosses = _.reduce(
       allJobs,
       (bosses : Boss[], job : Job) : Boss[] => {
-        if (!_.find(this._bosses, {filter: (boss : Boss) : boolean => { return boss.job.id() == job.id(); }})) {
+        if (_.every(this._bosses, (boss : Boss) : boolean => { return boss.job.id() != job.id(); })) {
           bosses.push(new Boss(job));
         }
         return bosses;
@@ -148,7 +149,7 @@ export class Mayor {
 
     const bosses = this.prioritizeBosses(this._bosses.concat(newBosses));
 
-    const vacancies = _.map(
+    const vacancies : Job[] = _.map(
       _.filter(bosses, (boss : Boss) => { return boss.needsWorkers(); }),
       (boss : Boss) : Job => { return boss.job; });
 
@@ -185,7 +186,7 @@ export class Mayor {
 
     const takeJobs : Job[] = _.map(
       this._city.room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
-        return s.structureType == STRUCTURE_CONTAINER && s.availableEnergy() > 0;
+        return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.availableEnergy() > 0;
       }}),
       (s : StructureContainer) : Job => {
         return new JobPickup(s, 1);
@@ -245,8 +246,9 @@ export class Mayor {
     const orderedWorkers = find_best_workers(boss, workers);
     let worker : Creep|undefined;
     let subcontractingBoss : Boss|undefined;
+    const minPriority = boss.priority();
     for (worker of orderedWorkers) {
-      subcontractingBoss = find_best_boss(worker, allBosses);
+      subcontractingBoss = find_best_boss(worker, allBosses, minPriority);
       if (!subcontractingBoss) {
         continue;
       }
@@ -272,14 +274,7 @@ export class Mayor {
 
     const bestWorker = find_best_worker(boss, directWorkers);
     if (bestWorker) {
-      log.debug(`${this}: assigning worker ${bestWorker.name}`);
-      const bestBoss = find_best_boss(bestWorker, allBosses);
-      if (!bestBoss || bestBoss === boss || boss.job.priority() > 3) {
-        boss.assignWorker(bestWorker);
-      }
-      else {
-        bestBoss.assignWorker(bestWorker);
-      }
+      boss.assignWorker(bestWorker);
     }
     else {
       log.debug(`${this}: looking for a subcontractor from ${allBosses.length} bosses, and ${indirectWorkers.length} workers`);
@@ -290,13 +285,24 @@ export class Mayor {
   }
 
   assignWorkers(bosses : Boss[], availableWorkers : Creep[]) : Creep[] {
-    let lazyWorkers = availableWorkers;
 
+    const importantJobs = _.filter(bosses, (b : Boss) => { return b.priority() >= 3; });
+    let lazyWorkers = availableWorkers;
     for (const boss of bosses) {
       if (lazyWorkers.length == 0) return [];
       lazyWorkers = this.assignWorker(boss, bosses, lazyWorkers);
     }
 
-    return lazyWorkers;
+    for (const worker of lazyWorkers) {
+      const bestBoss = find_best_boss(worker, bosses, 0);
+      if (bestBoss) {
+        bestBoss.assignWorker(worker);
+      }
+      else {
+        log.error(`${this}: couldn't find a job for ${worker}???`);
+      }
+    }
+
+    return _.reject(availableWorkers, (w : Creep) => { return w.isEmployed(); });
   }
 }

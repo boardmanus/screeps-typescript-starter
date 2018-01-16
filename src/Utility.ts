@@ -86,9 +86,9 @@ namespace u {
   }
 
   export function is_passible_structure(s : StructureConstant) : boolean {
-    return (s !== STRUCTURE_ROAD
-          && s !== STRUCTURE_CONTAINER
-          && s !== STRUCTURE_RAMPART);
+    return (s == STRUCTURE_ROAD
+          || s == STRUCTURE_CONTAINER
+          || s == STRUCTURE_RAMPART);
   }
 
   export function terrain_cost(pos : RoomPosition|null) : number {
@@ -130,8 +130,6 @@ namespace u {
     // time waiting for fatigue
     const t_f = f/(2*m);
 
-    log.debug(`movement_time: ${worker}-${site} ${m},${c},${path},${w},${f},${t_f}`);
-
     // total time is waiting time + traversal time
     return t_f + path.length;
   }
@@ -148,8 +146,9 @@ namespace u {
     const timeToMove = u.movement_time(worker, site);
 
     // Efficiency ithe energy harvest per second from where the creep is.
-    const e = energy / Math.max(1, timeToBuild + timeToMove);
-    log.debug(`worker_efficiency: ${worker}-${site} efficiency=${e} (${energy},${numWorkerParts},${buildEnergyPerTick},${timeToBuild},${timeToMove})`);
+    const t = Math.max(1, timeToBuild + timeToMove);
+    const e = energy / t;
+    log.debug(`worker_efficiency: ${worker}-${site} efficiency=${e} (energy=${e}, time=~${t}ticks)`);
     return e;
   }
 }

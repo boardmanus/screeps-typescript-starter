@@ -7,23 +7,27 @@ function unload_at_site(job : JobUnload, worker : Creep, site : UnloadSite) : Op
   return () => {
     let res = worker.transfer(site, RESOURCE_ENERGY);
     switch (res) {
-      default:
-        log.error(`${job}: unexpected error while ${worker} unloaded at ${site} (${u.errstr(res)})`);
-        break;
-      case ERR_NOT_IN_RANGE: {
-        const res = worker.moveTo(site);
-          if (res == OK) {
-            log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-          }
-          else {
-            log.warning(`${job}: ${worker} failed moving to unload ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-          }
-        }
-        break;
       case OK:
         // Finished job.
         log.info(`${job}: ${worker} transferred energy to ${site}`);
         break;
+      case ERR_NOT_IN_RANGE:
+        res = worker.moveTo(site);
+        if (res == OK) {
+          log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          if (worker.transfer(site, RESOURCE_ENERGY) == OK) {
+            log.info(`${job}: ... and ${worker} transferred energy to ${site}`);
+          }
+        }
+        else {
+          log.warning(`${job}: ${worker} failed moving to unload ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+        }
+        break;
+      default:
+        log.error(`${job}: unexpected error while ${worker} unloaded at ${site} (${u.errstr(res)})`);
+        break;
+
+
     }
   }
 }
@@ -38,7 +42,7 @@ export class JobUnload implements Job {
 
   constructor(site : UnloadSite, priority? : number) {
     this._site = site;
-    this._priority = (priority !== undefined)? priority : 3;
+    this._priority = (priority !== undefined)? priority : 1;
   }
 
   id() : string {
@@ -49,7 +53,7 @@ export class JobUnload implements Job {
     return this.id();
   }
 
-  priority() : number {
+  priority(workers : Creep[]) : number {
     return this._priority;
   }
 

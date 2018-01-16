@@ -96,7 +96,7 @@ export class Cloner implements Expert {
   private _maxWorkers : number;
 
   private getUniqueCreepName(job : Job) : string {
-    return `${this._city.name}-${job}-${this._uniqueId++}`;
+    return `${this._city.name}-${this._uniqueId++}`;
   }
 
   constructor(city: City) {
@@ -125,12 +125,12 @@ export class Cloner implements Expert {
     log.debug(`${this} scheduling...`);
     const sne = get_spawners_and_extensions(this._city.room);
     log.debug(`${this}: ${sne.length} spawners and extensions requiring energy`);
-    const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w : Creep) : number => { return w.ticksToLive < 100? 1 : 0; }));
+    const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w : Creep) : number => { return w.ticksToLive < 200? 1 : 0; }));
     return _.map(
       sne,
       (site : CloningStructure) : Job => {
-        const priority = 1.0 - (this._numWorkers - nearlyDeadWorkers)/this._maxWorkers;
-        return new JobUnload(site, 1 + priority*8);
+        const workerHealthRatio = (this._numWorkers - nearlyDeadWorkers)/this._maxWorkers;
+        return new JobUnload(site, 3 + (1.0 - workerHealthRatio)*7);
       });
   }
 
@@ -140,12 +140,29 @@ export class Cloner implements Expert {
     return r;
   }
 
+  private bodyTemplate(job : Job, specialize : boolean) : BodyPartConstant[] {
+
+    if (specialize) {
+      return job.baseWorkerBody();
+    }
+
+    if (this._city.getRoadsEstablished()) {
+      // Don't need the extra move
+      return [ WORK, MOVE, CARRY ];
+    }
+
+    return [WORK, MOVE, CARRY, MOVE]
+  }
+
   clone(jobs : Job[]) : Work[] {
 
     log.debug(`${this}: ${jobs.length} unworked jobs...`)
     let jobIndex = 0;
     let work : Work[] = [];
 
+    // Start specializing after links have been established.
+    const links = this._city.room.find(FIND_MY_STRUCTURES, { filter: (s : Structure) => { return s.structureType == STRUCTURE_LINK; }});
+    const specialize = (links.length > 2);
 
     if (this._numWorkers >= this._maxWorkers) {
       return work;
@@ -160,11 +177,11 @@ export class Cloner implements Expert {
       const [availableEnergy, totalEnergy] = get_cloning_energy(this._city);
 
       if (this._numWorkers > MIN_SAFE_WORKERS &&
-          availableEnergy/totalEnergy < 0.5) {
+          availableEnergy/totalEnergy < 0.9) {
         return work;
       }
 
-      const creepBody = u.generate_body(mij.baseWorkerBody(), availableEnergy);
+      const creepBody = u.generate_body(this.bodyTemplate(mij, specialize), availableEnergy);
       if (creepBody.length == 0) {
         log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep for ${mij}`);
         return work;

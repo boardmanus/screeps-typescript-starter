@@ -41,7 +41,7 @@ export enum JobPrerequisite {
 export interface Job {
   id() : string;
   site() : RoomObject;
-  priority() : number;
+  priority(workers : Creep[]) : number;
   isSatisfied(workers : Creep[]) : boolean;
   efficiency(worker : Creep) : number;
   completion(worker? : Creep) : number;

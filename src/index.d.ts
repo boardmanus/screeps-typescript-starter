@@ -9,6 +9,7 @@ interface RoomMemory {
   expats: string[];
   bosses: BossMemory[];
   cloneCount: number;
+  roadsEstablished: boolean;
 }
 
 interface SubcontractorMemory {

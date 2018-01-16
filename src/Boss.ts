@@ -103,7 +103,7 @@ export class Boss implements Work {
   }
 
   priority() : number {
-    return this.job.priority() * this._workers.length;
+    return this.job.priority(this._workers);
   }
 
   jobComplete() : boolean {

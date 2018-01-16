@@ -69,7 +69,7 @@ function harvest_spaces(source : HarvestSite) : RoomPosition[] {
         case LOOK_STRUCTURES:
           return !t.structure || u.is_passible_structure(t.structure.structureType);
         case LOOK_TERRAIN:
-          return (t.terrain !== 'wall');
+          return (t.terrain != 'wall');
         default:
           break;
       }
@@ -90,8 +90,11 @@ function is_energy_harvesting_satisfied(source : Source, workers : Creep[]) : bo
     return false;
   }
 
-  const timeToHarvestAllEnergy = source.energy / harvest_per_tick(workers);
-  return 300 > timeToHarvestAllEnergy;
+  const remainingEnergy = source.energy - _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
+  log.debug(`is_energy_harvesting_satisfied: ${source} => remainingEnergy=${remainingEnergy}`);
+  return remainingEnergy <= 0;
+  //const timeToHarvestAllEnergy = source.energy / harvest_per_tick(workers);
+  //return 300 > timeToHarvestAllEnergy;
 }
 
 function is_mineral_harvesting_satisfied(mineral : Mineral, workers : Creep[]) : boolean {
@@ -103,8 +106,10 @@ function is_mineral_harvesting_satisfied(mineral : Mineral, workers : Creep[]) :
     return false;
   }
 
-  const timeToHarvestAllMinerals = mineral.mineralAmount / harvest_per_tick(workers);
-  return mineral.ticksToRegeneration > timeToHarvestAllMinerals;
+  const remaining = mineral.mineralAmount - _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
+  return remaining > 0;
+  //const timeToHarvestAllMinerals = mineral.mineralAmount / harvest_per_tick(workers);
+  //return mineral.ticksToRegeneration > timeToHarvestAllMinerals;
 }
 
 function mineral_capacity(mineral : Mineral) : number {
@@ -135,12 +140,11 @@ export class JobHarvest implements Job {
     return `job-${JobHarvest.TYPE}-${this._site.id}-${this._priority}`;
   }
 
-
   toString() : string {
     return this.id();
   }
 
-  priority() : number {
+  priority(workers : Creep[]) : number {
     return this._priority;
   }
 
@@ -177,6 +181,7 @@ export class JobHarvest implements Job {
   isSatisfied(workers : Creep[]) : boolean {
 
     const positions = harvest_spaces(this._site);
+    log.debug(`${this}: has ${positions.length} harvest spots`);
     if (workers.length >= positions.length) {
       return true;
     }
@@ -188,7 +193,7 @@ export class JobHarvest implements Job {
     return is_mineral_harvesting_satisfied(this._site, workers);
   }
 
-  completion(worker : Creep) : number {
+  completion(worker? : Creep) : number {
     if (worker) {
       const c = _.sum(worker.carry)/worker.carryCapacity;
       log.debug(`${this}: completion of ${worker} => ${c}`);

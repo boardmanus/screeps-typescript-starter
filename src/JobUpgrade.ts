@@ -48,26 +48,27 @@ export class JobUpgrade implements Job {
     return `job-${JobUpgrade.TYPE}-${this._site.id}-${this._priority}`;
   }
 
-
   toString() : string {
     return this.id();
   }
 
-  priority() : number {
+  priority(workers : Creep[]) : number {
     let priority : number = 1;
     if (this._site.ticksToDowngrade < 100) {
-      priority = 10;
+      priority = this._priority*5;
     }
     else if (this._site.ticksToDowngrade < 1000) {
-      priority = 5;
+      priority = this._priority*2;
     }
     else if (this._site.ticksToDowngrade < 2000) {
-      priority = 2;
+      priority = this._priority;
     }
     else {
       priority = 1;
     }
-    return priority;
+
+    log.debug(`${this}: ticks to controller downgrade = ${this._site.ticksToDowngrade}`)
+    return this._priority/(workers.length + 1);
   }
 
   efficiency(worker : Creep) : number {

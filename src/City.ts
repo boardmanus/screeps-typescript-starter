@@ -54,6 +54,7 @@ export class City {
 
     if (!room.memory.expats) room.memory.expats = [];
 
+
     this._mayor = new Mayor(this);
   }
 
@@ -69,6 +70,10 @@ export class City {
   get memory() : RoomMemory { return this._room.memory; }
   get room() : Room { return this._room; }
   get mayor() : Mayor { return this._mayor; }
+
+  getRoadsEstablished() : boolean {
+    return this.room.memory.roadsEstablished || false;
+  }
 
   getCloningEnergySites() : Structure[] {
     return this.room.find<Structure>(FIND_MY_STRUCTURES, {
