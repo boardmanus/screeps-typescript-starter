@@ -116,5 +116,6 @@ JobFactory.addBuilder(JobUpgrade.TYPE, (id: string): Job|undefined => {
   const frags = id.split('-');
   const site = <StructureController>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobUpgrade(site);
+  const priority = Number(frags[3]);
+  return new JobUpgrade(site, priority);
 });

@@ -41,7 +41,7 @@ export class JobRepair implements Job {
   }
 
   id() : string {
-    return `job-${JobRepair.TYPE}-${this._site.id}-${this._priority}`;
+    return `job-${JobRepair.TYPE}-${this._site.id}-${Math.round(this._priority)}`;
   }
 
   toString() : string {
@@ -108,5 +108,7 @@ JobFactory.addBuilder(JobRepair.TYPE, (id: string): Job|undefined => {
   const frags = id.split('-');
   const site = <Structure>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobRepair(site);
+  const priority = Number(frags[3]);
+  log.debug(`JobFactory-build repair ${frags} - priority=${priority}`);
+  return new JobRepair(site, priority);
 });

@@ -57,7 +57,9 @@ export class JobBuild implements Job {
   }
 
   isSatisfied(workers : Creep[]) : boolean {
-    return workers.length > 2;
+    const energy = _.sum(workers, (w : Creep) : number => { return w.availableEnergy(); });
+    const energyRequired = (this._site.progressTotal - this._site.progress)/(BUILD_POWER);
+    return energy >= energyRequired;
   }
 
   efficiency(worker : Creep) : number {
@@ -103,5 +105,6 @@ JobFactory.addBuilder(JobBuild.TYPE, (id: string): Job|undefined => {
   const frags = id.split('-');
   const site = <ConstructionSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobBuild(site);
+  const priority = Number(frags[3]);
+  return new JobBuild(site, priority);
 });

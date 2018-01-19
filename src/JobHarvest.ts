@@ -67,7 +67,7 @@ function harvest_spaces(source : HarvestSite) : RoomPosition[] {
       }
       switch (t.type) {
         case LOOK_STRUCTURES:
-          return !t.structure || u.is_passible_structure(t.structure.structureType);
+          return !t.structure || u.is_passible_structure(t.structure);
         case LOOK_TERRAIN:
           return (t.terrain != 'wall');
         default:
@@ -222,5 +222,6 @@ JobFactory.addBuilder(JobHarvest.TYPE, (id: string) : Job|undefined => {
   const frags = id.split('-');
   const site : HarvestSite = <HarvestSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobHarvest(site);
+  const priority = Number(frags[3]);
+  return new JobHarvest(site, priority);
 });

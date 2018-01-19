@@ -17,6 +17,7 @@ interface Creep {
   getlastJobSite() : RoomObject|undefined;
 }
 
+
 RoomPosition.prototype.surroundingPositions = function (radius : number, filter? : (p : RoomPosition) => boolean) : RoomPosition[] {
   const minx = Math.max(0, this.x - radius);
   const maxx = Math.min(this.x + radius, 50);
@@ -104,6 +105,16 @@ StructureStorage.prototype.freeSpace = function (__? : ResourceConstant) : numbe
 }
 StructureStorage.prototype.capacity = function() : number {
   return this.storeCapacity;
+}
+
+StructureTower.prototype.availableEnergy = function() : number {
+  return this.energy;
+}
+StructureTower.prototype.freeSpace = function (resource? : ResourceConstant) : number {
+  return (!resource || (resource == RESOURCE_ENERGY))? this.energyCapacity - this.energy : 0;
+}
+StructureTower.prototype.capacity = function() : number {
+  return this.energyCapacity;
 }
 
 Creep.prototype.availableEnergy = function() : number {

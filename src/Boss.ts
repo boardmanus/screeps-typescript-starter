@@ -51,20 +51,18 @@ export class Boss implements Work {
     const job = JobFactory.build(memory.job);
     if (!job) return undefined;
 
-    const workers = _.reduce(
+    const workers = _.filter(
       u.map_valid_creeps(memory.workers),
-      (activeWorkers : Creep[], worker : Creep) => {
+      (worker : Creep) => {
         if (job.completion(worker) < 1.0) {
           worker.setEmployed(true);
-          activeWorkers.push(worker);
+          return true;
         }
-        else {
-          worker.setLastJobSite(job.site());
-          worker.setEmployed(false);
-        }
-        return activeWorkers;
-      },
-    []);
+
+        worker.setLastJobSite(job.site());
+        worker.setEmployed(false);
+        return false;
+      });
 
     const subcontractors = map_valid_subcontractors(memory.subcontractors);
     const boss = new Boss(job, workers, subcontractors);
@@ -129,7 +127,7 @@ export class Boss implements Work {
   assignWorker(worker : Creep) {
     worker.memory.job = this.job.id();
     if (_.find(this._workers, (w : Creep) => { return worker.id == w.id; })) {
-      log.error(`ASSIGNED CREEP(${worker.id}) ALREADY ON ${this}`)
+      log.error(`ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
       return;
     }
     worker.setEmployed(true);
@@ -144,7 +142,7 @@ export class Boss implements Work {
     const remainingSubcontractors = _.reduce(
       this._subcontractors,
       (a : Subcontractor[], subcontractor : Subcontractor) => {
-        if (subcontractor.job.completion(subcontractor.worker) < 1.0) {
+        if (subcontractor.worker.isEmployed()) {
           a.push(subcontractor);
         }
         else {

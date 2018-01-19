@@ -26,13 +26,11 @@ function unload_at_site(job : JobUnload, worker : Creep, site : UnloadSite) : Op
       default:
         log.error(`${job}: unexpected error while ${worker} unloaded at ${site} (${u.errstr(res)})`);
         break;
-
-
     }
   }
 }
 
-export type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | Creep;
+export type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower | Creep;
 export class JobUnload implements Job {
 
   static readonly TYPE = 'unload';
@@ -102,5 +100,6 @@ JobFactory.addBuilder(JobUnload.TYPE, (id: string): Job|undefined => {
   const frags = id.split('-');
   const site = <UnloadSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobUnload(site);
+  const priority = Number(frags[3]);
+  return new JobUnload(site, priority);
 });

@@ -6,52 +6,130 @@ import { log } from "./lib/logger/log";
 import { JobBuild } from "./JobBuild";
 import { JobRepair } from "./JobRepair";
 import { Operation } from "./Operation";
+import { FunctionCache } from "./Cache";
 import u from "./Utility";
-/*
-function find_controller_paths(room : Room) : PathStep[][] {
+
+const ROADING_FIND_PATH_OPTIONS : PathFinderOpts = {
+  plainCost: 1,
+  swampCost: 1,
+  maxRooms: 1,
+  roomCallback: gen_roading_cost_matrix
+};
+
+const ROADING_MATRIX_CACHE : FunctionCache<CostMatrix> = new FunctionCache();
+
+function gen_roading_cost_matrix(roomName : string) : CostMatrix {
+  return ROADING_MATRIX_CACHE.getValue(roomName, () : CostMatrix => {
+    const room : Room = Game.rooms[roomName];
+    const matrix = new PathFinder.CostMatrix();
+
+    _.each(room.find(FIND_STRUCTURES), (s : Structure) => {
+      const cost = (u.is_passible_structure(s))? 1 : 0xff;
+      matrix.set(s.pos.x, s.pos.y, cost);
+    });
+
+    return matrix;
+  });
+}
+
+function find_roading_route(from : RoomObject, to : RoomObject) : RoomPosition[] {
+  const path : PathFinderPath = PathFinder.search(from.pos, { pos: to.pos, range: 1 }, ROADING_FIND_PATH_OPTIONS);
+  log.debug(`Roading route from ${from} to ${to}: ${path.path.length} sq`);
+  return path.path;
+}
+
+function find_controller_routes(room : Room) : RoomPosition[] {
   const controller = room.controller;
   if (!controller) {
-    return [[]];
+    return [];
   }
 
-  const spawns : Spawn[]= room.find(FIND_MY_SPAWNS);
-  const paths = _.map(spawns, (spawn : Spawn) : PathStep[] => {
-      return room.findPath(controller.pos, spawn.pos);
-  });
+  const spawns : StructureSpawn[]= room.find(FIND_MY_SPAWNS);
+  const paths = _.flatten(_.map(spawns, (spawn : StructureSpawn) : RoomPosition[] => {
+      return find_roading_route(controller, spawn);
+    }));
 
   return paths;
 }
 
-function find_source_paths(room : Room, sources : Source[]) : PathStep[][] {
-  const spawns : Spawn[] = room.find(FIND_MY_SPAWNS);
+function find_tower_routes(room : Room) : RoomPosition[] {
+  const towers : StructureTower[] = room.find<StructureTower>(FIND_MY_STRUCTURES, { filter: (s : Structure) => {
+    return s.structureType == STRUCTURE_TOWER;
+  }});
+  if (towers.length == 0) {
+    return [];
+  }
 
-  const paths = _.reduce(
-    spawns,
-    (a : PathStep[][], spawn : Spawn) : PathStep[][] => {
-      return a.concat(_.map(sources, (source : Source) : PathStep[] => {
-        return room.findPath(source.pos, spawn.pos);
-      }));
-    },
-    [[]]);
+  const storage : Structure[] = room.find(FIND_STRUCTURES, { filter: (s : Structure) => {
+    return s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE;
+  }});
+  if (storage.length == 0) {
+    return [];
+  }
+
+  const paths = _.flatten(_.map(storage, (store : Structure) : RoomPosition[] => {
+    return _.flatten(_.map(towers, (tower : StructureTower) : RoomPosition[] => {
+      return find_roading_route(store, tower);
+    }));
+  }));
 
   return paths;
 }
 
-function surrounding_positions(pos : RoomPosition, radius : number) : RoomPosition[] {
-  const minx = Math.max(0, pos.x - radius);
-  const maxx = Math.min(pos.x + radius, 50);
-  const miny = Math.max(0, pos.y - radius);
-  const maxy = Math.min(pos.y + radius, 50);
-  const positions = [];
-  for (let x = minx; x <= maxx; ++x) {
-    for (let y = miny; y <= maxy; ++y) {
-      positions.push(new RoomPosition(x, y, pos.roomName));
-    }
+function find_source_routes(room : Room) : RoomPosition[] {
+  const sources : Source[] = room.find(FIND_SOURCES);
+  const spawns : StructureSpawn[] = room.find(FIND_MY_SPAWNS);
+
+  const paths = _.flatten(_.map(sources, (source : Source) : RoomPosition[] => {
+    return _.flatten(_.map(spawns, (spawn : StructureSpawn) : RoomPosition[] => {
+      return find_roading_route(source, spawn);
+    }));
+  }));
+
+  return paths;
+}
+
+function look_for_road_filter(l : LookAtResult) : boolean {
+  if (l.type == LOOK_STRUCTURES) {
+    return (l.structure && l.structure.structureType == STRUCTURE_ROAD)? true : false;
+  }
+  else if (l.type == LOOK_CONSTRUCTION_SITES) {
+    return (l.constructionSite && l.constructionSite.structureType == STRUCTURE_ROAD)? true : false;
   }
 
-  return positions;
+  return false;
 }
-*/
+
+function select_road_sites(room : Room, maxSites : number, selector: (r : Room) => RoomPosition[]) : RoomPosition[] {
+  return _.take(_.filter(selector(room), (pos : RoomPosition) => {
+      const lookies = room.lookAt(pos);
+      const roadFound = _.find(lookies, look_for_road_filter);
+      return !roadFound;
+    }),
+    maxSites);
+}
+
+function possible_road_sites(room : Room, numAllowed : number) : RoomPosition[] {
+  const controller = room.controller;
+  if (!controller) {
+    return [];
+  }
+
+
+  const sourceRoutes = select_road_sites(room, numAllowed, find_source_routes);
+  if (sourceRoutes.length > 0) {
+    return sourceRoutes;
+  }
+
+  const controllerRoutes = select_road_sites(room, numAllowed, find_controller_routes);
+  if (controllerRoutes.length > 0) {
+    return controllerRoutes;
+  }
+
+  const towerRoutes = select_road_sites(room, numAllowed, find_tower_routes);
+  return towerRoutes;
+}
+
 function possible_extension_sites(spawn : StructureSpawn, numExtensions : number) : RoomPosition[] {
   let radius = 1;
   let sites : RoomPosition[] = [];
@@ -143,6 +221,10 @@ function possible_storage_sites(controller : StructureController) : RoomPosition
   return viableSites;
 }
 
+function possible_tower_sites(room : Room) : RoomPosition[] {
+  return [];
+}
+
 function storage_site_viability(pos : RoomPosition, room : Room) : number {
   const spacialViability = _.reduce(
     pos.surroundingPositions(1),
@@ -157,12 +239,12 @@ function storage_site_viability(pos : RoomPosition, room : Room) : number {
             viability = 0;
             break;
           case LOOK_CONSTRUCTION_SITES:
-            if (t.constructionSite && !u.is_passible_structure(t.constructionSite.structureType)) {
+            if (t.constructionSite && !u.is_passible_structure(t.constructionSite)) {
               viability = 0;
             }
             break;
           case LOOK_STRUCTURES:
-            if (t.structure && !u.is_passible_structure(t.structure.structureType)) {
+            if (t.structure && !u.is_passible_structure(t.structure)) {
               viability = 0;
             }
             break;
@@ -196,6 +278,33 @@ function storage_site_viability(pos : RoomPosition, room : Room) : number {
   return spacialViability - locationalViability;
 }
 
+function repair_priority(site : Structure) : number {
+  const damageRatio = (1.0 - site.hits/site.hitsMax);
+  switch (site.structureType) {
+    case STRUCTURE_ROAD: return 2*damageRatio;
+    case STRUCTURE_RAMPART: return 1*Math.pow(damageRatio, 10);
+    case STRUCTURE_WALL: return 1*Math.pow((1.0 - site.hits), 20);
+    default: return 8*damageRatio;
+  }
+}
+
+function repair_filter(site : Structure) : boolean {
+  if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
+    return false;
+  }
+
+  const healthRatio = site.hits/site.hitsMax;
+  switch (site.structureType) {
+    case STRUCTURE_WALL:
+      return site.hits/3000000 < 0.2;
+    case STRUCTURE_RAMPART:
+      return healthRatio < 0.2;
+    default:
+      break;
+  }
+  return healthRatio < 0.8;
+}
+
 class BuildingWork implements Work {
 
   readonly site : RoomPosition;
@@ -225,6 +334,72 @@ class BuildingWork implements Work {
           break;
         default:
           log.error(`${this}: failed to create construction site (${u.errstr(res)})`);
+          break;
+      }
+    } ];
+  }
+}
+
+class TowerRepairWork implements Work {
+
+  readonly tower : StructureTower;
+  readonly site : Structure;
+
+  constructor(tower : StructureTower, site : Structure) {
+    this.tower = tower;
+    this.site = site;
+  }
+
+  id() {
+    return `work-repair-${this.tower}-${this.site}`;
+  }
+
+  priority() : number {
+    return 0;
+  }
+
+  work() : Operation[] {
+    return [ () => {
+      const res = this.tower.repair(this.site);
+      switch (res) {
+        case OK:
+          log.info(`${this}: ${this.tower} repaired ${this.site}`);
+          break;
+        default:
+          log.error(`${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
+          break;
+      }
+    } ];
+  }
+}
+
+class TowerDefenseWork implements Work {
+
+  readonly tower : StructureTower;
+  readonly target : Creep;
+
+  constructor(tower : StructureTower, target : Creep) {
+    this.tower = tower;
+    this.target = target;
+  }
+
+  id() {
+    return `work-defense-${this.tower}-${this.target}`;
+  }
+
+  priority() : number {
+    return 0;
+  }
+
+  work() : Operation[] {
+    return [ () => {
+      const res = this.tower.attack(this.target);
+      switch (res) {
+        case OK:
+          log.info(`${this}: ${this.tower} attacked ${this.target}`);
+          break;
+        default:
+          log.error(`${this}: ${this.tower} failed to attack ${this.target} (${u.errstr(res)})`);
           break;
       }
     } ];
@@ -353,11 +528,79 @@ export class Architect implements Expert {
     });
   }
 
+  designRoads() : Work[] {
+    const room = this._city.room;
+    const numRoadConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs : ConstructionSite) => {
+      return cs.structureType == STRUCTURE_ROAD;
+    }}).length;
+
+    if (numRoadConstructionSites >= 10) {
+      log.info(`${this}: already have all the allowed road construction sites (${numRoadConstructionSites}).`)
+      return [];
+    }
+
+    const numAllowed = 10 - numRoadConstructionSites;
+    log.debug(`${this}: allowing ${numAllowed} road construction sites`);
+
+    const roadPos : RoomPosition[] = possible_road_sites(room, numAllowed);
+
+    return _.map(roadPos, (pos : RoomPosition) : Work => {
+      log.info(`${this}: creating new road build work ${room} ... ${pos}`)
+      return new BuildingWork(room, pos, STRUCTURE_ROAD);
+    });
+  }
+
+  towerRepair() : Work[] {
+    const room = this._city.room;
+
+    const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, { filter: (s : Structure) => {
+      if (s.structureType != STRUCTURE_TOWER) {
+        return false;
+      }
+      return s.availableEnergy() > 0;
+    }});
+
+    if (towers.length == 0) {
+      return [];
+    }
+
+    let work : Work[] = [];
+
+    const foes = _.take(room.find(FIND_HOSTILE_CREEPS), towers.length);
+    if (foes.length) {
+      for (let i = 0; i < foes.length; ++i) {
+        const t = towers[i];
+        const f = foes[i];
+        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
+        work.push(new TowerDefenseWork(t, f));
+      }
+
+      return work;
+    }
+
+    const repairSites : Structure[] = _.take(
+      _.sortBy(
+        room.find(FIND_STRUCTURES, { filter: repair_filter }),
+        (s : Structure) => { return -repair_priority(s) }),
+      towers.length);
+
+    for (let i = 0; i < repairSites.length; ++i) {
+      const t = towers[i];
+      const s = repairSites[i];
+      log.info(`${this}: creating new tower repair work ${t} => ${s} ...`)
+      work.push(new TowerRepairWork(t, s));
+    }
+
+    return work;
+  }
+
   design() : Work[] {
     const extensionWorks : Work[] = this.designExtensions();
     const containerWorks : Work[] = this.designContainers();
     const storageWorks : Work[] = this.designStorage();
-    return extensionWorks.concat(containerWorks).concat(storageWorks);
+    const roadWorks : Work[] = this.designRoads();
+    const repairWorks : Work[] = this.towerRepair();
+    return extensionWorks.concat(containerWorks).concat(storageWorks).concat(roadWorks).concat(repairWorks);
   }
 
   schedule() : Job[] {
@@ -370,12 +613,14 @@ export class Architect implements Expert {
       return new JobBuild(site);
     });
 
-    const repairSites : Structure[] = room.find(FIND_STRUCTURES, { filter: (s : Structure) => {
-      return s.structureType == STRUCTURE_CONTAINER && s.hits/s.hitsMax < 0.8;
-    }});
+    const repairSites : Structure[] = _.take(
+      _.sortBy(
+        room.find(FIND_STRUCTURES, { filter: repair_filter }),
+        (s : Structure) => { return -repair_priority(s) }),
+      10);
 
     const repairJobs : JobRepair[] = _.map(repairSites, (site : Structure) : JobRepair => {
-      return new JobRepair(site, (1.0 - site.hits/site.hitsMax)*8.0);
+      return new JobRepair(site, repair_priority(site));
     })
 
     return constructionJobs.concat(repairJobs);

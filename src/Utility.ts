@@ -76,6 +76,10 @@ namespace u {
     return body;
   }
 
+  export function time_to_spawn(body : BodyPartConstant[]) : number {
+    return body.length * CREEP_SPAWN_TIME;
+  }
+
   export function find_num_building_sites(room : Room, type : StructureConstant) : number {
     const numConstuctionSites =
       room.find(FIND_CONSTRUCTION_SITES, { filter: (c : ConstructionSite) => { return c.structureType == type }}).length;
@@ -85,10 +89,10 @@ namespace u {
     return numConstuctionSites + numStructures;
   }
 
-  export function is_passible_structure(s : StructureConstant) : boolean {
-    return (s == STRUCTURE_ROAD
-          || s == STRUCTURE_CONTAINER
-          || s == STRUCTURE_RAMPART);
+  export function is_passible_structure(s : Structure|ConstructionSite) : boolean {
+    return (s.structureType == STRUCTURE_ROAD
+          || s.structureType == STRUCTURE_CONTAINER
+          || (s.structureType == STRUCTURE_RAMPART && (s as StructureRampart|ConstructionSite).my));
   }
 
   export function terrain_cost(pos : RoomPosition|null) : number {
@@ -141,14 +145,14 @@ namespace u {
 
   export function work_efficiency(worker : Creep, site : Site, energy : number, energyPerPart : number) : number {
     const numWorkerParts = _.sum(worker.body, (b : BodyPartDefinition) : number => { return (b.type == WORK)? 1 : 0; });
-    const buildEnergyPerTick = Math.max(1, numWorkerParts)*energyPerPart;
-    const timeToBuild = energy/buildEnergyPerTick;
+    const workEnergyPerTick = Math.max(1, numWorkerParts)*energyPerPart;
+    const timeToBuild = energy/workEnergyPerTick;
     const timeToMove = u.movement_time(worker, site);
 
-    // Efficiency ithe energy harvest per second from where the creep is.
+    // Efficiency is the energy exchange per second from where the creep is.
     const t = Math.max(1, timeToBuild + timeToMove);
     const e = energy / t;
-    log.debug(`worker_efficiency: ${worker}-${site} efficiency=${e} (energy=${e}, time=~${t}ticks)`);
+    log.debug(`worker_efficiency: ${worker}-${site} efficiency=${e} (energy=${energy}, time=~${t}ticks)`);
     return e;
   }
 }

@@ -29,7 +29,9 @@ function worker_rating(worker : Creep, boss : Boss, minPriority : number) : numb
   //const closeness = boss.job.site().pos.getRangeTo(worker);
   //return closeness;
   const p = Math.max(minPriority, boss.priority());
-  return -boss.job.efficiency(worker)*p;
+  const e = boss.job.efficiency(worker);
+
+  return -e*p;
 }
 
 function find_best_worker(boss : Boss, workers : Creep[]) : Creep|undefined {
@@ -147,6 +149,7 @@ export class Mayor {
     // Update subcontracts
     _.each(this._bosses, (boss : Boss) => { boss.reassignSubcontractors(); });
 
+
     const bosses = this.prioritizeBosses(this._bosses.concat(newBosses));
 
     const vacancies : Job[] = _.map(
@@ -207,11 +210,16 @@ export class Mayor {
   }
 
   unloadJobs() : Job[] {
-    const storage = this._city.room.find<StructureStorage|StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
-      return s.freeSpace() > 0 && (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE);
+    const storage = this._city.room.find<StructureStorage|StructureContainer|StructureTower>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
+      return s.freeSpace() > 0 && (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE || s.structureType == STRUCTURE_TOWER);
     }});
-    const jobs =  _.map(storage, (s : StructureStorage|StructureContainer) : JobUnload => {
-      return new JobUnload(s);
+    const foes = this._city.room.find(FIND_HOSTILE_CREEPS);
+    const jobs =  _.map(storage, (s : StructureStorage|StructureContainer|StructureTower) : JobUnload => {
+      let p = 1;
+      if (s.structureType == STRUCTURE_TOWER) {
+        p = (foes.length)? 10 : 5;
+      }
+      return new JobUnload(s, p);
     });
     log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
