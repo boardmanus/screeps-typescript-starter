@@ -1,4 +1,5 @@
 import { Architect } from "./Architect";
+import { Caretaker } from "./Caretaker";
 import { Cloner } from "./Cloner";
 import { Job, JobPrerequisite } from "./Job";
 import { Work } from "./Work";
@@ -83,18 +84,22 @@ export class Mayor {
 
   private _city : City;
   private _architect : Architect;
+  private _caretaker : Caretaker;
   private _cloner : Cloner;
   private _bosses : Boss[];
   private _cloneWork : Work[];
   private _buildingWork : Work[];
+  private _repairWork : Work[];
 
   constructor(city : City) {
     this._city = city;
     this._architect = new Architect(city);
+    this._caretaker = new Caretaker(city);
     this._cloner = new Cloner(city);
     this._bosses = map_valid_bosses(city.room.memory.bosses);
     this._cloneWork = [];
     this._buildingWork = [];
+    this._repairWork = [];
   }
 
   id() : string {
@@ -106,7 +111,7 @@ export class Mayor {
   }
 
   work() : Work[] {
-    const allWork = this._cloneWork.concat(this._bosses).concat(this._buildingWork);
+    const allWork = this._cloneWork.concat(this._bosses).concat(this._buildingWork).concat(this._repairWork);
     log.debug(`${this}: ${allWork.length} units of work created`);
     return _.sortBy(allWork, (work : Work) : number => {
       return work.priority();
@@ -117,6 +122,7 @@ export class Mayor {
 
     log.debug(`${this}: surveying...`);
     this._architect.survey();
+    this._caretaker.survey();
     this._cloner.survey();
 
     const allJobs : Job[] =
@@ -125,7 +131,8 @@ export class Mayor {
       .concat(this.pickupJobs())
       .concat(this.unloadJobs())
       .concat(this._architect.schedule())
-      .concat(this._cloner.schedule());
+      .concat(this._cloner.schedule())
+      .concat(this._caretaker.schedule());
 
     log.debug(`${this}: ${allJobs.length} jobs found while surveying.`)
 
@@ -149,6 +156,7 @@ export class Mayor {
     // Update subcontracts
     _.each(this._bosses, (boss : Boss) => { boss.reassignSubcontractors(); });
 
+    const unemployed : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (worker : Creep) => { return !worker.isEmployed(); }});
 
     const bosses = this.prioritizeBosses(this._bosses.concat(newBosses));
 
@@ -157,8 +165,10 @@ export class Mayor {
       (boss : Boss) : Job => { return boss.job; });
 
     log.debug(`${this}: ${vacancies.length} vacant jobs`);
+    log.debug(`Boss priorities:`);
+    _.each(bosses, (boss : Boss) => { log.debug(`${boss}: workers=${boss.numWorkers()}, site=${boss.job.site()}, priority=${boss.priority()}`)});
 
-    const unemployed : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (worker : Creep) => { return !worker.isEmployed(); }});
+
     log.debug(`${this}: ${unemployed.length} unemployed workers`)
     const lazyWorkers = this.assignWorkers(bosses, unemployed);
 
@@ -167,6 +177,7 @@ export class Mayor {
 
     this._cloneWork = this._cloner.clone(lazyWorkers.length? [] : vacancies);
     this._buildingWork = this._architect.design();
+    this._repairWork = this._caretaker.repair();
   }
 
   harvestJobs() : Job[] {
@@ -184,7 +195,7 @@ export class Mayor {
     const scavengeJobs : Job[] = _.map(
       this._city.room.find(FIND_DROPPED_RESOURCES),
       (r : Resource) : Job => {
-        return new JobPickup(r);
+        return new JobPickup(r, 5);
       });
 
     const takeJobs : Job[] = _.map(
@@ -217,7 +228,12 @@ export class Mayor {
     const jobs =  _.map(storage, (s : StructureStorage|StructureContainer|StructureTower) : JobUnload => {
       let p = 1;
       if (s.structureType == STRUCTURE_TOWER) {
-        p = (foes.length)? 10 : 5;
+        if (foes.length) {
+          p = 10;
+        }
+        else {
+          p = (s.freeSpace() < 100)? 1 : 5;
+        }
       }
       return new JobUnload(s, p);
     });
@@ -230,12 +246,14 @@ export class Mayor {
     r.push(`** Mayoral report by ${this}`);
     r.concat(this._architect.report());
     r.concat(this._cloner.report());
+    r.concat(this._caretaker.report());
     return r;
   }
 
   save() : void {
     this._architect.save();
     this._cloner.save();
+    this._caretaker.save();
 
     this._city.room.memory.bosses = _.map(
       this._bosses,
@@ -254,7 +272,7 @@ export class Mayor {
     const orderedWorkers = find_best_workers(boss, workers);
     let worker : Creep|undefined;
     let subcontractingBoss : Boss|undefined;
-    const minPriority = boss.priority();
+    const minPriority = 10;
     for (worker of orderedWorkers) {
       subcontractingBoss = find_best_boss(worker, allBosses, minPriority);
       if (!subcontractingBoss) {

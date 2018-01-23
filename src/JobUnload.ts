@@ -68,6 +68,12 @@ export class JobUnload implements Job {
   }
 
   completion(worker? : Creep) : number {
+    if (this._site instanceof StructureTower) {
+      if (this._site.freeSpace() <= TOWER_ENERGY_COST) {
+        return 1.0;
+      }
+    }
+
     if (worker) {
       return worker.availableEnergy() > 0? 0.0 : 1.0;
     }

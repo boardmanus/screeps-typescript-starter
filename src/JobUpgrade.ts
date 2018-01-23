@@ -41,7 +41,7 @@ export class JobUpgrade implements Job {
 
   constructor(site : StructureController, priority? : number) {
     this._site = site;
-    this._priority = (priority !== undefined)? priority : 2;
+    this._priority = (priority !== undefined)? priority : 5;
   }
 
   id() : string {
@@ -53,18 +53,22 @@ export class JobUpgrade implements Job {
   }
 
   priority(workers : Creep[]) : number {
-    let priority : number = 1;
+    let priority : number;
+
     if (this._site.ticksToDowngrade < 100) {
-      priority = this._priority*5;
+      priority = this._priority+5;
     }
     else if (this._site.ticksToDowngrade < 1000) {
-      priority = this._priority*2;
+      priority = this._priority+4;
     }
     else if (this._site.ticksToDowngrade < 2000) {
-      priority = this._priority;
+      priority = this._priority+3;
+    }
+    else if (this._site.ticksToDowngrade < 5000) {
+      priority = this._priority+1;
     }
     else {
-      priority = 1;
+      priority = this._priority;
     }
 
     log.debug(`${this}: ticks to controller downgrade = ${this._site.ticksToDowngrade}`)

@@ -73,7 +73,6 @@ class CloningWork implements Work {
     return `work-clone-${this.site.id}`;
   }
 
-
   toString() : string {
     return this.id();
   }
@@ -108,6 +107,10 @@ export class Cloner implements Expert {
     return `cloner-${this._city.name}`
   }
 
+  toString() : string {
+    return this.id();
+  }
+
   survey() : void {
     log.debug(`${this} surveying...`);
     //let pendingJobs = find_pending_jobs(this._city.jobs);
@@ -120,12 +123,11 @@ export class Cloner implements Expert {
     this._city.room.memory.cloneCount = this._uniqueId;
   }
 
-
   schedule() : Job[] {
-    log.debug(`${this} scheduling...`);
     const sne = get_spawners_and_extensions(this._city.room);
     const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w : Creep) : number => { return w.ticksToLive < 300? 1 : 0; }));
     log.debug(`${this}: ${sne.length} spawners and extensions requiring energy. ${nearlyDeadWorkers} workers nearly dead.`);
+    log.debug(`${this} scheduling ${sne.length} clone jobs...`);
     return _.map(
       sne,
       (site : CloningStructure) : Job => {

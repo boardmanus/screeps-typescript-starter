@@ -4,7 +4,6 @@ import { Work } from "./Work";
 import { Job } from "./Job";
 import { log } from "./lib/logger/log";
 import { JobBuild } from "./JobBuild";
-import { JobRepair } from "./JobRepair";
 import { Operation } from "./Operation";
 import { FunctionCache } from "./Cache";
 import u from "./Utility";
@@ -278,32 +277,6 @@ function storage_site_viability(pos : RoomPosition, room : Room) : number {
   return spacialViability - locationalViability;
 }
 
-function repair_priority(site : Structure) : number {
-  const damageRatio = (1.0 - site.hits/site.hitsMax);
-  switch (site.structureType) {
-    case STRUCTURE_ROAD: return 2*damageRatio;
-    case STRUCTURE_RAMPART: return 1*Math.pow(damageRatio, 10);
-    case STRUCTURE_WALL: return 1*Math.pow((1.0 - site.hits), 20);
-    default: return 8*damageRatio;
-  }
-}
-
-function repair_filter(site : Structure) : boolean {
-  if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
-    return false;
-  }
-
-  const healthRatio = site.hits/site.hitsMax;
-  switch (site.structureType) {
-    case STRUCTURE_WALL:
-      return site.hits/3000000 < 0.2;
-    case STRUCTURE_RAMPART:
-      return healthRatio < 0.2;
-    default:
-      break;
-  }
-  return healthRatio < 0.8;
-}
 
 class BuildingWork implements Work {
 
@@ -319,6 +292,10 @@ class BuildingWork implements Work {
 
   id() {
     return `work-build-${this.type}-${this.site.x}-${this.site.y}`;
+  }
+
+  toString() : string {
+    return this.id();
   }
 
   priority() : number {
@@ -340,38 +317,6 @@ class BuildingWork implements Work {
   }
 }
 
-class TowerRepairWork implements Work {
-
-  readonly tower : StructureTower;
-  readonly site : Structure;
-
-  constructor(tower : StructureTower, site : Structure) {
-    this.tower = tower;
-    this.site = site;
-  }
-
-  id() {
-    return `work-repair-${this.tower}-${this.site}`;
-  }
-
-  priority() : number {
-    return 0;
-  }
-
-  work() : Operation[] {
-    return [ () => {
-      const res = this.tower.repair(this.site);
-      switch (res) {
-        case OK:
-          log.info(`${this}: ${this.tower} repaired ${this.site}`);
-          break;
-        default:
-          log.error(`${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
-          break;
-      }
-    } ];
-  }
-}
 
 class TowerDefenseWork implements Work {
 
@@ -385,6 +330,10 @@ class TowerDefenseWork implements Work {
 
   id() {
     return `work-defense-${this.tower}-${this.target}`;
+  }
+
+  toString() : string {
+    return this.id();
   }
 
   priority() : number {
@@ -550,61 +499,15 @@ export class Architect implements Expert {
     });
   }
 
-  towerRepair() : Work[] {
-    const room = this._city.room;
-
-    const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, { filter: (s : Structure) => {
-      if (s.structureType != STRUCTURE_TOWER) {
-        return false;
-      }
-      return s.availableEnergy() > 0;
-    }});
-
-    if (towers.length == 0) {
-      return [];
-    }
-
-    let work : Work[] = [];
-
-    const foes = _.take(room.find(FIND_HOSTILE_CREEPS), towers.length);
-    if (foes.length) {
-      for (let i = 0; i < foes.length; ++i) {
-        const t = towers[i];
-        const f = foes[i];
-        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
-        work.push(new TowerDefenseWork(t, f));
-      }
-
-      return work;
-    }
-
-    const repairSites : Structure[] = _.take(
-      _.sortBy(
-        room.find(FIND_STRUCTURES, { filter: repair_filter }),
-        (s : Structure) => { return -repair_priority(s) }),
-      towers.length);
-
-    for (let i = 0; i < repairSites.length; ++i) {
-      const t = towers[i];
-      const s = repairSites[i];
-      log.info(`${this}: creating new tower repair work ${t} => ${s} ...`)
-      work.push(new TowerRepairWork(t, s));
-    }
-
-    return work;
-  }
-
   design() : Work[] {
     const extensionWorks : Work[] = this.designExtensions();
     const containerWorks : Work[] = this.designContainers();
     const storageWorks : Work[] = this.designStorage();
     const roadWorks : Work[] = this.designRoads();
-    const repairWorks : Work[] = this.towerRepair();
-    return extensionWorks.concat(containerWorks).concat(storageWorks).concat(roadWorks).concat(repairWorks);
+    return extensionWorks.concat(containerWorks).concat(storageWorks).concat(roadWorks);
   }
 
   schedule() : Job[] {
-    log.debug(`${this} scheduling...`);
 
     const room = this._city.room;
 
@@ -613,17 +516,8 @@ export class Architect implements Expert {
       return new JobBuild(site);
     });
 
-    const repairSites : Structure[] = _.take(
-      _.sortBy(
-        room.find(FIND_STRUCTURES, { filter: repair_filter }),
-        (s : Structure) => { return -repair_priority(s) }),
-      10);
-
-    const repairJobs : JobRepair[] = _.map(repairSites, (site : Structure) : JobRepair => {
-      return new JobRepair(site, repair_priority(site));
-    })
-
-    return constructionJobs.concat(repairJobs);
+    log.debug(`${this} schedulingn ${constructionJobs.length}...`);
+    return constructionJobs;
   }
 
   report() : string[] {

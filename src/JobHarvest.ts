@@ -145,7 +145,7 @@ export class JobHarvest implements Job {
   }
 
   priority(workers : Creep[]) : number {
-    return this._priority;
+    return this._priority*2/(workers.length + 1);
   }
 
   site() : RoomObject {
