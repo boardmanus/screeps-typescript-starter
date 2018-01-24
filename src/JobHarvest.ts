@@ -93,8 +93,6 @@ function is_energy_harvesting_satisfied(source : Source, workers : Creep[]) : bo
   const remainingEnergy = source.energy - _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
   log.debug(`is_energy_harvesting_satisfied: ${source} => remainingEnergy=${remainingEnergy}`);
   return remainingEnergy <= 0;
-  //const timeToHarvestAllEnergy = source.energy / harvest_per_tick(workers);
-  //return 300 > timeToHarvestAllEnergy;
 }
 
 function is_mineral_harvesting_satisfied(mineral : Mineral, workers : Creep[]) : boolean {
@@ -107,9 +105,7 @@ function is_mineral_harvesting_satisfied(mineral : Mineral, workers : Creep[]) :
   }
 
   const remaining = mineral.mineralAmount - _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
-  return remaining > 0;
-  //const timeToHarvestAllMinerals = mineral.mineralAmount / harvest_per_tick(workers);
-  //return mineral.ticksToRegeneration > timeToHarvestAllMinerals;
+  return remaining <= 0;
 }
 
 function mineral_capacity(mineral : Mineral) : number {

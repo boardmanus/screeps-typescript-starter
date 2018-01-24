@@ -192,6 +192,7 @@ export class Caretaker implements Expert {
     if (foes.length > 0) {
       for (let i = 0; i < foes.length; ++i) {
         const t = this._towers[i];
+        if (t.availableEnergy() < TOWER_ENERGY_COST) continue;
         const f = foes[i];
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
         work.push(new TowerDefenseWork(t, f));
@@ -207,6 +208,7 @@ export class Caretaker implements Expert {
 
     for (let i = 0; i < repairSites.length; ++i) {
       const t = this._towers[i];
+      if (t.availableEnergy() < TOWER_ENERGY_COST) continue;
       const s = repairSites[i];
       log.info(`${this}: creating new tower repair work ${t} => ${s} ...`)
       work.push(new TowerRepairWork(t, s));
