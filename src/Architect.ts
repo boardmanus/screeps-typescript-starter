@@ -160,6 +160,21 @@ function possible_extension_sites(spawn : StructureSpawn, numExtensions : number
   return sites;
 }
 
+function find_site<S extends Structure>(source : Source, type : StructureConstant, radius : number) : S|null {
+  let site : Structure|null = null;
+  const viableSites = source.pos.surroundingPositions(radius, (pos : RoomPosition) : boolean => {
+    if (site) return false;
+    const structures = pos.lookFor(LOOK_STRUCTURES);
+    for (const s of structures) {
+      site = (s && s.structureType == type)? s  : null;
+      if (site) return true;
+    }
+    return false;
+  });
+
+  return site;
+}
+
 function possible_container_sites(source : Source) : RoomPosition[] {
   let haveContainer : boolean = false;
   const viableSites = source.pos.surroundingPositions(1, (site : RoomPosition) : boolean => {
@@ -195,6 +210,42 @@ function possible_container_sites(source : Source) : RoomPosition[] {
   return haveContainer? [] : viableSites.slice(0, 1);
 }
 
+function possible_tower_sites(source : Source) : RoomPosition[] {
+  let haveTower : boolean = false;
+  const viableSites = source.pos.surroundingPositions(5, (site : RoomPosition) : boolean => {
+    if (haveTower) {
+      return false;
+    }
+    const terrain = site.look();
+    for (const t of terrain) {
+      switch (t.type) {
+        case LOOK_CONSTRUCTION_SITES:
+          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_TOWER) {
+            haveTower = true;
+          }
+          return false;
+        case LOOK_STRUCTURES:
+          if (t.structure && t.structure.structureType == STRUCTURE_TOWER) {
+            haveTower = true;
+          }
+          return false;
+        case LOOK_TERRAIN:
+          if (t.terrain == 'wall') {
+            return false;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+    return true;
+  });
+
+  log.info(`found ${viableSites.length} viable tower sites ${viableSites} for ${source}`);
+
+  return haveTower? [] : viableSites.slice(0, 1);
+}
+
 function possible_storage_sites(controller : StructureController) : RoomPosition[] {
   const viableSites = controller.pos.surroundingPositions(2, (site : RoomPosition) : boolean => {
     const terrain = site.look();
@@ -218,10 +269,6 @@ function possible_storage_sites(controller : StructureController) : RoomPosition
 
   log.info(`found ${viableSites.length} viable storage sites ${viableSites}`);
   return viableSites;
-}
-
-function possible_tower_sites(room : Room) : RoomPosition[] {
-  return [];
 }
 
 function storage_site_viability(pos : RoomPosition, room : Room) : number {
@@ -318,49 +365,13 @@ class BuildingWork implements Work {
 }
 
 
-class TowerDefenseWork implements Work {
-
-  readonly tower : StructureTower;
-  readonly target : Creep;
-
-  constructor(tower : StructureTower, target : Creep) {
-    this.tower = tower;
-    this.target = target;
-  }
-
-  id() {
-    return `work-defense-${this.tower}-${this.target}`;
-  }
-
-  toString() : string {
-    return this.id();
-  }
-
-  priority() : number {
-    return 0;
-  }
-
-  work() : Operation[] {
-    return [ () => {
-      const res = this.tower.attack(this.target);
-      switch (res) {
-        case OK:
-          log.info(`${this}: ${this.tower} attacked ${this.target}`);
-          break;
-        default:
-          log.error(`${this}: ${this.tower} failed to attack ${this.target} (${u.errstr(res)})`);
-          break;
-      }
-    } ];
-  }
-}
-
 export class Architect implements Expert {
 
   private _city: City;
 
   constructor(city: City) {
     this._city = city;
+    this.load();
   }
 
   id() : string {
@@ -373,6 +384,7 @@ export class Architect implements Expert {
 
   survey() : void {
     log.debug(`${this} surveying...`);
+
   }
 
   designExtensions() : Work[] {
@@ -477,6 +489,23 @@ export class Architect implements Expert {
     });
   }
 
+  designTowers() : Work[] {
+    const room = this._city.room;
+    const controller = room.controller;
+    if (!controller) return [];
+
+    const numTowers = u.find_num_building_sites(room, STRUCTURE_TOWER);
+    const allowedNumTowers = CONTROLLER_STRUCTURES.tower[controller.level];
+    log.info(`${this}: current num towers ${numTowers} - allowed ${allowedNumTowers}`)
+
+    if (numTowers >= allowedNumTowers) {
+      log.info(`${this}: already have all the required towers (${numTowers}).`)
+      return [];
+    }
+
+    return [];
+  }
+
   designRoads() : Work[] {
     const room = this._city.room;
     const numRoadConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs : ConstructionSite) => {
@@ -513,10 +542,10 @@ export class Architect implements Expert {
 
     const constructionSites : ConstructionSite[] = room.find(FIND_MY_CONSTRUCTION_SITES);
     const constructionJobs = _.map(constructionSites, (site : ConstructionSite) : Job => {
-      return new JobBuild(site);
+      return new JobBuild(site, 5);
     });
 
-    log.debug(`${this} schedulingn ${constructionJobs.length}...`);
+    log.debug(`${this} scheduling ${constructionJobs.length}...`);
     return constructionJobs;
   }
 
@@ -526,5 +555,44 @@ export class Architect implements Expert {
     return r;
   }
 
-  save() : void {}
+  load() : void {
+    const sources = this._city.room.find(FIND_SOURCES);
+    const sourceMem = this._city.room.memory.sources;
+    if (sourceMem) {
+      _.each(sourceMem, (sm : SourceMemory) => {
+        const source : Source|null = Game.getObjectById<Source>(sm.id);
+        if (!source) return;
+
+        const container = Game.getObjectById<StructureContainer>(sm.container);
+        if (container) {
+          source._container = container;
+        }
+        else {
+          source._container = find_site(source, STRUCTURE_CONTAINER, 1);
+        }
+
+        const tower = Game.getObjectById<StructureTower>(sm.tower);
+        if (tower) {
+          source._tower = tower;
+        }
+        else {
+          source._tower = find_site(source, STRUCTURE_TOWER, 5);
+        }
+      });
+    }
+  }
+
+  save() : void {
+
+    this._city.room.memory.sources = _.map(
+      this._city.room.find(FIND_SOURCES),
+      (s : Source) : SourceMemory => {
+        const sm : SourceMemory = {
+          id: s.id,
+          container: s._container? s._container.id : undefined,
+          tower: s._tower? s._tower.id : undefined
+        };
+        return sm;
+      });
+  }
 }

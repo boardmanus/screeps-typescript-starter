@@ -5,9 +5,16 @@ interface CreepMemory {
   homeTown: string;
 }
 
+interface SourceMemory {
+  id: string | undefined;
+  container: string | undefined;
+  tower: string | undefined;
+}
+
 interface RoomMemory {
   expats: string[];
   bosses: BossMemory[];
+  sources: SourceMemory[];
   cloneCount: number;
   roadsEstablished: boolean;
 }

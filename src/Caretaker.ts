@@ -10,6 +10,19 @@ import { FunctionCache } from "./Cache";
 import u from "./Utility";
 
 
+function repair_power(tower : StructureTower, site : Structure) : number {
+  const d = tower.pos.getRangeTo(site);
+  if (d <= 5) {
+    return TOWER_POWER_REPAIR;
+  }
+  else if (d >= 20) {
+    return 150;
+  }
+
+  return 150 + (TOWER_POWER_REPAIR - 150)*(20 - d)/(20 - 5)
+}
+
+
 function repair_priority(site : Structure) : number {
   const damageRatio = (1.0 - site.hits/site.hitsMax);
   switch (site.structureType) {
@@ -21,7 +34,7 @@ function repair_priority(site : Structure) : number {
 }
 
 
-function tower_repair_filter(site : Structure) : boolean {
+function tower_repair_filter(tower : StructureTower[], site : Structure) : boolean {
   if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
     return false;
   }
@@ -36,7 +49,8 @@ function tower_repair_filter(site : Structure) : boolean {
       break;
   }
 
-  return site.hitsMax - site.hits > REPAIR_POWER;
+  const power : number = _.max(_.map(tower, (t : StructureTower) : number => { return repair_power(t, site); }));
+  return site.hitsMax - site.hits > power;
 }
 
 function worker_repair_filter(site : Structure) : boolean {
@@ -96,6 +110,45 @@ class TowerRepairWork implements Work {
   }
 }
 
+
+class TowerDefenseWork implements Work {
+
+  readonly tower : StructureTower;
+  readonly target : Creep;
+
+  constructor(tower : StructureTower, target : Creep) {
+    this.tower = tower;
+    this.target = target;
+  }
+
+  id() {
+    return `work-defense-${this.tower}-${this.target}`;
+  }
+
+  toString() : string {
+    return this.id();
+  }
+
+  priority() : number {
+    return 0;
+  }
+
+  work() : Operation[] {
+    return [ () => {
+      const res = this.tower.attack(this.target);
+      switch (res) {
+        case OK:
+          log.info(`${this}: ${this.tower} attacked ${this.target}`);
+          break;
+        default:
+          log.error(`${this}: ${this.tower} failed to attack ${this.target} (${u.errstr(res)})`);
+          break;
+      }
+    } ];
+  }
+}
+
+
 export class Caretaker implements Expert {
 
   private _city: City;
@@ -134,17 +187,24 @@ export class Caretaker implements Expert {
 
     // Don't perform tower repair if hostile creeps are around.
     const room = this._city.room;
+    let work : Work[] = [];
     const foes = room.find(FIND_HOSTILE_CREEPS);
     if (foes.length > 0) {
-      return [];
+      for (let i = 0; i < foes.length; ++i) {
+        const t = this._towers[i];
+        const f = foes[i];
+        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
+        work.push(new TowerDefenseWork(t, f));
+      }
+
+      return work;
     }
 
     const repairSites = _.take(_.sortBy(
-      room.find(FIND_STRUCTURES, { filter: tower_repair_filter }),
+      room.find(FIND_STRUCTURES, { filter: (s: Structure) => { return tower_repair_filter(this._towers, s); }}),
       (s : Structure) => { return -repair_priority(s) }),
       this._towers.length);
 
-    let work : Work[] = [];
     for (let i = 0; i < repairSites.length; ++i) {
       const t = this._towers[i];
       const s = repairSites[i];

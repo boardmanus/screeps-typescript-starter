@@ -74,21 +74,4 @@ export class City {
   getRoadsEstablished() : boolean {
     return this.room.memory.roadsEstablished || false;
   }
-
-  getCloningEnergySites() : Structure[] {
-    return this.room.find<Structure>(FIND_MY_STRUCTURES, {
-        filter: (s : Structure) => {
-          return (s.availableEnergy() > 0) && (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN);
-        }
-      });
-  }
-
-  getCloningEnergy() : [number, number] {
-    return _.reduce(
-      this.getCloningEnergySites(),
-      (energy : [number, number], site : Structure) : [number, number] => {
-        return [energy[0] + site.availableEnergy(), energy[1] + site.capacity()];
-      },
-      [0, 0]);
-  }
 }

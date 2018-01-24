@@ -10,12 +10,25 @@ import u from "./Utility"
 
 type CloningStructure = StructureSpawn|StructureExtension;
 
+function get_cloning_energy_sites(room : Room) : Structure[] {
+  return room.find<Structure>(FIND_MY_STRUCTURES, {
+      filter: (s : Structure) => {
+        return (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN);
+      }
+    });
+}
+
 function max_workers_allowed(_room : Room) : number {
   return 8;
 }
 
-function get_cloning_energy(city : City) : [number, number] {
-  return city.getCloningEnergy();
+function get_cloning_energy(room : Room) : [number, number] {
+  return _.reduce(
+    get_cloning_energy_sites(room),
+    (energy : [number, number], site : Structure) : [number, number] => {
+      return [energy[0] + site.availableEnergy(), energy[1] + site.capacity()];
+    },
+    [0, 0]);
 }
 
 function get_spawners(city : City) : StructureSpawn[] {
@@ -101,6 +114,8 @@ export class Cloner implements Expert {
   constructor(city: City) {
     this._city = city;
     this._uniqueId = city.room.memory.cloneCount || 0;
+    this._currentWorkers = this._city.room.find(FIND_MY_CREEPS);
+    this._numWorkers = this._currentWorkers.length;
   }
 
   id() : string {
@@ -114,8 +129,6 @@ export class Cloner implements Expert {
   survey() : void {
     log.debug(`${this} surveying...`);
     //let pendingJobs = find_pending_jobs(this._city.jobs);
-    this._currentWorkers = this._city.room.find(FIND_MY_CREEPS);
-    this._numWorkers = this._currentWorkers.length;
     this._maxWorkers = max_workers_allowed(this._city.room);
   }
 
@@ -132,7 +145,7 @@ export class Cloner implements Expert {
       sne,
       (site : CloningStructure) : Job => {
         const workerHealthRatio = (this._numWorkers - nearlyDeadWorkers)/this._maxWorkers;
-        return new JobUnload(site, 3 + (1.0 - workerHealthRatio)*7);
+        return new JobUnload(site, 4 + (1.0 - workerHealthRatio)*6);
       });
   }
 
@@ -158,49 +171,44 @@ export class Cloner implements Expert {
 
   clone(jobs : Job[]) : Work[] {
 
-    log.debug(`${this}: ${jobs.length} unworked jobs...`)
-    let jobIndex = 0;
-    let work : Work[] = [];
+    log.debug(`${this}: ${jobs.length} unworked jobs, ${this._numWorkers} workers...`)
 
     // Start specializing after links have been established.
     const links = this._city.room.find(FIND_MY_STRUCTURES, { filter: (s : Structure) => { return s.structureType == STRUCTURE_LINK; }});
     const specialize = (links.length > 2);
 
-    let [availableEnergy, totalEnergy] = get_cloning_energy(this._city);
+    const spawners = _.filter(get_spawners(this._city), (s : StructureSpawn) => {
+      return !s.spawning;
+    });
 
-    for (const spawner of get_spawners(this._city)) {
-
-      if (spawner.spawning) {
-        continue;
-      }
-
-      if (this._numWorkers > MIN_SAFE_WORKERS &&
-        availableEnergy/totalEnergy < 0.9) {
-        return work;
-      }
-
-      const creepBody = u.generate_body(this.bodyTemplate(), availableEnergy);
-      if (creepBody.length == 0) {
-        log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
-        return work;
-      }
-
-      const cloneTime = u.time_to_spawn(creepBody);
-      const replaceableWorkers : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (c : Creep) => {
-        return c.ticksToLive <= cloneTime;
-      }});
-
-      if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
-        return work;
-      }
-
-      const creepName : string = this.getUniqueCreepName();
-      work.push(new CloningWork(spawner, creepName, creepBody));
-
-      availableEnergy -= u.body_cost(creepBody);
+    if (spawners.length == 0) {
+      return [];
     }
 
-    return work;
-  }
+    let [availableEnergy, totalEnergy] = get_cloning_energy(this._city.room);
+    if (this._numWorkers > MIN_SAFE_WORKERS &&
+      availableEnergy/totalEnergy < 0.9) {
+      log.debug(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy/totalEnergy}`)
+      return [];
+    }
 
+    const creepBody = u.generate_body(this.bodyTemplate(), availableEnergy);
+    if (creepBody.length == 0) {
+      log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
+      return [];
+    }
+
+    const cloneTime = u.time_to_spawn(creepBody);
+    const replaceableWorkers : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (c : Creep) => {
+      return c.ticksToLive <= cloneTime;
+    }});
+
+    if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
+      return [];
+    }
+
+    const creepName : string = this.getUniqueCreepName();
+
+    return [ new CloningWork(spawners[0], creepName, creepBody) ];
+  }
 }

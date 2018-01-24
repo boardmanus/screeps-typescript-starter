@@ -14,7 +14,12 @@ interface Creep {
   setEmployed(employed : boolean) : void;
   isEmployed() : boolean;
   setLastJobSite(lastJobSite : RoomObject) : void;
-  getlastJobSite() : RoomObject|undefined;
+  getLastJobSite() : RoomObject|undefined;
+}
+
+interface Source {
+  _container : StructureContainer|null;
+  _tower : StructureTower|null;
 }
 
 
@@ -135,6 +140,6 @@ Creep.prototype.isEmployed = function() : boolean {
 Creep.prototype.setLastJobSite = function(lastJobSite : RoomObject) : void {
   this._lastJobSite = lastJobSite;
 }
-Creep.prototype.getlastJobSite = function() : RoomObject {
+Creep.prototype.getLastJobSite = function() : RoomObject {
   return this._lastJobSite;
 }

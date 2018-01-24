@@ -16,7 +16,7 @@ import u from "./Utility";
 function worker_rating(worker : Creep, boss : Boss, minPriority : number) : number {
   //const suitability = boss.job.suitability(worker);
   const jobSite = boss.job.site();
-  const lastJobSite = worker.getlastJobSite();
+  const lastJobSite = worker.getLastJobSite();
   if (jobSite === lastJobSite) {
     return 10000;
   }
@@ -60,7 +60,7 @@ function find_best_boss(worker : Creep, bosses : Boss[], minPriority : number) :
   const satisfiedBosses = _.filter(bosses, (b : Boss) => {
     return (b.job.prerequisite(worker) == JobPrerequisite.NONE
       && b.needsWorkers()
-      && b.job.site() !== worker.getlastJobSite());
+      && b.job.site() !== worker.getLastJobSite());
   });
 
   if (satisfiedBosses.length == 0) {
