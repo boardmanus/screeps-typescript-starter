@@ -143,9 +143,14 @@ namespace u {
     return _pathCache.getValue(`${from.id}-${to.id}`, () => { return from.pos.findPathTo(to); });
   }
 
-  export function work_efficiency(worker : Creep, site : Site, energy : number, energyPerPart : number) : number {
+  export function work_efficiency(worker : Creep, site : Site, energy : number, maxEnergyPerPart : number) : number {
     const numWorkerParts = _.sum(worker.body, (b : BodyPartDefinition) : number => { return (b.type == WORK)? 1 : 0; });
-    const workEnergyPerTick = Math.max(1, numWorkerParts)*energyPerPart;
+    if (numWorkerParts == 0) {
+      return 0;
+    }
+
+    const energyPerPart = Math.max(energy/numWorkerParts, maxEnergyPerPart);
+    const workEnergyPerTick = numWorkerParts*energyPerPart;
     const timeToBuild = energy/workEnergyPerTick;
     const timeToMove = u.movement_time(worker, site);
 

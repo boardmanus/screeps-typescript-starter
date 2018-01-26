@@ -190,10 +190,10 @@ export class Caretaker implements Expert {
     let work : Work[] = [];
     const foes = room.find(FIND_HOSTILE_CREEPS);
     if (foes.length > 0) {
-      for (let i = 0; i < foes.length; ++i) {
+      for (let i = 0; i < this._towers.length; ++i) {
         const t = this._towers[i];
         if (t.availableEnergy() < TOWER_ENERGY_COST) continue;
-        const f = foes[i];
+        const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
         work.push(new TowerDefenseWork(t, f));
       }
@@ -201,15 +201,22 @@ export class Caretaker implements Expert {
       return work;
     }
 
-    const repairSites = _.take(_.sortBy(
-      room.find(FIND_STRUCTURES, { filter: (s: Structure) => { return tower_repair_filter(this._towers, s); }}),
-      (s : Structure) => { return -repair_priority(s) }),
-      this._towers.length);
+    const repairSites = room.find(FIND_STRUCTURES, { filter: (s: Structure) => {
+      return tower_repair_filter(this._towers, s);
+    }});
 
-    for (let i = 0; i < repairSites.length; ++i) {
+    if (repairSites.length == 0) {
+      return [];
+    }
+
+    for (let i = 0; i < this._towers.length; ++i) {
       const t = this._towers[i];
       if (t.availableEnergy() < TOWER_ENERGY_COST) continue;
-      const s = repairSites[i];
+
+      const s = _.sortBy(repairSites, (s : Structure) => {
+        return -repair_priority(s)*repair_power(t, s);
+      })[0];
+
       log.info(`${this}: creating new tower repair work ${t} => ${s} ...`)
       work.push(new TowerRepairWork(t, s));
     }

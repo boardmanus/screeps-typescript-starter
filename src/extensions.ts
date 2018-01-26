@@ -20,7 +20,17 @@ interface Creep {
 interface Source {
   _container : StructureContainer|null;
   _tower : StructureTower|null;
+  _link : StructureLink|null;
 }
+
+interface StructureStorage {
+  _link : StructureLink|null;
+}
+
+interface StructureSpawn {
+  _link : StructureLink|null;
+}
+
 
 
 RoomPosition.prototype.surroundingPositions = function (radius : number, filter? : (p : RoomPosition) => boolean) : RoomPosition[] {

@@ -182,7 +182,7 @@ export class Mayor {
 
   harvestJobs() : Job[] {
     const jobs : Job[] = _.map<Source, Job>(
-      this._city.room.find(FIND_SOURCES),
+      this._city.room.find(FIND_SOURCES_ACTIVE),
       (source : Source) : Job => {
         return  new JobHarvest(source);
       });
