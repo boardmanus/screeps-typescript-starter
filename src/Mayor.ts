@@ -9,7 +9,8 @@ import { JobPickup } from "./JobPickup";
 import { JobUnload } from "./JobUnload";
 import { City } from "./City";
 import { Boss } from "./Boss";
-import { log } from "./lib/logger/log"
+import { Operation } from "./Operation";
+import { log } from "./lib/logger/log";
 import u from "./Utility";
 
 
@@ -80,6 +81,45 @@ function map_valid_bosses(memory : BossMemory[]) : Boss[] {
     (boss : BossMemory) : Boss|undefined => { return Boss.fromMemory(boss); });
 }
 
+class TransferWork implements Work {
+
+  readonly from : StructureLink;
+  readonly to : StructureLink;
+  readonly amount : number;
+
+  constructor(from : StructureLink, to : StructureLink, amount : number) {
+    this.from = from;
+    this.to = to;
+    this.amount = amount;
+  }
+
+  id() {
+    return `work-transfer-${this.from}-${this.to}`;
+  }
+
+  toString() : string {
+    return this.id();
+  }
+
+  priority() : number {
+    return 0;
+  }
+
+  work() : Operation[] {
+    return [ () => {
+      const res = this.from.transferEnergy(this.to, this.amount);
+      switch (res) {
+        case OK:
+          log.info(`${this}: transfered ${this.amount} of energy from ${this.from} to ${this.to}`);
+          break;
+        default:
+          log.error(`${this}: failed to transfer energy from ${this.from} to ${this.to} (${u.errstr(res)})`);
+          break;
+      }
+    } ];
+  }
+}
+
 export class Mayor {
 
   private _city : City;
@@ -87,9 +127,8 @@ export class Mayor {
   private _caretaker : Caretaker;
   private _cloner : Cloner;
   private _bosses : Boss[];
-  private _cloneWork : Work[];
-  private _buildingWork : Work[];
-  private _repairWork : Work[];
+  private _lazyWorkers : Creep[];
+  private _vacancies : Job[];
 
   constructor(city : City) {
     this._city = city;
@@ -97,9 +136,8 @@ export class Mayor {
     this._caretaker = new Caretaker(city);
     this._cloner = new Cloner(city);
     this._bosses = map_valid_bosses(city.room.memory.bosses);
-    this._cloneWork = [];
-    this._buildingWork = [];
-    this._repairWork = [];
+    this._lazyWorkers = [];
+    this._vacancies = [];
   }
 
   id() : string {
@@ -111,11 +149,48 @@ export class Mayor {
   }
 
   work() : Work[] {
-    const allWork = this._cloneWork.concat(this._bosses).concat(this._buildingWork).concat(this._repairWork);
+
+    const noWork : Work[] = [];
+
+    const allWork = noWork.concat(
+        this._bosses,
+        this._cloner.clone(this._lazyWorkers.length? [] : this._vacancies),
+        this._architect.design(),
+        this._caretaker.repair(),
+        this.transferEnergy());
+
     log.debug(`${this}: ${allWork.length} units of work created`);
     return _.sortBy(allWork, (work : Work) : number => {
       return work.priority();
     });
+  }
+
+  private transferEnergy() : Work[] {
+    const room = this._city.room;
+    const fromLinks = _.filter(u.map_valid(room.find(FIND_SOURCES), (s : Source) : StructureLink | undefined | null => {
+        return s._link;
+      }),
+      (l : StructureLink) => {
+        return l.cooldown == 0 && l.availableEnergy() > 100;
+      });
+
+    const toLinks : StructureLink[] = [];
+    if (room.storage && room.storage._link && room.storage._link.freeSpace() > 100) {
+      toLinks.push(room.storage._link);
+    }
+
+    const transferWork : Work[] = [];
+    _.each(fromLinks, (fl : StructureLink) => {
+      _.each(toLinks, (tl : StructureLink) => {
+        const transferAmount = Math.min(fl.availableEnergy(), tl.freeSpace());
+        if (transferAmount < 100) {
+          return;
+        }
+        transferWork.push(new TransferWork(fl, tl, transferAmount));
+      })
+    });
+
+    return transferWork;
   }
 
   survey() : void {
@@ -170,14 +245,10 @@ export class Mayor {
 
 
     log.debug(`${this}: ${unemployed.length} unemployed workers`)
-    const lazyWorkers = this.assignWorkers(bosses, unemployed);
+    this._lazyWorkers = this.assignWorkers(bosses, unemployed);
 
     this._bosses = _.filter(bosses, (boss : Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
     log.debug(`${this}: ${this._bosses.length} bosses after survey`)
-
-    this._cloneWork = this._cloner.clone(lazyWorkers.length? [] : vacancies);
-    this._buildingWork = this._architect.design();
-    this._repairWork = this._caretaker.repair();
   }
 
   harvestJobs() : Job[] {
@@ -192,21 +263,40 @@ export class Mayor {
   }
 
   pickupJobs() : Job[] {
+    const room = this._city.room;
+
     const scavengeJobs : Job[] = _.map(
-      this._city.room.find(FIND_DROPPED_RESOURCES),
+      room.find(FIND_DROPPED_RESOURCES),
       (r : Resource) : Job => {
         return new JobPickup(r, 5);
       });
 
     const takeJobs : Job[] = _.map(
-      this._city.room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
+      room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
         return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.availableEnergy() > 0;
       }}),
       (s : StructureContainer) : Job => {
         return new JobPickup(s, 1);
       });
 
-    const jobs = scavengeJobs.concat(takeJobs);
+    const storage = room.storage;
+    const linkJobs : Job[] = [];
+    if (storage && storage._link) {
+      const link = storage._link;
+      const energy = link.availableEnergy();
+      if (energy > 100) {
+        const space = link.freeSpace();
+        const p = (
+          (space < 100)? 5
+          : (space < 300)? 4
+          : (space < 600)? 3
+          : 2);
+
+        linkJobs.push(new JobPickup(storage._link, p));
+      }
+    }
+
+    const jobs = scavengeJobs.concat(takeJobs, linkJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
     return jobs;
   }
@@ -221,11 +311,12 @@ export class Mayor {
   }
 
   unloadJobs() : Job[] {
-    const storage = this._city.room.find<StructureStorage|StructureContainer|StructureTower>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
+    const room = this._city.room;
+    const storage = room.find<StructureStorage|StructureContainer|StructureTower>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
       return s.freeSpace() > 0 && (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE || s.structureType == STRUCTURE_TOWER);
     }});
-    const foes = this._city.room.find(FIND_HOSTILE_CREEPS);
-    const jobs =  _.map(storage, (s : StructureStorage|StructureContainer|StructureTower) : JobUnload => {
+    const foes = room.find(FIND_HOSTILE_CREEPS);
+    const unloadJobs =  _.map(storage, (s : StructureStorage|StructureContainer|StructureTower) : JobUnload => {
       let p = 1;
       if (s.structureType == STRUCTURE_TOWER) {
         if (foes.length) {
@@ -237,6 +328,13 @@ export class Mayor {
       }
       return new JobUnload(s, p);
     });
+
+    const linkJobs = u.map_valid(room.find(FIND_SOURCES), (s : Source) : JobUnload | undefined => {
+      if (!s._link) return undefined;
+      return new JobUnload(s._link, 1);
+    });
+
+    const jobs = unloadJobs.concat(linkJobs);
     log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
   }

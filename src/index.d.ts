@@ -9,12 +9,19 @@ interface SourceMemory {
   id: string | undefined;
   container: string | undefined;
   tower: string | undefined;
+  link: string | undefined;
+}
+
+interface StorageMemory {
+  id: string | undefined;
+  link: string | undefined;
 }
 
 interface RoomMemory {
   expats: string[];
   bosses: BossMemory[];
   sources: SourceMemory[];
+  storage: StorageMemory;
   cloneCount: number;
   roadsEstablished: boolean;
 }

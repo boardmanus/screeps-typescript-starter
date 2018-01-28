@@ -160,9 +160,9 @@ function possible_extension_sites(spawn : StructureSpawn, numExtensions : number
   return sites;
 }
 
-function find_site<S extends Structure>(source : Source, type : StructureConstant, radius : number) : S|null {
+function find_site<S extends Structure>(obj : RoomObject, type : StructureConstant, radius : number) : S|null {
   let site : Structure|null = null;
-  const viableSites = source.pos.surroundingPositions(radius, (pos : RoomPosition) : boolean => {
+  const viableSites = obj.pos.surroundingPositions(radius, (pos : RoomPosition) : boolean => {
     if (site) return false;
     const structures = pos.lookFor(LOOK_STRUCTURES);
     for (const s of structures) {
@@ -674,8 +674,9 @@ export class Architect implements Expert {
   }
 
   load() : void {
-    const sources = this._city.room.find(FIND_SOURCES);
-    const sourceMem = this._city.room.memory.sources;
+    const room = this._city.room;
+    const sources = room.find(FIND_SOURCES);
+    const sourceMem = room.memory.sources;
     if (sourceMem) {
       _.each(sourceMem, (sm : SourceMemory) => {
         const source : Source|null = Game.getObjectById<Source>(sm.id);
@@ -687,6 +688,7 @@ export class Architect implements Expert {
         }
         else {
           source._container = find_site(source, STRUCTURE_CONTAINER, 1);
+          log.warning(`${this}: found ${source} container => ${source._container}`);
         }
 
         const tower = Game.getObjectById<StructureTower>(sm.tower);
@@ -695,22 +697,58 @@ export class Architect implements Expert {
         }
         else {
           source._tower = find_site(source, STRUCTURE_TOWER, 5);
+          log.warning(`${this}: found ${source} tower => ${source._tower}`);
+        }
+
+        const link = Game.getObjectById<StructureLink>(sm.link);
+        if (link) {
+          source._link = link;
+        }
+        else {
+          if (source._container) {
+            source._link = find_site(source._container, STRUCTURE_LINK, 1);
+            log.warning(`${this}: found ${source} link => ${source._link}`);
+          }
         }
       });
+    }
+
+    const storage = room.storage;
+    const storageMem = room.memory.storage;
+    if (storage && storageMem) {
+      const link = Game.getObjectById<StructureLink>(storageMem.link);
+      if (link) {
+        storage._link = link;
+      }
+      else {
+        storage._link = find_site(storage, STRUCTURE_LINK, 1);
+        log.warning(`${this}: found ${storage} link => ${storage._link}`);
+      }
     }
   }
 
   save() : void {
+    const room = this._city.room;
 
-    this._city.room.memory.sources = _.map(
-      this._city.room.find(FIND_SOURCES),
+    room.memory.sources = _.map(
+      room.find(FIND_SOURCES),
       (s : Source) : SourceMemory => {
         const sm : SourceMemory = {
           id: s.id,
           container: s._container? s._container.id : undefined,
-          tower: s._tower? s._tower.id : undefined
+          tower: s._tower? s._tower.id : undefined,
+          link: s._link? s._link.id : undefined
         };
         return sm;
       });
+
+    if (room.storage) {
+      const s = room.storage;
+      room.memory.storage =
+        <StorageMemory>{
+          id: s.id,
+          link: s._link? s._link.id : undefined
+        };
+    }
   }
 }
