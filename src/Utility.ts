@@ -125,9 +125,13 @@ namespace u {
       [0, 0]);
 
     const path = get_path(worker, site);
+    if (path.length == 0) {
+      return 0;
+    }
+
     const w = worker.body.length - m - c*(worker.freeSpace()/worker.carryCapacity);
-    const f = _.sum(path, (p : PathStep) : number => {
-      const t = terrain_cost(worker.room.getPositionAt(p.x, p.y));
+    const f = _.sum(path, (p : RoomPosition) : number => {
+      const t = terrain_cost(p);
       return w*t - 2*m;
     });
 
@@ -138,9 +142,18 @@ namespace u {
     return t_f + path.length;
   }
 
-  const _pathCache : FunctionCache<PathStep[]> = new FunctionCache();
-  export function get_path(from : Site, to : Site) : PathStep[] {
-    return _pathCache.getValue(`${from.id}-${to.id}`, () => { return from.pos.findPathTo(to); });
+  const _pathCache : FunctionCache<RoomPosition[]> = new FunctionCache();
+  export function get_path(from : Site, to : Site) : RoomPosition[] {
+    return _pathCache.getValue(`${from.id}-${to.id}`, () => {
+      const room = from.room;
+      if (!room || from.pos.inRangeTo(to, 1)) {
+        return [];
+      }
+
+      return _.map(room.findPath(from.pos, to.pos, { range:1, ignoreCreeps:true }), (ps : PathStep) => {
+        return room.getPositionAt(ps.x, ps.y) || new RoomPosition(ps.x, ps.y, room.name);
+      });
+    });
   }
 
   export function work_efficiency(worker : Creep, site : Site, energy : number, maxEnergyPerPart : number) : number {
@@ -151,13 +164,12 @@ namespace u {
 
     const energyPerPart = Math.max(energy/numWorkerParts, maxEnergyPerPart);
     const workEnergyPerTick = numWorkerParts*energyPerPart;
-    const timeToBuild = energy/workEnergyPerTick;
-    const timeToMove = u.movement_time(worker, site);
+    const timeToWork = Math.ceil(energy/workEnergyPerTick);
+    const timeToMove = Math.ceil(u.movement_time(worker, site));
 
     // Efficiency is the energy exchange per second from where the creep is.
-    const t = Math.max(1, timeToBuild + timeToMove);
+    const t = Math.max(1, timeToWork + timeToMove);
     const e = energy / t;
-    log.debug(`worker_efficiency: ${worker}-${site} efficiency=${e} (energy=${energy}, time=~${t}ticks)`);
     return e;
   }
 }

@@ -70,8 +70,4 @@ export class City {
   get memory() : RoomMemory { return this._room.memory; }
   get room() : Room { return this._room; }
   get mayor() : Mayor { return this._mayor; }
-
-  getRoadsEstablished() : boolean {
-    return this.room.memory.roadsEstablished || false;
-  }
 }

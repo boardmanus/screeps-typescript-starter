@@ -8,21 +8,22 @@ export type PickupSite = Resource|StructureContainer|StructureStorage|StructureL
 
 function withdraw_from_site(job : JobPickup, worker : Creep, site : Structure) : Operation {
   return () => {
-    let res = worker.withdraw(site, RESOURCE_ENERGY);
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
+    let res : number = worker.withdraw(site, RESOURCE_ENERGY);
     switch (res) {
       default:
         log.error(`${job}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE: {
-        const res = worker.moveTo(site);
-          if (res == OK) {
-            log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
-          }
-          else {
-            log.warning(`${job}: ${worker} failed to move towards ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-          }
+        res = worker.jobMoveTo(site, 1, <LineStyle>{opacity: .4, stroke: 'green'});
+        if (res == OK) {
+          log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
-        break;
+        else {
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+        }
+      }
+      break;
       case OK:
         // Finished job.
         log.info(`${job}: ${worker} withdrew resources from ${site}`);
@@ -33,14 +34,16 @@ function withdraw_from_site(job : JobPickup, worker : Creep, site : Structure) :
 
 function pickup_at_site(job : JobPickup, worker : Creep, site : Resource) : Operation {
   return () => {
-    let res = worker.pickup(site);
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
+    worker.say('🚑');
+    let res : number = worker.pickup(site);
     switch (res) {
       case OK:
         // Finished job.
         log.info(`${job}: ${worker} picked up resources from ${site}`);
         break;
       case ERR_NOT_IN_RANGE: {
-        let res = worker.moveTo(site);
+        res = worker.jobMoveTo(site, 1, <LineStyle>{opacity: .4, stroke: 'green'});
         if (res == OK) {
           log.info(`${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
           if (worker.pickup(site) == OK) {
@@ -85,7 +88,18 @@ export class JobPickup implements Job {
   }
 
   efficiency(worker : Creep) : number {
-    return u.work_efficiency(worker, this._site, worker.freeSpace(), 10000);
+    let booster = 1;
+    if (worker.getLastJobSite() === this._site) {
+      return 0;
+    }
+
+    if (this._site instanceof StructureLink) {
+      const distance = this._site.pos.getRangeTo(worker);
+      if (distance < 5) {
+        booster = 2;
+      }
+    }
+    return booster*u.work_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()), 10000);
   }
 
   site() : RoomObject {
@@ -94,7 +108,7 @@ export class JobPickup implements Job {
 
   isSatisfied(workers : Creep[]) : boolean {
     const space = _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
-    return this._site.availableEnergy() < space;
+    return this._site.available() < space;
   }
 
   completion(worker? : Creep) : number {
@@ -103,7 +117,7 @@ export class JobPickup implements Job {
       return _.sum(worker.carry)/worker.carryCapacity;
     }
 
-    return this._site.availableEnergy() > 0? 0.0 : 1.0;
+    return this._site.available() > 0? 0.0 : 1.0;
   }
 
   baseWorkerBody() : BodyPartConstant[] {
@@ -112,7 +126,7 @@ export class JobPickup implements Job {
 
   satisfiesPrerequisite(prerequisite : JobPrerequisite) : boolean {
     if (prerequisite == JobPrerequisite.COLLECT_ENERGY) {
-      return this._site.availableEnergy() > 0;
+      return this._site.available() > 0;
     }
 
     return false;

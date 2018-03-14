@@ -5,14 +5,16 @@ import u from "./Utility"
 
 function unload_at_site(job : JobUnload, worker : Creep, site : UnloadSite) : Operation {
   return () => {
-    let res = worker.transfer(site, RESOURCE_ENERGY);
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
+    worker.say('🚑');
+    let res : number = worker.transfer(site, RESOURCE_ENERGY);
     switch (res) {
       case OK:
         // Finished job.
         log.info(`${job}: ${worker} transferred energy to ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        res = worker.moveTo(site);
+        res = worker.jobMoveTo(site, 1, <LineStyle>{opacity: .4, stroke: 'orange'});
         if (res == OK) {
           log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
           if (worker.transfer(site, RESOURCE_ENERGY) == OK) {
@@ -20,7 +22,7 @@ function unload_at_site(job : JobUnload, worker : Creep, site : UnloadSite) : Op
           }
         }
         else {
-          log.warning(`${job}: ${worker} failed moving to unload ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
@@ -30,7 +32,7 @@ function unload_at_site(job : JobUnload, worker : Creep, site : UnloadSite) : Op
   }
 }
 
-export type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower | Creep;
+export type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
 export class JobUnload implements Job {
 
   static readonly TYPE = 'unload';
@@ -56,7 +58,25 @@ export class JobUnload implements Job {
   }
 
   efficiency(worker : Creep) : number {
-    return u.work_efficiency(worker, this._site, worker.availableEnergy(), 10000);
+
+    if (worker.getLastJobSite() === this._site) {
+      return 0;
+    }
+
+    switch (this._site.structureType) {
+      case STRUCTURE_LINK:
+      case STRUCTURE_CONTAINER:
+      {
+        const distance = this._site.pos.getRangeTo(worker);
+        if (distance > 5) {
+          return 0;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    return u.work_efficiency(worker, this._site, worker.available(), 10000);
   }
 
   site() : RoomObject {
@@ -64,7 +84,7 @@ export class JobUnload implements Job {
   }
 
   isSatisfied(workers : Creep[]) : boolean {
-    return this._site.freeSpace() - _.sum(workers, (w : Creep) : number => { return w.availableEnergy(); }) <= 0;
+    return this._site.freeSpace() - _.sum(workers, (w : Creep) : number => { return w.available(); }) <= 0;
   }
 
   completion(worker? : Creep) : number {
@@ -75,7 +95,7 @@ export class JobUnload implements Job {
     }
 
     if (worker) {
-      return worker.availableEnergy() > 0? 0.0 : 1.0;
+      return worker.available() > 0? 0.0 : 1.0;
     }
 
     return 1.0 - this._site.freeSpace()/this._site.capacity();
@@ -86,7 +106,7 @@ export class JobUnload implements Job {
   }
 
   prerequisite(worker : Creep) : JobPrerequisite {
-    if (worker.availableEnergy() == 0) {
+    if (worker.available() == 0) {
       return JobPrerequisite.COLLECT_ENERGY;
     }
     return JobPrerequisite.NONE;

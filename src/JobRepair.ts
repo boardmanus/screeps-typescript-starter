@@ -6,20 +6,23 @@ import u from "./Utility"
 
 function repair_site(job : JobRepair, worker : Creep, site : Structure) {
   return () => {
-    const res = worker.repair(site);
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
+    worker.say('🛠️');
+    let res : number = worker.repair(site);
     switch (res) {
       case OK:
         log.info(`${job}: ${worker} repaired stuff at ${site}`);
         break;
-      case ERR_NOT_IN_RANGE:
-        const moveRes = worker.moveTo(site);
-        if (moveRes == OK) {
+      case ERR_NOT_IN_RANGE: {
+        res = worker.jobMoveTo(site, 3, <LineStyle>{opacity: .4, stroke: 'orange'});
+        if (res == OK) {
           log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job}: ${worker} failed to move towards repair site ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(moveRes)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
+      }
       default:
         log.warning(`${job}: ${worker} failed while repairing at ${site} (${u.errstr(res)})`);
         break;
@@ -57,11 +60,11 @@ export class JobRepair implements Job {
   }
 
   efficiency(worker : Creep) : number {
-    return u.work_efficiency(worker, this._site, worker.availableEnergy(), REPAIR_POWER);
+    return u.work_efficiency(worker, this._site, worker.available(), REPAIR_POWER);
   }
 
   isSatisfied(workers : Creep[]) : boolean {
-    const energy = _.sum(workers, (w : Creep) : number => { return w.availableEnergy(); });
+    const energy = _.sum(workers, (w : Creep) : number => { return w.available(); });
     const workParts = _.sum(workers, (w : Creep) : number => {
       return _.sum(w.body, (b : BodyPartDefinition) : number => { return b.type == WORK? 1 : 0; });
     });
@@ -75,7 +78,7 @@ export class JobRepair implements Job {
       return completion;
     }
 
-    return 1.0 - worker.availableEnergy()/worker.carryCapacity;
+    return 1.0 - worker.available()/worker.carryCapacity;
   }
 
   baseWorkerBody() : BodyPartConstant[] {
@@ -91,7 +94,7 @@ export class JobRepair implements Job {
   }
 
   prerequisite(worker : Creep) : JobPrerequisite {
-    if (worker.availableEnergy() == 0) {
+    if (worker.available() == 0) {
       return JobPrerequisite.COLLECT_ENERGY;
     }
 

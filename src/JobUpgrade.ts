@@ -5,28 +5,25 @@ import u from "./Utility";
 
 function upgrade_site(job : JobUpgrade, worker : Creep, site : StructureController) : Operation {
   return () => {
-    let res = worker.upgradeController(site);
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
+    worker.say('🏵️');
+    let res : number = worker.upgradeController(site);
     switch (res) {
-      case ERR_NOT_OWNER:
-      case ERR_INVALID_ARGS:
-      case ERR_INVALID_TARGET:
-      case ERR_NOT_ENOUGH_RESOURCES:
-      case ERR_BUSY:
-      default:
-        log.error(`${job}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
-        break;
-      case ERR_NOT_IN_RANGE: {
-        const res = worker.moveTo(site);
-          if (res == OK) {
-            log.info(`${job}: ${worker} moved towards controller ${site} (${worker.pos.getRangeTo(site)} sq)`);
-          }
-          else {
-            log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-          }
-        }
-        break;
       case OK:
         log.info(`${job}: ${worker} upgraded controller ${site})`);
+        break;
+      case ERR_NOT_IN_RANGE: {
+        res = worker.jobMoveTo(site, 3, <LineStyle>{opacity: .4, stroke: 'orange'});
+        if (res == OK) {
+          log.info(`${job}: ${worker} moved towards controller ${site} (${worker.pos.getRangeTo(site)} sq)`);
+        }
+        else {
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+        }
+        break;
+      }
+      default:
+        log.error(`${job}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -41,7 +38,7 @@ export class JobUpgrade implements Job {
 
   constructor(site : StructureController, priority? : number) {
     this._site = site;
-    this._priority = (priority !== undefined)? priority : 5;
+    this._priority = (priority !== undefined)? priority : 3;
   }
 
   id() : string {
@@ -54,29 +51,28 @@ export class JobUpgrade implements Job {
 
   priority(workers : Creep[]) : number {
     let priority : number;
-
-    if (this._site.ticksToDowngrade < 100) {
+    const downgrade = CONTROLLER_DOWNGRADE[this._site.level];
+    if (this._site.ticksToDowngrade < downgrade/5) {
       priority = this._priority+5;
     }
-    else if (this._site.ticksToDowngrade < 1000) {
+    else if (this._site.ticksToDowngrade < downgrade/4) {
       priority = this._priority+4;
     }
-    else if (this._site.ticksToDowngrade < 2000) {
+    else if (this._site.ticksToDowngrade < downgrade/3) {
       priority = this._priority+3;
     }
-    else if (this._site.ticksToDowngrade < 5000) {
+    else if (this._site.ticksToDowngrade < downgrade/2) {
       priority = this._priority+1;
     }
     else {
       priority = this._priority;
     }
 
-    log.debug(`${this}: ticks to controller downgrade = ${this._site.ticksToDowngrade}`)
     return this._priority/(workers.length + 1);
   }
 
   efficiency(worker : Creep) : number {
-    return u.work_efficiency(worker, this._site, worker.availableEnergy(), UPGRADE_CONTROLLER_POWER);
+    return u.work_efficiency(worker, this._site, worker.available(), UPGRADE_CONTROLLER_POWER);
   }
 
   site() : RoomObject {
@@ -89,7 +85,7 @@ export class JobUpgrade implements Job {
 
   completion(worker? : Creep) : number {
     if (worker) {
-      return 1.0 - worker.availableEnergy()/worker.carryCapacity;
+      return 1.0 - worker.available()/worker.carryCapacity;
     }
 
     return 0.0;
@@ -100,7 +96,7 @@ export class JobUpgrade implements Job {
   }
 
   prerequisite(worker : Creep) : JobPrerequisite {
-    if (worker.availableEnergy() == 0) {
+    if (worker.available() == 0) {
       return JobPrerequisite.COLLECT_ENERGY;
     }
     return JobPrerequisite.NONE;

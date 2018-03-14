@@ -21,9 +21,10 @@ function worker_rating(worker : Creep, boss : Boss, minPriority : number) : numb
   if (jobSite === lastJobSite) {
     return 10000;
   }
-  else if (boss.job instanceof JobUnload &&
-          boss.job.site() instanceof StructureContainer &&
-          lastJobSite && lastJobSite instanceof StructureContainer) {
+  else if (lastJobSite &&
+          boss.job instanceof JobUnload &&
+          jobSite instanceof StructureContainer &&
+          lastJobSite instanceof StructureContainer) {
     // Don't pickup/unload between containers.
     return 10000;
   }
@@ -36,49 +37,19 @@ function worker_rating(worker : Creep, boss : Boss, minPriority : number) : numb
   return -e*p;
 }
 
-function find_best_worker(boss : Boss, workers : Creep[]) : Creep|undefined {
-  if (workers.length == 0) {
-    return undefined;
-  }
-  return find_best_workers(boss, workers)[0];
-}
-
-function find_best_workers(boss : Boss, workers : Creep[]) : Creep[] {
-  log.debug(`finding best worker for ${boss} from ${workers.length} workers`);
-  if (workers.length == 0) {
-    return workers;
-  }
-  if (workers.length == 1) {
-    return workers;
-  }
-  const orderedWorkers = _.sortBy(workers, (w : Creep) => { return worker_rating(w, boss, 0); });
-  log.debug(`bestworkers for ${boss}: ${orderedWorkers}`);
-  return orderedWorkers;
-}
-
-function find_best_boss(worker : Creep, bosses : Boss[], minPriority : number) : Boss|undefined {
-  log.debug(`finding best job for ${worker} from ${bosses.length} bosses`);
-  const satisfiedBosses = _.filter(bosses, (b : Boss) => {
-    return (b.job.prerequisite(worker) == JobPrerequisite.NONE
-      && b.needsWorkers()
-      && b.job.site() !== worker.getLastJobSite());
-  });
-
-  if (satisfiedBosses.length == 0) {
-    return undefined;
-  }
-  if (satisfiedBosses.length == 1) {
-    return satisfiedBosses[1];
-  }
-
-  const bestBosses = _.sortBy(satisfiedBosses, (b : Boss) => { return worker_rating(worker, b, minPriority); });
-  return bestBosses[0];
-}
-
 function map_valid_bosses(memory : BossMemory[]) : Boss[] {
   return u.map_valid(
     memory,
     (boss : BossMemory) : Boss|undefined => { return Boss.fromMemory(boss); });
+}
+
+function map_valid_to_links(linkers : (Source|StructureStorage|StructureSpawn)[], to : boolean) : StructureLink[] {
+  return _.filter(u.map_valid(linkers, (s : Source|StructureStorage|StructureSpawn) : StructureLink|undefined|null => {
+      return s._link;
+    }),
+    (l : StructureLink) => {
+      return (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100);
+    });
 }
 
 class TransferWork implements Work {
@@ -127,8 +98,6 @@ export class Mayor {
   private _caretaker : Caretaker;
   private _cloner : Cloner;
   private _bosses : Boss[];
-  private _lazyWorkers : Creep[];
-  private _vacancies : Job[];
 
   constructor(city : City) {
     this._city = city;
@@ -136,8 +105,6 @@ export class Mayor {
     this._caretaker = new Caretaker(city);
     this._cloner = new Cloner(city);
     this._bosses = map_valid_bosses(city.room.memory.bosses);
-    this._lazyWorkers = [];
-    this._vacancies = [];
   }
 
   id() : string {
@@ -154,7 +121,7 @@ export class Mayor {
 
     const allWork = noWork.concat(
         this._bosses,
-        this._cloner.clone(this._lazyWorkers.length? [] : this._vacancies),
+        this._cloner.clone([]),
         this._architect.design(),
         this._caretaker.repair(),
         this.transferEnergy());
@@ -167,25 +134,29 @@ export class Mayor {
 
   private transferEnergy() : Work[] {
     const room = this._city.room;
-    const fromLinks = _.filter(u.map_valid(room.find(FIND_SOURCES), (s : Source) : StructureLink | undefined | null => {
-        return s._link;
-      }),
-      (l : StructureLink) => {
-        return l.cooldown == 0 && l.availableEnergy() > 100;
-      });
+    const fromLinks = map_valid_to_links(room.find(FIND_SOURCES), false);
 
-    const toLinks : StructureLink[] = [];
-    if (room.storage && room.storage._link && room.storage._link.freeSpace() > 100) {
-      toLinks.push(room.storage._link);
+    const linkers : (StructureStorage|StructureSpawn)[] = room.find(FIND_MY_SPAWNS);
+    if (room.storage) {
+      linkers.push(room.storage);
     }
+
+    const toLinks = _.sortBy(map_valid_to_links(linkers, true), (l : StructureLink) => { return l.available(); });
+    log.debug(`${this}: transfer energy from ${fromLinks.length} links to ${toLinks.length} others`);
 
     const transferWork : Work[] = [];
     _.each(fromLinks, (fl : StructureLink) => {
+      let amountAvailable = fl.available();
+      if (amountAvailable < 100) {
+        return;
+      }
+
       _.each(toLinks, (tl : StructureLink) => {
-        const transferAmount = Math.min(fl.availableEnergy(), tl.freeSpace());
+        const transferAmount = Math.min(amountAvailable, tl.freeSpace());
         if (transferAmount < 100) {
           return;
         }
+        amountAvailable -= transferAmount;
         transferWork.push(new TransferWork(fl, tl, transferAmount));
       })
     });
@@ -232,22 +203,15 @@ export class Mayor {
     _.each(this._bosses, (boss : Boss) => { boss.reassignSubcontractors(); });
 
     const unemployed : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (worker : Creep) => { return !worker.isEmployed(); }});
+    const allBosses = this._bosses.concat(newBosses);
+    const [ employers, noVacancies] = _.partition(allBosses, (b : Boss) => { return b.needsWorkers(); });
+    const lazyWorkers = this.assignWorkers(employers, unemployed);
 
-    const bosses = this.prioritizeBosses(this._bosses.concat(newBosses));
-
-    const vacancies : Job[] = _.map(
-      _.filter(bosses, (boss : Boss) => { return boss.needsWorkers(); }),
-      (boss : Boss) : Job => { return boss.job; });
-
-    log.debug(`${this}: ${vacancies.length} vacant jobs`);
-    log.debug(`Boss priorities:`);
-    _.each(bosses, (boss : Boss) => { log.debug(`${boss}: workers=${boss.numWorkers()}, site=${boss.job.site()}, priority=${boss.priority()}`)});
-
-
-    log.debug(`${this}: ${unemployed.length} unemployed workers`)
-    this._lazyWorkers = this.assignWorkers(bosses, unemployed);
-
-    this._bosses = _.filter(bosses, (boss : Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
+    log.debug(`${this}: ${employers.length} employers`);
+    log.debug(`${this}: ${unemployed.length} unemployed workers`);
+    log.debug(`${this}: ${lazyWorkers.length} lazy workers`);
+    log.debug(`${this}: ${this._bosses.length} bosses before survey`)
+    this._bosses = _.filter(allBosses, (boss : Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
     log.debug(`${this}: ${this._bosses.length} bosses after survey`)
   }
 
@@ -273,17 +237,23 @@ export class Mayor {
 
     const takeJobs : Job[] = _.map(
       room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
-        return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.availableEnergy() > 0;
+        return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.available() > 0;
       }}),
       (s : StructureContainer) : Job => {
         return new JobPickup(s, 1);
       });
 
-    const storage = room.storage;
-    const linkJobs : Job[] = [];
-    if (storage && storage._link) {
-      const link = storage._link;
-      const energy = link.availableEnergy();
+    const linkers : (StructureSpawn|StructureStorage)[] = _.filter(room.find(FIND_MY_SPAWNS));
+    if (room.storage) {
+      linkers.push(room.storage);
+    }
+
+    const links : StructureLink[] = u.map_valid(
+      linkers,
+      (s : StructureSpawn|StructureStorage) => { return s._link; });
+
+    const linkJobs = u.map_valid(links, (link : StructureLink) => {
+      const energy = link.available();
       if (energy > 100) {
         const space = link.freeSpace();
         const p = (
@@ -292,9 +262,11 @@ export class Mayor {
           : (space < 600)? 3
           : 2);
 
-        linkJobs.push(new JobPickup(storage._link, p));
+        return new JobPickup(link, p);
       }
-    }
+
+      return null;
+    });
 
     const jobs = scavengeJobs.concat(takeJobs, linkJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
@@ -312,29 +284,40 @@ export class Mayor {
 
   unloadJobs() : Job[] {
     const room = this._city.room;
-    const storage = room.find<StructureStorage|StructureContainer|StructureTower>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
-      return s.freeSpace() > 0 && (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE || s.structureType == STRUCTURE_TOWER);
+    const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, { filter: (s : AnyStructure) => {
+      return (s.structureType == STRUCTURE_STORAGE || s.structureType == STRUCTURE_TOWER) && s.freeSpace() > 0;
     }});
     const foes = room.find(FIND_HOSTILE_CREEPS);
-    const unloadJobs =  _.map(storage, (s : StructureStorage|StructureContainer|StructureTower) : JobUnload => {
+    const unloadJobs : JobUnload[] =  _.map(towers, (s : StructureTower) : JobUnload => {
       let p = 1;
-      if (s.structureType == STRUCTURE_TOWER) {
-        if (foes.length) {
-          p = 10;
-        }
-        else {
-          p = (s.freeSpace() < 100)? 1 : 5;
-        }
+      if (foes.length) {
+        p = 10;
+      }
+      else {
+        p = (s.freeSpace() < 100)? 1 : 5;
       }
       return new JobUnload(s, p);
     });
 
-    const linkJobs = u.map_valid(room.find(FIND_SOURCES), (s : Source) : JobUnload | undefined => {
-      if (!s._link) return undefined;
-      return new JobUnload(s._link, 1);
+    if (room.storage && room.storage.freeSpace() > 0) {
+      unloadJobs.push(new JobUnload(room.storage, 1));
+    }
+
+    const sourceUnloadJobs = u.map_valid(room.find(FIND_SOURCES), (s : Source) : JobUnload[] => {
+      const jobs : JobUnload[] = [];
+      const storage = room.storage;
+      if (s._link) {
+        jobs.push(new JobUnload(s._link, 1));
+      }
+
+      if (s._container) {
+        jobs.push(new JobUnload(s._container, 1));
+      }
+
+      return jobs;
     });
 
-    const jobs = unloadJobs.concat(linkJobs);
+    const jobs : JobUnload[] = unloadJobs.concat(_.flatten(sourceUnloadJobs));
     log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
   }
@@ -366,67 +349,79 @@ export class Mayor {
     return _.sortBy(bosses, (boss : Boss) : number => { return -boss.priority(); });
   }
 
-  assignSubcontractor(boss : Boss, allBosses : Boss[], workers : Creep[]) {
-    const orderedWorkers = find_best_workers(boss, workers);
-    let worker : Creep|undefined;
-    let subcontractingBoss : Boss|undefined;
-    const minPriority = 10;
-    for (worker of orderedWorkers) {
-      subcontractingBoss = find_best_boss(worker, allBosses, minPriority);
-      if (!subcontractingBoss) {
-        continue;
-      }
-    }
-
-    if (!worker || !subcontractingBoss) {
-      log.warning(`${this}: failed to find subcontractor!`);
-      return;
-    }
-
-    log.debug(`${this}: assigning subcontract ${worker.name}:${subcontractingBoss} to ${boss}`);
-    subcontractingBoss.assignWorker(worker);
-    boss.assignSubcontract(subcontractingBoss.job, worker);
-  }
-
-  assignWorker(boss : Boss, allBosses : Boss[], availableWorkers : Creep[]) : Creep[] {
-    log.debug(`${this}: assigning workers ${boss} needs workers? ${boss.needsWorkers()}`)
-    if (!boss.needsWorkers()) {
-      return availableWorkers;
-    }
-
-    const [ directWorkers, indirectWorkers ] = _.partition(availableWorkers, (w : Creep) => { return boss.job.prerequisite(w) == JobPrerequisite.NONE; });
-
-    const bestWorker = find_best_worker(boss, directWorkers);
-    if (bestWorker) {
-      boss.assignWorker(bestWorker);
-    }
-    else {
-      log.debug(`${this}: looking for a subcontractor from ${allBosses.length} bosses, and ${indirectWorkers.length} workers`);
-      this.assignSubcontractor(boss, allBosses, indirectWorkers);
-    }
-
-    return _.reject(availableWorkers, (w : Creep) => { return w.isEmployed(); });
-  }
-
   assignWorkers(bosses : Boss[], availableWorkers : Creep[]) : Creep[] {
 
-    const importantJobs = _.filter(bosses, (b : Boss) => { return b.priority() >= 3; });
-    let lazyWorkers = availableWorkers;
-    for (const boss of bosses) {
-      if (lazyWorkers.length == 0) return [];
-      lazyWorkers = this.assignWorker(boss, bosses, lazyWorkers);
+    if (bosses.length == 0 || availableWorkers.length == 0) {
+      log.debug(`${this}: no bosses or workers to assign.`)
+      return [];
     }
 
-    for (const worker of lazyWorkers) {
-      const bestBoss = find_best_boss(worker, bosses, 0);
-      if (bestBoss) {
-        bestBoss.assignWorker(worker);
-      }
-      else {
-        log.error(`${this}: couldn't find a job for ${worker}???`);
-      }
-    }
+    const [sourceJobs, sinkJobs] = _.partition(bosses, (b : Boss) => { return b.job.satisfiesPrerequisite(JobPrerequisite.COLLECT_ENERGY); });
+    const [emptyWorkers, energizedWorkers] = _.partition(availableWorkers, (w : Creep) => { return w.available() == 0; });
+    const [fullWorkers, multipurposeWorkers] = _.partition(energizedWorkers, (w : Creep) => { return w.freeSpace() == 0; });
 
-    return _.reject(availableWorkers, (w : Creep) => { return w.isEmployed(); });
+    log.debug(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
+    const [hiringSinks, lazyFull] = assign_workers(sinkJobs, fullWorkers);
+    log.debug(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs`);
+    const [hiringSources, lazyEmpty] = assign_workers(sourceJobs, emptyWorkers);
+    log.debug(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left-over jobs`);
+    const [hiring, lazyMulti]  = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
+
+    return lazyFull.concat(lazyEmpty, lazyMulti);
   }
+}
+
+type WorkerBossPairing = { rating: number, boss: Boss, worker: Creep };
+function get_worker_pairings(bosses: Boss[], workers: Creep[]) : WorkerBossPairing[] {
+  const pairings: WorkerBossPairing[] = [];
+  _.each(bosses, (b: Boss) => {
+    _.each(workers, (w: Creep) => {
+      const rating = worker_rating(w, b, 0);
+      if (rating < 0.0) {
+        pairings.push({ rating: rating, boss: b, worker: w })
+      }
+    });
+  });
+
+  return _.sortBy(pairings, (wbp: WorkerBossPairing): number => { return wbp.rating; });
+}
+
+function assign_best_workers(bosses: Boss[], workers: Creep[]) : [Boss[], Creep[]] {
+  if (bosses.length == 0 || workers.length == 0) {
+    return [bosses, workers];
+  }
+
+  let pairings: WorkerBossPairing[] = get_worker_pairings(bosses, workers);
+  if (pairings.length == 0) {
+    return [bosses, workers];
+  }
+
+  const assignedBosses : Boss[] = [];
+  const assignedWorkers : Creep[] = [];
+  let bestPairing : WorkerBossPairing;
+  do {
+    bestPairing = pairings[0];
+    bestPairing.boss.assignWorker(bestPairing.worker);
+    assignedBosses.push(bestPairing.boss);
+    assignedWorkers.push(bestPairing.worker);
+    bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
+    bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)}`, bestPairing.boss.job.site().pos);
+    pairings = _.filter(pairings, (wbp : WorkerBossPairing) => { return wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker; });
+  }
+  while (pairings.length);
+
+  return [ _.filter(bosses, (b : Boss) => { return b.needsWorkers(); }), _.difference(workers, assignedWorkers) ];
+}
+
+function assign_workers(bosses: Boss[], workers: Creep[]) : [Boss[], Creep[]] {
+  let lazyWorkers = workers;
+  let hiringBosses = bosses;
+
+  let numJobsAndWorkers;
+  do {
+    numJobsAndWorkers = hiringBosses.length + lazyWorkers.length;
+    [hiringBosses, lazyWorkers] = assign_best_workers(hiringBosses, lazyWorkers);
+  } while (hiringBosses.length && lazyWorkers.length && (hiringBosses.length + lazyWorkers.length < numJobsAndWorkers));
+
+  return [ hiringBosses, lazyWorkers];
 }

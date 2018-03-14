@@ -44,7 +44,7 @@ function tower_repair_filter(tower : StructureTower[], site : Structure) : boole
     case STRUCTURE_WALL:
       return site.hits/3000000 < 0.2;
     case STRUCTURE_RAMPART:
-      return healthRatio < 0.2;
+      return healthRatio < 0.08;
     default:
       break;
   }
@@ -163,7 +163,7 @@ export class Caretaker implements Expert {
       if (s.structureType != STRUCTURE_TOWER) {
         return false;
       }
-      return s.availableEnergy() > 0;
+      return s.available() > 0;
     }});
   }
 
@@ -192,7 +192,7 @@ export class Caretaker implements Expert {
     if (foes.length > 0) {
       for (let i = 0; i < this._towers.length; ++i) {
         const t = this._towers[i];
-        if (t.availableEnergy() < TOWER_ENERGY_COST) continue;
+        if (t.available() < TOWER_ENERGY_COST) continue;
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
         work.push(new TowerDefenseWork(t, f));
@@ -211,7 +211,7 @@ export class Caretaker implements Expert {
 
     for (let i = 0; i < this._towers.length; ++i) {
       const t = this._towers[i];
-      if (t.availableEnergy() < TOWER_ENERGY_COST) continue;
+      if (t.available() < TOWER_CAPACITY/3) continue;
 
       const s = _.sortBy(repairSites, (s : Structure) => {
         return -repair_priority(s)*repair_power(t, s);

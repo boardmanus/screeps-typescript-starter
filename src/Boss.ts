@@ -130,6 +130,7 @@ export class Boss implements Work {
       log.error(`ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
       return;
     }
+    log.debug(`${this}: assigning worker ${worker}`);
     worker.setEmployed(true);
     this._workers.push(worker);
   }

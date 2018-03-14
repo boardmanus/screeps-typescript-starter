@@ -12,6 +12,8 @@ import u from "./Utility"
  */
 function harvest_energy_from_site(job : JobHarvest, worker : Creep, site : Source|Mineral) : Operation {
   return  () => {
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
+    worker.say('⛏️');
     let res : number = worker.harvest(site);
     switch (res) {
       case ERR_NOT_OWNER:
@@ -26,12 +28,12 @@ function harvest_energy_from_site(job : JobHarvest, worker : Creep, site : Sourc
         log.warning(`${job}: ${site.id} doesn't have any energy for ${worker} to harvest (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
-        res = worker.moveTo(site);
+        res = worker.jobMoveTo(site, 1, <LineStyle>{opacity: .4, stroke: 'green'});
         if (res == OK) {
           log.info(`${job}: ${worker} is moving to harvest at ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job}: ${worker} failed to move to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       case OK:
@@ -91,7 +93,6 @@ function is_energy_harvesting_satisfied(source : Source, workers : Creep[]) : bo
   }
 
   const remainingEnergy = source.energy - _.sum(workers, (w : Creep) : number => { return w.freeSpace(); });
-  log.debug(`is_energy_harvesting_satisfied: ${source} => remainingEnergy=${remainingEnergy}`);
   return remainingEnergy <= 0;
 }
 
@@ -154,7 +155,7 @@ export class JobHarvest implements Job {
 
   satisfiesPrerequisite(prerequisite : JobPrerequisite) : boolean {
     if (prerequisite == JobPrerequisite.COLLECT_ENERGY) {
-      return this._site.availableEnergy() > 0;
+      return this._site.available() > 0;
     }
 
     return false;
@@ -177,7 +178,6 @@ export class JobHarvest implements Job {
   isSatisfied(workers : Creep[]) : boolean {
 
     const positions = harvest_spaces(this._site);
-    log.debug(`${this}: has ${positions.length} harvest spots`);
     if (workers.length >= positions.length) {
       return true;
     }
@@ -191,9 +191,7 @@ export class JobHarvest implements Job {
 
   completion(worker? : Creep) : number {
     if (worker) {
-      const c = _.sum(worker.carry)/worker.carryCapacity;
-      log.debug(`${this}: completion of ${worker} => ${c}`);
-      return c;
+      return _.sum(worker.carry)/worker.carryCapacity;
     }
 
     if (this._site instanceof Source) {

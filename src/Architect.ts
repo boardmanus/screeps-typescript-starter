@@ -88,24 +88,73 @@ function find_source_routes(room : Room) : RoomPosition[] {
   return paths;
 }
 
+function find_link_routes(room : Room) : RoomPosition[] {
+  const links : StructureLink[] = room.find<StructureLink>(FIND_MY_STRUCTURES, { filter: (s : Structure) => {
+    return s.structureType == STRUCTURE_LINK;
+  }});
+  const spawns : StructureSpawn[] = room.find(FIND_MY_SPAWNS);
+
+  const paths = _.flatten(_.map(links, (link : StructureLink) : RoomPosition[] => {
+    return _.flatten(_.map(spawns, (spawn : StructureSpawn) : RoomPosition[] => {
+      return find_roading_route(link, spawn);
+    }));
+  }));
+
+  return paths;
+}
+
+function find_extractor_routes(room : Room) : RoomPosition[] {
+
+  const storage = room.storage;
+  if (!storage) {
+    return [];
+  }
+
+  const extractors : StructureExtractor[] = room.find<StructureExtractor>(FIND_MY_STRUCTURES, { filter: (s : Structure) => {
+    return s.structureType == STRUCTURE_EXTRACTOR;
+  }});
+
+  const paths = _.flatten(_.map(extractors, (extractor : StructureExtractor) : RoomPosition[] => {
+    return find_roading_route(extractor, storage);
+  }));
+
+  return paths;
+}
+//function get_road_padding(room : Room) : RoomPosition[] {
+//  const sites = room.find()
+//}
+
 function look_for_road_filter(l : LookAtResult) : boolean {
   if (l.type == LOOK_STRUCTURES) {
     return (l.structure && l.structure.structureType == STRUCTURE_ROAD)? true : false;
   }
   else if (l.type == LOOK_CONSTRUCTION_SITES) {
-    return (l.constructionSite && l.constructionSite.structureType == STRUCTURE_ROAD)? true : false;
+    return (l.constructionSite)? true : false;
   }
 
   return false;
 }
 
-function select_road_sites(room : Room, maxSites : number, selector: (r : Room) => RoomPosition[]) : RoomPosition[] {
-  return _.take(_.filter(selector(room), (pos : RoomPosition) => {
-      const lookies = room.lookAt(pos);
-      const roadFound = _.find(lookies, look_for_road_filter);
-      return !roadFound;
-    }),
-    maxSites);
+function select_road_sites(room : Room, maxSites : number, name: string, defCounter : number, selector: (r : Room) => RoomPosition[]) : RoomPosition[] {
+  const counters = room.memory.architect.roading;
+  const counter = (name in counters)? counters[name] - 1 : defCounter;
+  if (counter <= 0) {
+
+    log.debug(`${room}: computing roads for ${name}`);
+    const sites =_.take(_.filter(selector(room), (pos : RoomPosition) => {
+        const lookies = room.lookAt(pos);
+        const roadFound = _.find(lookies, look_for_road_filter);
+        return !roadFound;
+      }),
+      maxSites);
+
+    counters[name] = (sites.length == 0)? defCounter : 0;
+
+    return sites;
+  }
+
+  counters[name] = counter;
+  return [];
 }
 
 function possible_road_sites(room : Room, numAllowed : number) : RoomPosition[] {
@@ -115,17 +164,28 @@ function possible_road_sites(room : Room, numAllowed : number) : RoomPosition[] 
   }
 
 
-  const sourceRoutes = select_road_sites(room, numAllowed, find_source_routes);
+
+  const sourceRoutes = select_road_sites(room, numAllowed, 'sources', 17, find_source_routes);
   if (sourceRoutes.length > 0) {
     return sourceRoutes;
   }
 
-  const controllerRoutes = select_road_sites(room, numAllowed, find_controller_routes);
+  const controllerRoutes = select_road_sites(room, numAllowed, 'controller', 41, find_controller_routes);
   if (controllerRoutes.length > 0) {
     return controllerRoutes;
   }
 
-  const towerRoutes = select_road_sites(room, numAllowed, find_tower_routes);
+  const linkRoutes = select_road_sites(room, numAllowed, 'links', 23, find_link_routes);
+  if (linkRoutes.length > 0) {
+    return linkRoutes;
+  }
+
+  const extractorRoutes = select_road_sites(room, numAllowed, 'extractors', 19, find_extractor_routes);
+  if (extractorRoutes.length > 0) {
+    return extractorRoutes;
+  }
+
+  const towerRoutes = select_road_sites(room, numAllowed, 'towers', 13, find_tower_routes);
   return towerRoutes;
 }
 
@@ -134,7 +194,7 @@ function possible_extension_sites(spawn : StructureSpawn, numExtensions : number
   let sites : RoomPosition[] = [];
   while (sites.length < numExtensions && radius++ < 5) {
     const viableSites = spawn.pos.surroundingPositions(radius, (site : RoomPosition) => {
-      if ((site.x % 2) || (site.y % 2)) {
+      if ((site.x % 2) != (site.y % 2)) {
         return false;
       }
 
@@ -175,7 +235,23 @@ function find_site<S extends Structure>(obj : RoomObject, type : StructureConsta
   return site;
 }
 
-function possible_container_sites(source : Source) : RoomPosition[] {
+function empty_surrounding_positions(pos : RoomPosition) : RoomPosition[] {
+  const surroundingPositions = pos.surroundingPositions(1, (p : RoomPosition) : boolean => {
+    const terrain = p.look();
+    for (const t of terrain) {
+      if (t.type == LOOK_CONSTRUCTION_SITES ||
+          (t.type == LOOK_STRUCTURES && t.structure && t.structure.structureType != STRUCTURE_ROAD) ||
+          (t.type == LOOK_TERRAIN && t.terrain == 'wall')) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  return surroundingPositions;
+}
+
+function possible_container_sites(source : RoomObject) : RoomPosition[] {
   let haveContainer : boolean = false;
   const viableSites = source.pos.surroundingPositions(1, (site : RoomPosition) : boolean => {
     if (haveContainer) {
@@ -206,8 +282,22 @@ function possible_container_sites(source : Source) : RoomPosition[] {
     return true;
   });
 
+  if (haveContainer) {
+    return [];
+  }
+
   log.info(`found ${viableSites.length} viable container sites ${viableSites}`);
-  return haveContainer? [] : viableSites.slice(0, 1);
+  const room = source.room;
+  const sortedSites = _.sortBy(viableSites, (site : RoomPosition) => {
+    const emptyPositions = empty_surrounding_positions(site);
+    let val = -emptyPositions.length;
+    if (room && room.storage) {
+      val += 1/site.getRangeTo(room.storage);
+    }
+    return val;
+  });
+
+  return _.take(sortedSites, 1);
 }
 
 function possible_tower_sites(protectionSite : RoomObject) : RoomPosition[] {
@@ -301,7 +391,16 @@ function possible_link_sites(linkNeighbour : Structure) : RoomPosition[] {
   }
 
   log.info(`found ${viableSites.length} viable link sites for ${linkNeighbour}`);
-  return _.take(viableSites, 1);
+  const sortedSites = _.sortBy(viableSites, (site : RoomPosition) => {
+    const emptyPositions = empty_surrounding_positions(site);
+    let val = -emptyPositions.length;
+    if (room.storage) {
+      val += 1/site.getRangeTo(room.storage);
+    }
+    return val;
+  });
+
+  return _.take(sortedSites, 1);
 }
 
 function possible_storage_sites(controller : StructureController) : RoomPosition[] {
@@ -382,6 +481,13 @@ function storage_site_viability(pos : RoomPosition, room : Room) : number {
   return spacialViability - locationalViability;
 }
 
+function possible_extractor_sites(room: Room) : RoomPosition[] {
+  const minerals = room.find(FIND_MINERALS);
+  const viableSites : RoomPosition[] = _.map(minerals, (m : Mineral): RoomPosition => { return m.pos; });
+
+  log.info(`found ${viableSites.length} viable extrator sites ${viableSites}`);
+  return viableSites;
+}
 
 class BuildingWork implements Work {
 
@@ -499,9 +605,11 @@ export class Architect implements Expert {
       return [];
     }
 
+    const sources : RoomObject[] = room.find(FIND_SOURCES);
+    const minerals : RoomObject[] = room.find(FIND_MY_STRUCTURES, { filter: (s : Structure) => { return s.structureType == STRUCTURE_EXTRACTOR; }});
     const containerPos : RoomPosition[] = _.flatten(_.map(
-      room.find(FIND_SOURCES),
-      (source : Source) : RoomPosition[] => {
+      sources.concat(minerals),
+      (source : RoomObject) : RoomPosition[] => {
         return possible_container_sites(source);
       }));
 
@@ -589,7 +697,7 @@ export class Architect implements Expert {
     log.info(`${this}: current num links ${numLinks} - allowed ${allowedNumLinks}`)
 
     if (numLinks >= allowedNumLinks) {
-      log.info(`${this}: already have all the required towers (${numLinks}).`)
+      log.info(`${this}: already have all the required links (${numLinks}).`)
       return [];
     }
 
@@ -622,6 +730,27 @@ export class Architect implements Expert {
     });
   }
 
+  designExtractors() : Work[] {
+    const room = this._city.room;
+    const controller = room.controller;
+    if (!controller) return [];
+
+    const numExtractors = u.find_num_building_sites(room, STRUCTURE_EXTRACTOR);
+    const allowedNumExtractors = CONTROLLER_STRUCTURES.extractor[controller.level];
+    log.info(`${this}: current num extractors ${numExtractors} - allowed ${allowedNumExtractors}`)
+
+    if (numExtractors >= allowedNumExtractors) {
+      log.info(`${this}: already have all the required extractors (${numExtractors})`);
+      return [];
+    }
+
+    const extractorPositions = _.take(possible_extractor_sites(room), allowedNumExtractors - numExtractors);
+    return _.map(extractorPositions, (pos : RoomPosition) : Work => {
+      log.info(`${this}: creating new extractor build work at ${pos} ...`);
+      return new BuildingWork(room, pos, STRUCTURE_EXTRACTOR);
+    });
+  }
+
   designRoads() : Work[] {
     const room = this._city.room;
     const numRoadConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs : ConstructionSite) => {
@@ -631,6 +760,10 @@ export class Architect implements Expert {
     if (numRoadConstructionSites >= 10) {
       log.info(`${this}: already have all the allowed road construction sites (${numRoadConstructionSites}).`)
       return [];
+    }
+
+    if (!room.memory.architect) {
+      room.memory.architect = <ArchitectMemory>{roading:{}};
     }
 
     const numAllowed = 10 - numRoadConstructionSites;
@@ -651,7 +784,8 @@ export class Architect implements Expert {
     const roadWorks : Work[] = this.designRoads();
     const towerWorks : Work[] = this.designTowers();
     const linkWorks : Work[] = this.designLinks();
-    return extensionWorks.concat(containerWorks, storageWorks, roadWorks, towerWorks, linkWorks);
+    const extractorWorks : Work[] = this.designExtractors();
+    return extensionWorks.concat(containerWorks, storageWorks, roadWorks, towerWorks, linkWorks, extractorWorks);
   }
 
   schedule() : Job[] {
@@ -725,6 +859,26 @@ export class Architect implements Expert {
         log.warning(`${this}: found ${storage} link => ${storage._link}`);
       }
     }
+
+    const spawns = room.find(FIND_MY_SPAWNS);
+    const spawnMem = room.memory.spawns;
+    if (spawns && spawnMem) {
+      _.each(spawnMem, (sm : SpawnMemory) => {
+        const spawn : StructureSpawn|null = Game.getObjectById<StructureSpawn>(sm.id);
+        if (!spawn) {
+          return;
+        }
+
+        const link = Game.getObjectById<StructureLink>(sm.link);
+        if (link) {
+          spawn._link = link;
+        }
+        else {
+          spawn._link = find_site(spawn, STRUCTURE_LINK, 1);
+          log.warning(`${this}: found ${spawn} link => ${spawn._link}`);
+        }
+      });
+    }
   }
 
   save() : void {
@@ -750,5 +904,15 @@ export class Architect implements Expert {
           link: s._link? s._link.id : undefined
         };
     }
+
+    room.memory.spawns = _.map(
+      room.find(FIND_MY_SPAWNS),
+      (s : StructureSpawn) : SpawnMemory => {
+        const sm : SpawnMemory = {
+          id: s.id,
+          link: s._link? s._link.id : undefined
+        };
+        return sm;
+      });
   }
 }

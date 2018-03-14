@@ -6,18 +6,20 @@ import u from "./Utility"
 
 function build_site(job : JobBuild, worker : Creep, site : ConstructionSite) {
   return () => {
-    const res = worker.build(site);
+    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
+    worker.say('⚒️');
+    let res : number = worker.build(site);
     switch (res) {
       case OK:
         log.info(`${job}: ${worker} built stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        const moveRes = worker.moveTo(site);
-        if (moveRes == OK) {
+        res = worker.jobMoveTo(site, 3, <LineStyle>{opacity: .4, stroke: 'orange'});
+        if (res == OK) {
           log.info(`${job}: ${worker} moved to construction site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job}: ${worker} failed to move towards construction site ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(moveRes)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
@@ -57,13 +59,13 @@ export class JobBuild implements Job {
   }
 
   isSatisfied(workers : Creep[]) : boolean {
-    const energy = _.sum(workers, (w : Creep) : number => { return w.availableEnergy(); });
+    const energy = _.sum(workers, (w : Creep) : number => { return w.available(); });
     const energyRequired = (this._site.progressTotal - this._site.progress)/(BUILD_POWER);
     return energy >= energyRequired;
   }
 
   efficiency(worker : Creep) : number {
-    return u.work_efficiency(worker, this._site, worker.availableEnergy(), BUILD_POWER);
+    return u.work_efficiency(worker, this._site, worker.available(), BUILD_POWER);
   }
 
   completion(worker? : Creep) : number {
@@ -72,7 +74,7 @@ export class JobBuild implements Job {
       return completion;
     }
 
-    return 1.0 - worker.availableEnergy()/worker.carryCapacity;
+    return 1.0 - worker.available()/worker.carryCapacity;
   }
 
   baseWorkerBody() : BodyPartConstant[] {
@@ -88,7 +90,7 @@ export class JobBuild implements Job {
   }
 
   prerequisite(worker : Creep) : JobPrerequisite {
-    if (worker.availableEnergy() == 0) {
+    if (worker.available() == 0) {
       return JobPrerequisite.COLLECT_ENERGY;
     }
 

@@ -19,14 +19,14 @@ function get_cloning_energy_sites(room : Room) : Structure[] {
 }
 
 function max_workers_allowed(_room : Room) : number {
-  return 8;
+  return 6;
 }
 
 function get_cloning_energy(room : Room) : [number, number] {
   return _.reduce(
     get_cloning_energy_sites(room),
     (energy : [number, number], site : Structure) : [number, number] => {
-      return [energy[0] + site.availableEnergy(), energy[1] + site.capacity()];
+      return [energy[0] + site.available(), energy[1] + site.capacity()];
     },
     [0, 0]);
 }
@@ -44,7 +44,7 @@ function get_spawners_and_extensions(room : Room) : CloningStructure[] {
     }
 
     const cs : CloningStructure = <CloningStructure>s;
-    return cs.availableEnergy() < cs.energyCapacity;
+    return cs.available() < cs.energyCapacity;
   }});
 }
 
@@ -69,6 +69,7 @@ function clone_a_worker(work : CloningWork) : Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
+const MAX_WORKER_ENERGY = 1200;
 
 class CloningWork implements Work {
 
@@ -116,6 +117,7 @@ export class Cloner implements Expert {
     this._uniqueId = city.room.memory.cloneCount || 0;
     this._currentWorkers = this._city.room.find(FIND_MY_CREEPS);
     this._numWorkers = this._currentWorkers.length;
+    this._maxWorkers = 0;
   }
 
   id() : string {
@@ -161,10 +163,10 @@ export class Cloner implements Expert {
       return job.baseWorkerBody();
     }
 
-    if (this._city.getRoadsEstablished()) {
+    //if (this._city.getRoadsEstablished()) {
       // Don't need the extra move
-      return [ WORK, MOVE, CARRY ];
-    }
+    //  return [ WORK, MOVE, CARRY ];
+    //}
 
     return [WORK, MOVE, CARRY, MOVE]
   }
@@ -187,12 +189,13 @@ export class Cloner implements Expert {
 
     let [availableEnergy, totalEnergy] = get_cloning_energy(this._city.room);
     if (this._numWorkers > MIN_SAFE_WORKERS &&
+      availableEnergy < MAX_WORKER_ENERGY &&
       availableEnergy/totalEnergy < 0.9) {
       log.debug(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy/totalEnergy}`)
       return [];
     }
 
-    const creepBody = u.generate_body(this.bodyTemplate(), availableEnergy);
+    const creepBody = u.generate_body(this.bodyTemplate(), Math.min(MAX_WORKER_ENERGY, availableEnergy));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];

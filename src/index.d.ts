@@ -1,8 +1,10 @@
 // memory extension samples
 interface CreepMemory {
+  _move: {};
   job: string | undefined;
   employed: boolean | undefined;
   homeTown: string;
+  lastPosition: RoomPosition | undefined;
 }
 
 interface SourceMemory {
@@ -17,18 +19,9 @@ interface StorageMemory {
   link: string | undefined;
 }
 
-interface RoomMemory {
-  expats: string[];
-  bosses: BossMemory[];
-  sources: SourceMemory[];
-  storage: StorageMemory;
-  cloneCount: number;
-  roadsEstablished: boolean;
-}
-
-interface SubcontractorMemory {
-  worker: string;
-  job: string;
+interface SpawnMemory {
+  id: string | undefined;
+  link: string | undefined;
 }
 
 interface BossMemory {
@@ -36,6 +29,27 @@ interface BossMemory {
   workers: string[];
   subcontractors: SubcontractorMemory[];
 }
+
+interface ArchitectMemory {
+  roading: { [type : string] : number };
+}
+
+interface RoomMemory {
+  expats: string[];
+  bosses: BossMemory[];
+  sources: SourceMemory[];
+  storage: StorageMemory;
+  spawns: SpawnMemory[];
+  architect: ArchitectMemory;
+  cloneCount: number;
+}
+
+interface SubcontractorMemory {
+  worker: string;
+  job: string;
+}
+
+
 
 interface AssignmentMemory {
   worker: string;

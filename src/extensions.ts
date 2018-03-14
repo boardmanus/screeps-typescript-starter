@@ -3,7 +3,7 @@ interface RoomPosition {
 }
 
 interface RoomObject {
-  availableEnergy() : number;
+  available(resource? : ResourceConstant) : number;
   freeSpace(resource? : ResourceConstant) : number;
   capacity() : number;
 }
@@ -15,6 +15,7 @@ interface Creep {
   isEmployed() : boolean;
   setLastJobSite(lastJobSite : RoomObject) : void;
   getLastJobSite() : RoomObject|undefined;
+  jobMoveTo(pos : RoomPosition|RoomObject, range : number, style : LineStyle) : number;
 }
 
 interface Source {
@@ -51,7 +52,7 @@ RoomPosition.prototype.surroundingPositions = function (radius : number, filter?
   return positions;
 }
 
-RoomObject.prototype.availableEnergy = function() : number {
+RoomObject.prototype.available = function(_? : ResourceConstant) : number {
   return 0;
 }
 RoomObject.prototype.freeSpace = function(_? : ResourceConstant) : number {
@@ -61,19 +62,19 @@ RoomObject.prototype.capacity = function() : number {
   return 0;
 }
 
-Resource.prototype.availableEnergy = function() : number {
-  if (this.resourceType == RESOURCE_ENERGY) {
+Resource.prototype.available = function(resource? : ResourceConstant) : number {
+  if (!resource && this.resourceType == RESOURCE_ENERGY || this.resourceType == resource) {
     return this.amount;
   }
   return 0;
 }
 
-Source.prototype.availableEnergy = function() : number {
-  return this.energy;
+Source.prototype.available = function(resource? : ResourceConstant) : number {
+  return (!resource || (resource == RESOURCE_ENERGY))? this.energy : 0;
 }
 
-StructureExtension.prototype.availableEnergy = function() : number {
-  return this.energy;
+StructureExtension.prototype.available = function(resource? : ResourceConstant) : number {
+  return (!resource || (resource == RESOURCE_ENERGY))? this.energy : 0;
 }
 StructureExtension.prototype.freeSpace = function (resource? : ResourceConstant) : number {
   return (!resource || (resource == RESOURCE_ENERGY))? this.energyCapacity - this.energy : 0;
@@ -82,8 +83,8 @@ StructureExtension.prototype.capacity = function() : number {
   return this.energyCapacity;
 }
 
-StructureLink.prototype.availableEnergy = function() : number {
-  return this.energy;
+StructureLink.prototype.available = function(resource? : ResourceConstant) : number {
+  return (!resource || (resource == RESOURCE_ENERGY))? this.energy : 0;
 }
 StructureLink.prototype.freeSpace = function (resource? : ResourceConstant) : number {
   return (!resource || (resource == RESOURCE_ENERGY))? this.energyCapacity - this.energy : 0;
@@ -92,8 +93,8 @@ StructureLink.prototype.capacity = function() : number {
   return this.energyCapacity;
 }
 
-StructureSpawn.prototype.availableEnergy = function() : number {
-  return this.energy;
+StructureSpawn.prototype.available = function(resource? : ResourceConstant) : number {
+  return (!resource || (resource == RESOURCE_ENERGY))? this.energy : 0;
 }
 StructureSpawn.prototype.freeSpace = function (resource? : ResourceConstant) : number {
   return (!resource || (resource == RESOURCE_ENERGY))? this.energyCapacity - this.energy : 0;
@@ -102,8 +103,8 @@ StructureSpawn.prototype.capacity = function() : number {
   return this.energyCapacity;
 }
 
-StructureContainer.prototype.availableEnergy = function() : number {
-  return this.store[RESOURCE_ENERGY];
+StructureContainer.prototype.available = function(resource? : ResourceConstant) : number {
+  return this.store[resource || RESOURCE_ENERGY] || 0;
 }
 StructureContainer.prototype.freeSpace = function (__? : ResourceConstant) : number {
   return this.storeCapacity - _.sum(this.store);
@@ -112,8 +113,8 @@ StructureContainer.prototype.capacity = function() : number {
   return this.storeCapacity;
 }
 
-StructureStorage.prototype.availableEnergy = function() : number {
-  return this.store[RESOURCE_ENERGY];
+StructureStorage.prototype.available = function(resource? : ResourceConstant) : number {
+  return this.store[resource || RESOURCE_ENERGY] || 0;
 }
 StructureStorage.prototype.freeSpace = function (__? : ResourceConstant) : number {
   return this.storeCapacity - _.sum(this.store);
@@ -122,8 +123,8 @@ StructureStorage.prototype.capacity = function() : number {
   return this.storeCapacity;
 }
 
-StructureTower.prototype.availableEnergy = function() : number {
-  return this.energy;
+StructureTower.prototype.available = function(resource? : ResourceConstant) : number {
+  return (!resource || (resource == RESOURCE_ENERGY))? this.energy : 0;
 }
 StructureTower.prototype.freeSpace = function (resource? : ResourceConstant) : number {
   return (!resource || (resource == RESOURCE_ENERGY))? this.energyCapacity - this.energy : 0;
@@ -132,8 +133,8 @@ StructureTower.prototype.capacity = function() : number {
   return this.energyCapacity;
 }
 
-Creep.prototype.availableEnergy = function() : number {
-  return this.carry[RESOURCE_ENERGY];
+Creep.prototype.available = function(resource? : ResourceConstant) : number {
+  return this.carry[resource || RESOURCE_ENERGY] || 0;
 }
 Creep.prototype.freeSpace = function (__? : ResourceConstant) : number {
   return this.carryCapacity - _.sum(this.carry);
@@ -152,4 +153,45 @@ Creep.prototype.setLastJobSite = function(lastJobSite : RoomObject) : void {
 }
 Creep.prototype.getLastJobSite = function() : RoomObject {
   return this._lastJobSite;
+}
+Creep.prototype.jobMoveTo = function(pos : RoomPosition|RoomObject, range : number, style : LineStyle) : number {
+
+  const lastPosition = this.memory.lastPosition;
+  const stuck = (
+    lastPosition
+    && lastPosition.x == this.pos.x
+    && lastPosition.y == this.pos.y
+    && lastPosition.roomName == this.pos.roomName);
+
+  if (!stuck) {
+
+    const res = this.moveTo(pos, { ignoreCreeps: true , range: range, reusePath: 20, visualizePathStyle: style });
+    if (res == OK) {
+      this.memory.lastPosition = this.pos;
+      return res;
+    }
+
+    if (res != ERR_NO_PATH) {
+      this.memory.lastPosition = undefined;
+      return res;
+    }
+
+    console.log(`${this}: failed moving to ${pos} - reevaluating path`);
+  }
+  else {
+    console.log(`${this}: stuck - reevaluating path`);
+  }
+
+  // Clear out the old move
+  delete this.memory._move;
+
+  // Re-evaluate the path, ensuring creeps aren't ignored this time.
+  const res = this.moveTo(pos, { ignoreCreeps: false, range: range, reusePath: 20, visualizePathStyle: style});
+  if (res != OK) {
+    this.memory.lastPosition = undefined;
+    return res;
+  }
+
+  this.memory.lastPosition = this.pos;
+  return res;
 }
