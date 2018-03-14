@@ -1,7 +1,7 @@
 "use strict";
 
-import gitversion from "rollup-plugin-git-version";
 import clean from "rollup-plugin-clean";
+import json from "rollup-plugin-json";
 import resolve from "rollup-plugin-node-resolve";
 import commonjs from "rollup-plugin-commonjs";
 import typescript from "rollup-plugin-typescript2";
@@ -24,12 +24,10 @@ export default {
   },
 
   plugins: [
-    gitversion(),
     clean(),
+    json(),
     resolve(),
-    commonjs({namedExports: {
-        'node_modules/screeps-profiler/screeps-profiler.js': ['enable', 'wrap']
-      }}),
+    commonjs(),
     typescript({tsconfig: "./tsconfig.json"}),
     screeps({config: cfg, dryRun: cfg == null})
   ]

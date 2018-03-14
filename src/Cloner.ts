@@ -140,7 +140,7 @@ export class Cloner implements Expert {
 
   schedule() : Job[] {
     const sne = get_spawners_and_extensions(this._city.room);
-    const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w : Creep) : number => { return w.ticksToLive < 300? 1 : 0; }));
+    const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w : Creep) : number => { return (w.ticksToLive && w.ticksToLive < 300)? 1 : 0; }));
     log.debug(`${this}: ${sne.length} spawners and extensions requiring energy. ${nearlyDeadWorkers} workers nearly dead.`);
     log.debug(`${this} scheduling ${sne.length} clone jobs...`);
     return _.map(
@@ -203,7 +203,7 @@ export class Cloner implements Expert {
 
     const cloneTime = u.time_to_spawn(creepBody);
     const replaceableWorkers : Creep[] = this._city.room.find(FIND_MY_CREEPS, { filter: (c : Creep) => {
-      return c.ticksToLive <= cloneTime;
+      return !c.ticksToLive || c.ticksToLive <= cloneTime;
     }});
 
     if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {

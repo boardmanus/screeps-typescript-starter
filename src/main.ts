@@ -1,4 +1,4 @@
-import * as Profiler from "screeps-profiler";
+import { ErrorMapper } from "utils/ErrorMapper";
 import { log } from "./lib/logger/log";
 import { King } from "./King";
 import { Operation } from "./Operation";
@@ -16,13 +16,11 @@ import * as data from "../package.json";
 // by setting USE_PROFILER through webpack, if you want to permanently
 // remove it on deploy
 // Start the profiler
-Profiler.enable();
-
 log.info(`Scripts bootstrapped`);
 log.info(`Revision ID: ${(<any>data).version}`);
 
 
-function mloop() {
+export const loop = ErrorMapper.wrapLoop(() => {
 
   log.info(`***** TICK ${Game.time} *****`);
 
@@ -48,15 +46,4 @@ function mloop() {
   _.each(operations, (op : Operation) : void => {
     op();
   });
-}
-
-/**
- * Screeps system expects this "loop" method in main.js to run the
- * application. If we have this line, we can be sure that the globals are
- * bootstrapped properly and the game loop is executed.
- * http://support.screeps.com/hc/en-us/articles/204825672-New-main-loop-architecture
- *
- * @export
- */
-export const loop = () => { Profiler.wrap(mloop); }
-//export const loop = mloop;
+});

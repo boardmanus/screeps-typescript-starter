@@ -195,4 +195,5 @@ if (Config.LOG_LOAD_SOURCE_MAP) {
 
 export const log = new Log();
 
+declare var global: any;
 global.log = log;
