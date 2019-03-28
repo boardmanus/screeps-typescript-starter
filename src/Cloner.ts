@@ -19,7 +19,7 @@ function get_cloning_energy_sites(room : Room) : Structure[] {
 }
 
 function max_workers_allowed(_room : Room) : number {
-  return 6;
+  return 8;
 }
 
 function get_cloning_energy(room : Room) : [number, number] {

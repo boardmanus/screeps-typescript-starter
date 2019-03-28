@@ -228,10 +228,8 @@ export class Caretaker implements Expert {
 
     const room = this._city.room;
 
-    const repairSites : Structure[] = _.take(_.sortBy(
-      room.find(FIND_STRUCTURES, { filter: worker_repair_filter }),
-      10));
-
+    const allSites = room.find(FIND_STRUCTURES, { filter: worker_repair_filter });
+    const repairSites : Structure[] = _.take(_.sortBy(allSites, (s : Structure) => { return -repair_priority(s); }), 10);
     const repairJobs : JobRepair[] = _.map(repairSites, (site : Structure) : JobRepair => {
       return new JobRepair(site, repair_priority(site));
     })

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>520</x>
+      <y>260</y>
+      <w>350</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>/AbstractClass/
+Job
+--
+id(): string
+priority(): number
+work(creep: Creep): Operation
+site(): RoomObject
+--
+A task that needs to be performed by a Creep.
+Jobs have a priority, allowing them to be ordered.</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1010</x>
+      <y>270</y>
+      <w>310</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>/AbstractClass/
+Operation
+--
+()
+--
+An operation that needs to be run at a later time</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>810</x>
+      <y>650</y>
+      <w>310</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>/AbstractClass/
+Work
+--
+id(): string
+priority(): number
+work(): Operation[]
+--
+Tasks that need to be performed at some point.
+Work has a priority, allowing it to be ordered.</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

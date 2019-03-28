@@ -235,6 +235,10 @@ export class Mayor {
         return new JobPickup(r, 5);
       });
 
+    //const tombstoneJobs : Job[] = _.map(
+    //  room.find(FIND_TOMBSTONES)
+    //)
+
     const takeJobs : Job[] = _.map(
       room.find<StructureContainer>(FIND_STRUCTURES, { filter: (s : AnyStructure) => {
         return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.available() > 0;

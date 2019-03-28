@@ -220,6 +220,37 @@ function possible_extension_sites(spawn : StructureSpawn, numExtensions : number
   return sites;
 }
 
+function possible_lab_sites(spawn : StructureSpawn, numExtensions : number) : RoomPosition[] {
+  let radius = 1;
+  let sites : RoomPosition[] = [];
+  while (sites.length < numExtensions && radius++ < 5) {
+    const viableSites = spawn.pos.surroundingPositions(radius, (site : RoomPosition) => {
+      if ((site.x % 2) != (site.y % 2)) {
+        return false;
+      }
+
+      const terrain = site.look();
+      return _.reduce(terrain, (a : boolean, t : LookAtResult) : boolean => {
+        switch (t.type) {
+          case LOOK_CONSTRUCTION_SITES:
+          case LOOK_STRUCTURES:
+            return false;
+          case LOOK_TERRAIN:
+            if (t.terrain === 'wall') return false;
+            break;
+          default:
+            break;
+        }
+        return a;
+      },
+      true);
+    });
+    sites = sites.concat(viableSites);
+  }
+  log.info(`found ${sites.length} viable extensions sites ${sites}`);
+  return sites;
+}
+
 function find_site<S extends Structure>(obj : RoomObject, type : StructureConstant, radius : number) : S|null {
   let site : Structure|null = null;
   const viableSites = obj.pos.surroundingPositions(radius, (pos : RoomPosition) : boolean => {
