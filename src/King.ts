@@ -1,52 +1,52 @@
-import { City } from "./City";
 import { Work } from "./Work"
+import { Mayor } from "./Mayor"
 import { Operation } from "./Operation"
 import { log } from "./lib/logger/log"
 
 export class King {
 
-  private _cities : City[];
-  private _name : string;
+  private _mayors: Mayor[];
+  private _name: string;
 
   constructor() {
-    let myRooms = _.select(Game.rooms, (room : Room) => { return room.controller? room.controller.my : false });
-    let controller = (myRooms.length)? myRooms[0].controller : undefined;
-    this._name = (controller)? controller.owner.username : "of-nothing";
-    this._cities = _.map(myRooms, (room : Room) : City => { return new City(room); });
-    log.debug(`${this}: ${this._cities.length} cities`)
+    let myRooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
+    let controller = (myRooms.length) ? myRooms[0].controller : undefined;
+    this._name = (controller) ? controller.owner.username : "of-nothing";
+    this._mayors = _.map(myRooms, (room: Room): Mayor => { return new Mayor(room); });
+    log.debug(`${this}: ${this._mayors.length} mayors`)
   }
 
-  id() : string {
+  id(): string {
     return `king-${this._name}`
   }
 
 
-  toString() : string {
+  toString(): string {
     return this.id();
   }
 
-  survey() : void {
+  survey(): void {
     log.debug(`${this} surveying...`);
-    _.each(this._cities, (city : City) => { city.mayor.survey(); });
+    _.each(this._mayors, (mayor: Mayor) => { mayor.survey(); });
   }
 
-  report() : string[] {
+  report(): string[] {
     let r = new Array<string>();
     r.push(`* Royal report by ${this}`);
-    _.each(this._cities, (city : City) => { r.concat(city.mayor.report()); });
+    _.each(this._mayors, (mayor: Mayor) => { r.concat(mayor.report()); });
     return r;
   }
 
-  rule() : Operation[] {
+  rule(): Operation[] {
     log.debug(`${this} about to rule the world...`);
     this.survey();
 
     const ops = _.reduce(
-      this._cities,
-      function(res : Operation[], city : City) : Operation[] {
+      this._mayors,
+      function (res: Operation[], mayor: Mayor): Operation[] {
         return res.concat(_.flatten(_.map(
-          city.mayor.work(),
-          (work : Work) : Operation[] => {
+          mayor.work(),
+          (work: Work): Operation[] => {
             return work.work();
           })));
       },
@@ -57,7 +57,7 @@ export class King {
     return ops;
   }
 
-  save() : void {
-    _.each(this._cities, (city : City) => { city.mayor.save(); });
+  save(): void {
+    _.each(this._mayors, (mayor: Mayor) => { mayor.save(); });
   }
 }

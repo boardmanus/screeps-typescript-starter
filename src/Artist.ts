@@ -1,5 +1,4 @@
 import { Expert } from "./Expert";
-import { City } from "./City";
 import { Work } from "./Work";
 import { Job } from "./Job";
 import { log } from "./lib/logger/log";
@@ -14,26 +13,26 @@ export class Artist implements Expert {
 
   }
 
-  id() : string {
+  id(): string {
     return `artist}`;
   }
 
-  toString() : string {
+  toString(): string {
     return this.id();
   }
 
-  survey() : void {
+  survey(): void {
     log.debug(`${this} surveying...`);
     if (Memory.control.visualize) {
 
     }
   }
 
-  schedule() : Job[] {
+  schedule(): Job[] {
     return [];
   }
 
-  report() : string[] {
+  report(): string[] {
     return [];
   }
 
