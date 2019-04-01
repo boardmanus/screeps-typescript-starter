@@ -198,9 +198,6 @@ export class Mayor {
       return;
     }
 
-    // Update subcontracts
-    _.each(this._bosses, (boss: Boss) => { boss.reassignSubcontractors(); });
-
     const unemployed: Creep[] = this._room.find(FIND_MY_CREEPS, { filter: (worker: Creep) => { return !worker.isEmployed(); } });
     const allBosses = this._bosses.concat(newBosses);
     const [employers, noVacancies] = _.partition(allBosses, (b: Boss) => { return b.needsWorkers(); });

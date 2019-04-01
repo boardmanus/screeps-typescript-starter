@@ -2,25 +2,25 @@ import { log } from "./lib/logger/log";
 import { FunctionCache } from "./Cache";
 
 namespace u {
-  export function map_valid<T, U>(objs : T[], f : (obj : T) => U|undefined|null) : U[] {
+  export function map_valid<T, U>(objs: T[], f: (obj: T) => U | undefined | null): U[] {
     if (!objs) return [];
     return _.reduce(
       objs,
-      (accum : U[], inObj : T) : U[] => {
-        const outObj : U|undefined|null = f(inObj);
+      (accum: U[], inObj: T): U[] => {
+        const outObj: U | undefined | null = f(inObj);
         if (outObj) accum.push(outObj);
         return accum;
       },
       []);
   }
 
-  export function map_valid_creeps(creepIds : string[]) : Creep[] {
+  export function map_valid_creeps(creepIds: string[]): Creep[] {
     return map_valid(
       creepIds,
-      (creepId : string) : Creep|null => { return Game.getObjectById(creepId); });
+      (creepId: string): Creep | null => { return Game.getObjectById(creepId); });
   }
 
-  export function errstr(screepsErr : number) : string {
+  export function errstr(screepsErr: number): string {
     switch (screepsErr) {
       case ERR_BUSY: return "ERR_BUSY";
       case ERR_FULL: return "ERR_FULL";
@@ -40,17 +40,17 @@ namespace u {
     return `ERR_${screepsErr}`;
   }
 
-  export const MIN_BODY : BodyPartConstant[] = [ WORK, CARRY, MOVE ];
+  export const MIN_BODY: BodyPartConstant[] = [WORK, CARRY, MOVE];
   export const MIN_BODY_COST = body_cost(MIN_BODY);
 
-  export function body_cost(parts : BodyPartConstant[]) : number {
-    return _.sum(parts, (c : BodyPartConstant) : number => { return BODYPART_COST[c]; });
+  export function body_cost(parts: BodyPartConstant[]): number {
+    return _.sum(parts, (c: BodyPartConstant): number => { return BODYPART_COST[c]; });
   }
 
-  export function generate_body(bodyExtension : BodyPartConstant[], funds : number) : BodyPartConstant[] {
+  export function generate_body(bodyExtension: BodyPartConstant[], funds: number): BodyPartConstant[] {
 
-    const body : BodyPartConstant[] = [];
-    const bodyTemplate : BodyPartConstant[] = MIN_BODY.concat(bodyExtension);
+    const body: BodyPartConstant[] = [];
+    const bodyTemplate: BodyPartConstant[] = MIN_BODY.concat(bodyExtension);
     if (funds < MIN_BODY_COST) {
       log.debug(`generate_body: funds=${funds} are less than minBody=${MIN_BODY}=${MIN_BODY_COST}`)
       return body;
@@ -76,51 +76,51 @@ namespace u {
     return body;
   }
 
-  export function time_to_spawn(body : BodyPartConstant[]) : number {
+  export function time_to_spawn(body: BodyPartConstant[]): number {
     return body.length * CREEP_SPAWN_TIME;
   }
 
-  export function find_num_building_sites(room : Room, type : StructureConstant) : number {
+  export function find_num_building_sites(room: Room, type: StructureConstant): number {
     const numConstuctionSites =
-      room.find(FIND_CONSTRUCTION_SITES, { filter: (c : ConstructionSite) => { return c.structureType == type }}).length;
+      room.find(FIND_CONSTRUCTION_SITES, { filter: (c: ConstructionSite) => { return c.structureType == type } }).length;
     const numStructures =
-      room.find(FIND_STRUCTURES, { filter: (s : AnyStructure) => { return s.structureType == type }}).length;
+      room.find(FIND_STRUCTURES, { filter: (s: AnyStructure) => { return s.structureType == type } }).length;
 
     return numConstuctionSites + numStructures;
   }
 
-  export function is_passible_structure(s : Structure|ConstructionSite) : boolean {
+  export function is_passible_structure(s: Structure | ConstructionSite): boolean {
     return (s.structureType == STRUCTURE_ROAD
-          || s.structureType == STRUCTURE_CONTAINER
-          || (s.structureType == STRUCTURE_RAMPART && (s as StructureRampart|ConstructionSite).my));
+      || s.structureType == STRUCTURE_CONTAINER
+      || (s.structureType == STRUCTURE_RAMPART && (s as StructureRampart | ConstructionSite).my));
   }
 
-  export function terrain_cost(pos : RoomPosition|null) : number {
+  export function terrain_cost(pos: RoomPosition | null): number {
     if (!pos) {
       return 100000;
     }
 
     const structures = pos.lookFor(LOOK_STRUCTURES);
-    if (_.find(structures, (s : Structure) => { return s.structureType == STRUCTURE_ROAD; })) {
+    if (_.find(structures, (s: Structure) => { return s.structureType == STRUCTURE_ROAD; })) {
       return 1;
     }
 
     const terrain = pos.lookFor(LOOK_TERRAIN)[0];
     switch (terrain) {
-      case "plain" : return 2;
-      case "swamp" : return 10;
+      case "plain": return 2;
+      case "swamp": return 10;
       default:
-      case "wall" : return 1000000;
+      case "wall": return 1000000;
     }
   }
 
-  export type Site = Creep|Structure|Resource|Source|Mineral|ConstructionSite;
+  export type Site = Creep | Structure | Resource | Source | Mineral | ConstructionSite;
 
-  export function movement_time(worker : Creep, site : Site) : number {
+  export function movement_time(worker: Creep, site: Site): number {
     const [m, c] = _.reduce(
       worker.body,
-      ([n, c], b : BodyPartDefinition) : [number, number] => {
-        return [ (b.type == MOVE)? n+1 : n, (b.type == CARRY)? c+1 : c ];
+      ([n, c], b: BodyPartDefinition): [number, number] => {
+        return [(b.type == MOVE) ? n + 1 : n, (b.type == CARRY) ? c + 1 : c];
       },
       [0, 0]);
 
@@ -129,46 +129,46 @@ namespace u {
       return 0;
     }
 
-    const w = worker.body.length - m - c*(worker.freeSpace()/worker.carryCapacity);
-    const f = _.sum(path, (p : RoomPosition) : number => {
+    const w = worker.body.length - m - c * (worker.freeSpace() / worker.carryCapacity);
+    const f = _.sum(path, (p: RoomPosition): number => {
       const t = terrain_cost(p);
-      return w*t - 2*m;
+      return w * t - 2 * m;
     });
 
     // time waiting for fatigue
-    const t_f = f/(2*m);
+    const t_f = f / (2 * m);
 
     // total time is waiting time + traversal time
     return t_f + path.length;
   }
 
-  const _pathCache : FunctionCache<RoomPosition[]> = new FunctionCache();
-  export function get_path(from : Site, to : Site) : RoomPosition[] {
+  const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
+  export function get_path(from: Site, to: Site): RoomPosition[] {
     return _pathCache.getValue(`${from.id}-${to.id}`, () => {
       const room = from.room;
       if (!room || from.pos.inRangeTo(to, 1)) {
         return [];
       }
 
-      return _.map(room.findPath(from.pos, to.pos, { range:1, ignoreCreeps:true }), (ps : PathStep) => {
+      return _.map(room.findPath(from.pos, to.pos, { range: 1, ignoreCreeps: true }), (ps: PathStep) => {
         return room.getPositionAt(ps.x, ps.y) || new RoomPosition(ps.x, ps.y, room.name);
       });
     });
   }
 
-  export function work_efficiency(worker : Creep, site : Site, energy : number, maxEnergyPerPart : number) : number {
-    const numWorkerParts = _.sum(worker.body, (b : BodyPartDefinition) : number => { return (b.type == WORK)? 1 : 0; });
+  export function work_efficiency(worker: Creep, site: Site, energy: number, maxEnergyPerPart: number): number {
+    const numWorkerParts = _.sum(worker.body, (b: BodyPartDefinition): number => { return (b.type == WORK) ? 1 : 0; });
     if (numWorkerParts == 0) {
       return 0;
     }
 
-    const energyPerPart = Math.max(energy/numWorkerParts, maxEnergyPerPart);
-    const workEnergyPerTick = numWorkerParts*energyPerPart;
-    const timeToWork = Math.ceil(energy/workEnergyPerTick);
+    const energyPerPart = Math.max(energy / numWorkerParts, maxEnergyPerPart);
+    const workEnergyPerTick = numWorkerParts * energyPerPart;
+    const timeToWork = Math.ceil(energy / workEnergyPerTick);
     const timeToMove = Math.ceil(u.movement_time(worker, site));
 
     // Efficiency is the energy exchange per second from where the creep is.
-    const t = Math.max(1, timeToWork + timeToMove);
+    const t = Math.max(1, timeToMove + timeToWork);
     const e = energy / t;
     return e;
   }

@@ -4,8 +4,8 @@
   <element>
     <id>UMLClass</id>
     <coordinates>
-      <x>520</x>
-      <y>260</y>
+      <x>280</x>
+      <y>220</y>
       <w>350</w>
       <h>150</h>
     </coordinates>
@@ -40,9 +40,9 @@ An operation that needs to be run at a later time</panel_attributes>
   <element>
     <id>UMLClass</id>
     <coordinates>
-      <x>810</x>
-      <y>650</y>
-      <w>310</w>
+      <x>280</x>
+      <y>420</y>
+      <w>350</w>
       <h>130</h>
     </coordinates>
     <panel_attributes>/AbstractClass/

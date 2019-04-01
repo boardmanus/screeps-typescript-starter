@@ -43,7 +43,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   king.save();
 
   log.debug(`About to perform ${operations.length} operations`);
-  _.each(operations, (op : Operation) : void => {
+  _.each(operations, (op: Operation): void => {
     op();
   });
 });

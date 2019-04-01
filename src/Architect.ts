@@ -627,8 +627,9 @@ export class Architect implements Expert {
   designContainers(): Work[] {
     const room = this._room;
     const controller = room.controller;
-    if (!controller) return [];
-
+    if (!controller) {
+      return [];
+    }
     const numContainers = u.find_num_building_sites(room, STRUCTURE_CONTAINER);
     const allowedNumContainers = CONTROLLER_STRUCTURES.container[controller.level];
     log.info(`${this}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
