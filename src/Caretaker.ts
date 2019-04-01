@@ -27,7 +27,7 @@ function repair_priority(site: Structure): number {
   switch (site.structureType) {
     case STRUCTURE_ROAD: return 2 * damageRatio;
     case STRUCTURE_RAMPART: return 1 * Math.pow(damageRatio, 10);
-    case STRUCTURE_WALL: return 1 * Math.pow((1.0 - site.hits), 20);
+    case STRUCTURE_WALL: return 1 * Math.pow(damageRatio, 20);
     default: return 8 * damageRatio;
   }
 }
