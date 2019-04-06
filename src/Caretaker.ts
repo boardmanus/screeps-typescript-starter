@@ -193,8 +193,10 @@ export class Caretaker implements Expert {
         const t = this._towers[i];
         if (t.available() < TOWER_ENERGY_COST) continue;
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`)
-        work.push(new TowerDefenseWork(t, f));
+        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
+        if (f) {
+          work.push(new TowerDefenseWork(t, f));
+        }
       }
 
       return work;
