@@ -72,6 +72,8 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
+const MAX_HEAVY_WORKERS = 5;
+const MAX_WORKERS = 8;
 const MAX_WORKER_ENERGY = 1200;
 
 class CloningWork implements Work {
@@ -191,9 +193,12 @@ export class Cloner implements Expert {
     }
 
     let [availableEnergy, totalEnergy] = get_cloning_energy(this._room);
-    if (this._numWorkers > MIN_SAFE_WORKERS &&
-      availableEnergy < MAX_WORKER_ENERGY &&
-      availableEnergy / totalEnergy < 0.9) {
+    if (this._numWorkers >= MAX_WORKERS
+      || (this._numWorkers >= MAX_HEAVY_WORKERS
+        && totalEnergy >= MAX_WORKER_ENERGY)
+      || (this._numWorkers > MIN_SAFE_WORKERS
+        && availableEnergy < MAX_WORKER_ENERGY
+        && availableEnergy / totalEnergy < 0.9)) {
       log.debug(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy / totalEnergy}`)
       return [];
     }

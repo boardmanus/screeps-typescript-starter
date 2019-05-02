@@ -116,30 +116,34 @@ namespace u {
 
   export type Site = Creep | Structure | Resource | Source | Mineral | ConstructionSite;
 
-  export function movement_time(worker: Creep, site: Site): number {
-    const [m, c] = _.reduce(
+  export function movement_time(weight: number, moveParts: number, path: RoomPosition[]) {
+    // time waiting for fatigue
+    const t_f = _.sum(path, (p: RoomPosition): number => {
+      const t = terrain_cost(p);
+      const f = 2 * (weight * t - moveParts);
+      return (f > 0) ? Math.ceil(weight * t / moveParts) : 0;
+    });
+
+    // total time is waiting time + traversal time
+    return t_f + path.length;
+  }
+
+  export function creep_movement_time(worker: Creep, site: Site): number {
+    const [moveParts, carryParts] = _.reduce(
       worker.body,
       ([n, c], b: BodyPartDefinition): [number, number] => {
         return [(b.type == MOVE) ? n + 1 : n, (b.type == CARRY) ? c + 1 : c];
       },
       [0, 0]);
 
+    const weight = worker.body.length - moveParts - carryParts * (worker.freeSpace() / worker.carryCapacity);
+
     const path = get_path(worker, site);
     if (path.length == 0) {
       return 0;
     }
 
-    const w = worker.body.length - m - c * (worker.freeSpace() / worker.carryCapacity);
-    const f = _.sum(path, (p: RoomPosition): number => {
-      const t = terrain_cost(p);
-      return w * t - 2 * m;
-    });
-
-    // time waiting for fatigue
-    const t_f = f / (2 * m);
-
-    // total time is waiting time + traversal time
-    return t_f + path.length;
+    return movement_time(weight, moveParts, path);
   }
 
   const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
@@ -165,7 +169,7 @@ namespace u {
     const energyPerPart = Math.max(energy / numWorkerParts, maxEnergyPerPart);
     const workEnergyPerTick = numWorkerParts * energyPerPart;
     const timeToWork = Math.ceil(energy / workEnergyPerTick);
-    const timeToMove = Math.ceil(u.movement_time(worker, site));
+    const timeToMove = Math.ceil(u.creep_movement_time(worker, site));
 
     // Efficiency is the energy exchange per second from where the creep is.
     const t = Math.max(1, timeToMove + timeToWork);

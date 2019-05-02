@@ -212,14 +212,20 @@ export class Mayor {
   }
 
   harvestJobs(): Job[] {
-    const jobs: Job[] = _.map<Source, Job>(
+    const sourceJobs: Job[] = _.map<Source, Job>(
       this._room.find(FIND_SOURCES_ACTIVE),
       (source: Source): Job => {
         return new JobHarvest(source);
       });
 
-    log.debug(`${this} scheduling ${jobs.length} harvest jobs...`);
-    return jobs;
+    const mineralJobs: Job[] = _.map<Mineral, Job>(
+      this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
+      (mineral: Mineral): Job => {
+        return new JobHarvest(mineral);
+      });
+
+    log.debug(`${this} scheduling ${sourceJobs.length} source harvest jobs, and ${mineralJobs.length} mineral harvest jobs...`);
+    return sourceJobs.concat(mineralJobs);
   }
 
   pickupJobs(): Job[] {
