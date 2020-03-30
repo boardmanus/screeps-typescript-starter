@@ -74,7 +74,7 @@ function clone_a_worker(work: CloningWork): Operation {
 const MIN_SAFE_WORKERS = 3;
 const MAX_HEAVY_WORKERS = 5;
 const MAX_WORKERS = 8;
-const MAX_WORKER_ENERGY = 1200;
+const MAX_WORKER_ENERGY = 1500;
 
 class CloningWork implements Work {
 

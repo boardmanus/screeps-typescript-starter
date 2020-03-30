@@ -39,6 +39,10 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
           log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
+      case ERR_TIRED:
+        // Mining minerals is pretty tiring...
+        log.info(`${job}: ${worker} tired after harvesting from ${site}`);
+        break;
       case OK:
         log.info(`${job}: ${worker} is harvesting at ${site}`);
         break;
@@ -103,13 +107,15 @@ function is_mineral_harvesting_satisfied(mineral: Mineral, workers: Creep[]): bo
   if (mineral.mineralAmount == 0) {
     return true;
   }
-
+  return workers.length >= 1;
+  /*
   if (workers.length == 0) {
     return false;
   }
 
   const remaining = mineral.mineralAmount - _.sum(workers, (w: Creep): number => { return w.freeSpace(); });
   return remaining <= 0;
+  */
 }
 
 function mineral_capacity(mineral: Mineral): number {
@@ -188,6 +194,7 @@ export class JobHarvest implements Job {
       return is_energy_harvesting_satisfied(this._site, workers);
     }
 
+    log.debug(`is_mineral_harvesting_satisfied? ${is_mineral_harvesting_satisfied(this._site, workers)}`);
     return is_mineral_harvesting_satisfied(this._site, workers);
   }
 
@@ -200,7 +207,7 @@ export class JobHarvest implements Job {
       return 1.0 - this._site.energy / this._site.energyCapacity;
     }
 
-    return this._site.mineralAmount / mineral_capacity(this._site);
+    return 1.0 - this._site.mineralAmount / mineral_capacity(this._site);
   }
 
   work(worker: Creep): Operation[] {

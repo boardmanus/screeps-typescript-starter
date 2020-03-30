@@ -18,10 +18,12 @@ export class Boss implements Work {
       u.map_valid_creeps(memory.workers),
       (worker: Creep) => {
         if (job.completion(worker) < 1.0) {
+          log.debug(`${job.id()}: not complete ${worker.id}`);
           worker.setEmployed(true);
           return true;
         }
 
+        log.debug(`${job.id()}: complete!`);
         worker.setLastJobSite(job.site());
         worker.setEmployed(false);
         return false;

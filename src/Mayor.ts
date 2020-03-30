@@ -221,7 +221,7 @@ export class Mayor {
     const mineralJobs: Job[] = _.map<Mineral, Job>(
       this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
       (mineral: Mineral): Job => {
-        return new JobHarvest(mineral);
+        return new JobHarvest(mineral, 10);
       });
 
     log.debug(`${this} scheduling ${sourceJobs.length} source harvest jobs, and ${mineralJobs.length} mineral harvest jobs...`);
