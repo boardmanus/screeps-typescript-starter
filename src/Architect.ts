@@ -848,15 +848,24 @@ export class Architect implements Expert {
     return r;
   }
 
-  load(): void {
-    const room = this._room;
+  loadSources(room: Room): void {
     const sources = room.find(FIND_SOURCES);
     const sourceMem = room.memory.sources;
-    if (sourceMem) {
-      _.each(sourceMem, (sm: SourceMemory) => {
-        const source: Source | null = Game.getObjectById<Source>(sm.id);
-        if (!source) return;
+    if (!sources || !sourceMem) {
+      return;
+    }
 
+    _.each(sourceMem, (sm: SourceMemory) => {
+      if (!sm.id) {
+        return;
+      }
+
+      const source: Source | null = Game.getObjectById<Source>(sm.id);
+      if (!source) {
+        return;
+      }
+
+      if (sm.container) {
         const container = Game.getObjectById<StructureContainer>(sm.container);
         if (container) {
           source._container = container;
@@ -865,7 +874,9 @@ export class Architect implements Expert {
           source._container = find_site(source, STRUCTURE_CONTAINER, 1);
           log.warning(`${this}: found ${source} container => ${source._container}`);
         }
+      }
 
+      if (sm.tower) {
         const tower = Game.getObjectById<StructureTower>(sm.tower);
         if (tower) {
           source._tower = tower;
@@ -874,7 +885,9 @@ export class Architect implements Expert {
           source._tower = find_site(source, STRUCTURE_TOWER, 5);
           log.warning(`${this}: found ${source} tower => ${source._tower}`);
         }
+      }
 
+      if (sm.link) {
         const link = Game.getObjectById<StructureLink>(sm.link);
         if (link) {
           source._link = link;
@@ -885,12 +898,18 @@ export class Architect implements Expert {
             log.warning(`${this}: found ${source} link => ${source._link}`);
           }
         }
-      });
-    }
+      }
+    });
+  }
 
+  loadStorage(room: Room): void {
     const storage = room.storage;
     const storageMem = room.memory.storage;
-    if (storage && storageMem) {
+    if (!storage || !storageMem) {
+      return;
+    }
+
+    if (storageMem.link) {
       const link = Game.getObjectById<StructureLink>(storageMem.link);
       if (link) {
         storage._link = link;
@@ -900,16 +919,26 @@ export class Architect implements Expert {
         log.warning(`${this}: found ${storage} link => ${storage._link}`);
       }
     }
+  }
 
+  loadSpawns(room: Room): void {
     const spawns = room.find(FIND_MY_SPAWNS);
     const spawnMem = room.memory.spawns;
-    if (spawns && spawnMem) {
-      _.each(spawnMem, (sm: SpawnMemory) => {
-        const spawn: StructureSpawn | null = Game.getObjectById<StructureSpawn>(sm.id);
-        if (!spawn) {
-          return;
-        }
+    if (!spawns || !spawnMem) {
+      return;
+    }
 
+    _.each(spawnMem, (sm: SpawnMemory) => {
+      if (!sm.id) {
+        return;
+      }
+
+      const spawn: StructureSpawn | null = Game.getObjectById<StructureSpawn>(sm.id);
+      if (!spawn) {
+        return;
+      }
+
+      if (sm.link) {
         const link = Game.getObjectById<StructureLink>(sm.link);
         if (link) {
           spawn._link = link;
@@ -918,8 +947,15 @@ export class Architect implements Expert {
           spawn._link = find_site(spawn, STRUCTURE_LINK, 1);
           log.warning(`${this}: found ${spawn} link => ${spawn._link}`);
         }
-      });
-    }
+      }
+    });
+  }
+
+  load(): void {
+    const room = this._room;
+    this.loadSources(room);
+    this.loadStorage(room);
+    this.loadSpawns(room);
   }
 
   save(): void {
