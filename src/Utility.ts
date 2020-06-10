@@ -1,4 +1,4 @@
-import { log } from "./lib/logger/log";
+import { log } from "./ScrupsLogger";
 import { FunctionCache } from "./Cache";
 
 namespace u {
@@ -72,7 +72,7 @@ namespace u {
     }
     while (!outOfFunds);
 
-    log.debug(`generate_body: newBody=${body}=${body_cost(body)} => remainingFunds=${funds}`)
+    console.log(`generate_body: newBody=${body}=${body_cost(body)} => remainingFunds=${funds}`)
     return body;
   }
 

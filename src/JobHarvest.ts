@@ -1,7 +1,6 @@
 import { Operation } from "./Operation";
 import { JobFactory, JobPrerequisite } from "./Job";
 import { Job } from "./Job";
-import { log } from "./lib/logger/log";
 import u from "./Utility"
 
 
@@ -24,27 +23,27 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
       case ERR_NO_BODYPART:
       case ERR_BUSY:
       default:
-        log.error(`${job}: unexpected failure when ${worker} tried withdrawing energy from ${site} (${u.errstr(res)})`);
+        console.log(`ERROR: ${job}: unexpected failure when ${worker} tried withdrawing energy from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_ENOUGH_RESOURCES:
         // The site is empty - this job is complete
-        log.warning(`${job}: ${site.id} doesn't have any energy for ${worker} to harvest (${u.errstr(res)})`);
+        console.log(`WARN: ${job}: ${site.id} doesn't have any energy for ${worker} to harvest (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
         if (res == OK) {
-          log.info(`${job}: ${worker} is moving to harvest at ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          console.log(`INFO: ${job}: ${worker} is moving to harvest at ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       case ERR_TIRED:
         // Mining minerals is pretty tiring...
-        log.info(`${job}: ${worker} tired after harvesting from ${site}`);
+        console.log(`INFO: ${job}: ${worker} tired after harvesting from ${site}`);
         break;
       case OK:
-        log.info(`${job}: ${worker} is harvesting at ${site}`);
+        console.log(`INFO: ${job}: ${worker} is harvesting at ${site}`);
         break;
     }
   }
@@ -176,7 +175,7 @@ export class JobHarvest implements Job {
 
 
   prerequisite(worker: Creep): JobPrerequisite {
-    if (_.sum(worker.carry) == worker.carryCapacity) {
+    if (worker.carry.getUsedCapacity() == worker.carryCapacity) {
       return JobPrerequisite.DELIVER_ENERGY;
     }
 
@@ -194,13 +193,13 @@ export class JobHarvest implements Job {
       return is_energy_harvesting_satisfied(this._site, workers);
     }
 
-    log.debug(`is_mineral_harvesting_satisfied? ${is_mineral_harvesting_satisfied(this._site, workers)}`);
+    console.log(`is_mineral_harvesting_satisfied? ${is_mineral_harvesting_satisfied(this._site, workers)}`);
     return is_mineral_harvesting_satisfied(this._site, workers);
   }
 
   completion(worker?: Creep): number {
     if (worker) {
-      return _.sum(worker.carry) / worker.carryCapacity;
+      return worker.carry.getUsedCapacity() / worker.carryCapacity;
     }
 
     if (this._site instanceof Source) {

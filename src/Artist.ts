@@ -1,11 +1,11 @@
 import { Expert } from "./Expert";
 import { Work } from "./Work";
 import { Job } from "./Job";
-import { log } from "./lib/logger/log";
 import { JobBuild } from "./JobBuild";
 import { Operation } from "./Operation";
 import { FunctionCache } from "./Cache";
 import u from "./Utility";
+import log from "./ScrupsLogger";
 
 export class Artist implements Expert {
 

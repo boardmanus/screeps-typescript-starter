@@ -1,7 +1,6 @@
 import { Expert } from "./Expert";
 import { Work } from "./Work";
 import { Job } from "./Job";
-import { log } from "./lib/logger/log";
 import { JobBuild } from "./JobBuild";
 import { JobRepair } from "./JobRepair";
 import { Operation } from "./Operation";
@@ -99,10 +98,10 @@ class TowerRepairWork implements Work {
       const res = this.tower.repair(this.site);
       switch (res) {
         case OK:
-          log.info(`${this}: ${this.tower} repaired ${this.site}`);
+          console.log(`INFO: ${this}: ${this.tower} repaired ${this.site}`);
           break;
         default:
-          log.error(`${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
+          console.log(`ERROR: ${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
           break;
       }
     }];
@@ -137,10 +136,10 @@ class TowerDefenseWork implements Work {
       const res = this.tower.attack(this.target);
       switch (res) {
         case OK:
-          log.info(`${this}: ${this.tower} attacked ${this.target}`);
+          console.log(`INFO: ${this}: ${this.tower} attacked ${this.target}`);
           break;
         default:
-          log.error(`${this}: ${this.tower} failed to attack ${this.target} (${u.errstr(res)})`);
+          console.log(`ERROR: ${this}: ${this.tower} failed to attack ${this.target} (${u.errstr(res)})`);
           break;
       }
     }];
@@ -175,7 +174,7 @@ export class Caretaker implements Expert {
   }
 
   survey(): void {
-    log.debug(`${this} surveying...`);
+    console.log(`${this} surveying...`);
   }
 
   repair(): Work[] {
@@ -193,7 +192,7 @@ export class Caretaker implements Expert {
         const t = this._towers[i];
         if (t.available() < TOWER_ENERGY_COST) continue;
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
+        console.log(`INFO: ${this}: creating new tower defense work ${t} => ${f} ...`);
         if (f) {
           work.push(new TowerDefenseWork(t, f));
         }
@@ -220,7 +219,7 @@ export class Caretaker implements Expert {
         return -repair_priority(s) * repair_power(t, s);
       })[0];
 
-      log.info(`${this}: creating new tower repair work ${t} => ${s} ...`)
+      console.log(`INFO: ${this}: creating new tower repair work ${t} => ${s} ...`)
       work.push(new TowerRepairWork(t, s));
     }
 
@@ -237,7 +236,7 @@ export class Caretaker implements Expert {
       return new JobRepair(site, repair_priority(site));
     })
 
-    log.debug(`${this} scheduling ${repairJobs.length} repair jobs...`);
+    console.log(`${this} scheduling ${repairJobs.length} repair jobs...`);
     return repairJobs;
   }
 

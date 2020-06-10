@@ -1,25 +1,24 @@
 import { Operation } from "./Operation";
-import { log } from "./lib/logger/log";
 
 class Factory {
 
-  private _builders : { [builderId: string]: (id : string) => Job|undefined };
+  private _builders: { [builderId: string]: (id: string) => Job | undefined };
 
   constructor() {
     this._builders = {};
   }
 
-  build(id : string) : Job|undefined {
+  build(id: string): Job | undefined {
     const builder = this._builders[this.builderId(id)];
     return builder(id);
   }
 
-  addBuilder(builderId : string, builder : (id: string) => Job|undefined) {
+  addBuilder(builderId: string, builder: (id: string) => Job | undefined) {
     this._builders[builderId] = builder;
-    log.info(`Added factory method for ${builderId}`)
+    console.log(`INFO: Added factory method for ${builderId}`)
   }
 
-  builderId(id : string) : string {
+  builderId(id: string): string {
     const frags = id.split('-');
     if (frags.length < 2) {
       return '';
@@ -39,14 +38,14 @@ export enum JobPrerequisite {
 }
 
 export interface Job {
-  id() : string;
-  site() : RoomObject;
-  priority(workers : Creep[]) : number;
-  isSatisfied(workers : Creep[]) : boolean;
-  efficiency(worker : Creep) : number;
-  completion(worker? : Creep) : number;
-  work(worker : Creep) : Operation[];
-  satisfiesPrerequisite(prerequisite : JobPrerequisite) : boolean;
-  prerequisite(worker : Creep) : JobPrerequisite;
-  baseWorkerBody() : BodyPartConstant[];
+  id(): string;
+  site(): RoomObject;
+  priority(workers: Creep[]): number;
+  isSatisfied(workers: Creep[]): boolean;
+  efficiency(worker: Creep): number;
+  completion(worker?: Creep): number;
+  work(worker: Creep): Operation[];
+  satisfiesPrerequisite(prerequisite: JobPrerequisite): boolean;
+  prerequisite(worker: Creep): JobPrerequisite;
+  baseWorkerBody(): BodyPartConstant[];
 }

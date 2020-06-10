@@ -1,5 +1,4 @@
 import { ErrorMapper } from "utils/ErrorMapper";
-import { log } from "./lib/logger/log";
 import { King } from "./King";
 import { Operation } from "./Operation";
 import "./extensions";
@@ -16,13 +15,13 @@ import * as data from "../package.json";
 // by setting USE_PROFILER through webpack, if you want to permanently
 // remove it on deploy
 // Start the profiler
-log.info(`Scripts bootstrapped`);
-log.info(`Revision ID: ${(<any>data).version}`);
+console.log(`Scripts bootstrapped`);
+console.log(`Revision ID: ${(<any>data).version}`);
 
 
 export const loop = ErrorMapper.wrapLoop(() => {
 
-  log.info(`***** TICK ${Game.time} *****`);
+  console.log(`***** TICK ${Game.time} *****`);
 
   for (const i in Memory.creeps) {
     if (!Game.creeps[i]) {
@@ -42,7 +41,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   king.save();
 
-  log.debug(`About to perform ${operations.length} operations`);
+  console.log(`About to perform ${operations.length} operations`);
   _.each(operations, (op: Operation): void => {
     op();
   });

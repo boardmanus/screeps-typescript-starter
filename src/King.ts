@@ -1,7 +1,6 @@
 import { Work } from "./Work"
 import { Mayor } from "./Mayor"
 import { Operation } from "./Operation"
-import { log } from "./lib/logger/log"
 
 export class King {
 
@@ -11,9 +10,9 @@ export class King {
   constructor() {
     let myRooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
     let controller = (myRooms.length) ? myRooms[0].controller : undefined;
-    this._name = (controller) ? controller.owner.username : "of-nothing";
+    this._name = controller?.owner?.username ?? "of-nothing";
     this._mayors = _.map(myRooms, (room: Room): Mayor => { return new Mayor(room); });
-    log.debug(`${this}: ${this._mayors.length} mayors`)
+    console.log(`${this}: ${this._mayors.length} mayors`);
   }
 
   id(): string {
@@ -26,7 +25,7 @@ export class King {
   }
 
   survey(): void {
-    log.debug(`${this} surveying...`);
+    console.log(`${this} surveying...`);
     _.each(this._mayors, (mayor: Mayor) => { mayor.survey(); });
   }
 
@@ -38,7 +37,7 @@ export class King {
   }
 
   rule(): Operation[] {
-    log.debug(`${this} about to rule the world...`);
+    console.log(`${this} about to rule the world...`);
     this.survey();
 
     const ops = _.reduce(
@@ -52,7 +51,7 @@ export class King {
       },
       []);
 
-    log.debug(`${this} has ${ops.length} operations scheduled...`);
+    console.log(`${this} has ${ops.length} operations scheduled...`);
 
     return ops;
   }

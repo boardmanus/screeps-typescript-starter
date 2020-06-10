@@ -1,6 +1,5 @@
 import { Operation } from "./Operation";
 import { Job, JobPrerequisite, JobFactory } from "./Job";
-import { log } from "./lib/logger/log"
 import u from "./Utility"
 
 function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operation {
@@ -16,19 +15,19 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
     switch (res) {
       case OK:
         // Finished job.
-        log.info(`${job}: ${worker} transferred ${resource} to ${site}`);
+        console.log(`INFO: ${job}: ${worker} transferred ${resource} to ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
-          log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          console.log(`INFO: ${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
-        log.warning(`${job}: ${worker} failed to transfer ${worker.carry[resource]} ${resource} to ${site} (${u.errstr(res)})`);
+        console.log(`WARN: ${job}: ${worker} failed to transfer ${worker.carry[resource]} ${resource} to ${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -37,7 +36,7 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
 function resources_available(worker: Creep, site: UnloadSite): number {
   switch (site.structureType) {
     case STRUCTURE_STORAGE: {
-      return _.sum(worker.carry);
+      return worker.carry.getUsedCapacity();
     }
     default: {
       return worker.available(RESOURCE_ENERGY);
