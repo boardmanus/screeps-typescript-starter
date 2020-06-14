@@ -1,3 +1,4 @@
+import { log } from './ScrupsLogger'
 
 export class Factory<T> {
 
@@ -14,7 +15,7 @@ export class Factory<T> {
 
   addBuilder(builderId: string, builder: (id: string) => T) {
     this._builders[builderId] = builder;
-    console.log(`INFO: Added factory method for ${builderId}`)
+    log.info(`Added factory method for ${builderId}`)
   }
 
   builderId(id: string): string {

@@ -2,7 +2,7 @@ import { Job, JobFactory } from "./Job";
 import { Operation } from "./Operation";
 import { Work } from "./Work";
 import u from "./Utility";
-
+import { log } from './ScrupsLogger';
 
 export class Boss implements Work {
 
@@ -17,12 +17,12 @@ export class Boss implements Work {
       u.map_valid_creeps(memory.workers),
       (worker: Creep) => {
         if (job.completion(worker) < 1.0) {
-          console.log(`${job.id()}: not complete ${worker.id}`);
+          log.debug(`${job.id()}: not complete ${worker.id}`);
           worker.setEmployed(true);
           return true;
         }
 
-        console.log(`${job.id()}: complete!`);
+        log.debug(`${job.id()}: complete!`);
         worker.setLastJobSite(job.site());
         worker.setEmployed(false);
         return false;
@@ -38,7 +38,7 @@ export class Boss implements Work {
       workers: _.map(this._workers, (worker: Creep): string => { return worker.id }),
     };
 
-    //console.log(`${this}: to boss memory <${memory.job}, ${memory.workers}, ${memory.subcontractors}>`);
+    //log.debug(`${this}: to boss memory <${memory.job}, ${memory.workers}, ${memory.subcontractors}>`);
     return memory;
   }
 
@@ -86,10 +86,10 @@ export class Boss implements Work {
   assignWorker(worker: Creep) {
     worker.memory.job = this.job.id();
     if (_.find(this._workers, (w: Creep) => { return worker.id == w.id; })) {
-      console.log(`ERROR: ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
+      log.debug(`ERROR: ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
       return;
     }
-    console.log(`${this}: assigning worker ${worker}`);
+    log.debug(`${this}: assigning worker ${worker}`);
     worker.setEmployed(true);
     this._workers.push(worker);
   }

@@ -10,6 +10,7 @@ import { JobUnload } from "./JobUnload";
 import { Boss } from "./Boss";
 import { Operation } from "./Operation";
 import u from "./Utility";
+import { log } from './ScrupsLogger';
 
 
 function worker_rating(worker: Creep, boss: Boss, minPriority: number): number {
@@ -79,10 +80,10 @@ class TransferWork implements Work {
       const res = this.from.transferEnergy(this.to, this.amount);
       switch (res) {
         case OK:
-          console.log(`${this}: transfered ${this.amount} of energy from ${this.from} to ${this.to}`);
+          log.info(`${this}: transfered ${this.amount} of energy from ${this.from} to ${this.to}`);
           break;
         default:
-          console.log(`ERROR: ${this}: failed to transfer energy from ${this.from} to ${this.to} (${u.errstr(res)})`);
+          log.error(`${this}: failed to transfer energy from ${this.from} to ${this.to}(${u.errstr(res)})`);
           break;
       }
     }];
@@ -106,7 +107,7 @@ export class Mayor {
   }
 
   id(): string {
-    return `mayor-${this._room.name}`;
+    return `mayor - ${this._room.name}`;
   }
 
   toString(): string {
@@ -124,7 +125,7 @@ export class Mayor {
       this._caretaker.repair(),
       this.transferEnergy());
 
-    console.log(`${this}: ${allWork.length} units of work created`);
+    log.info(`${this}: ${allWork.length} units of work created`);
     return _.sortBy(allWork, (work: Work): number => {
       return work.priority();
     });
@@ -140,7 +141,7 @@ export class Mayor {
     }
 
     const toLinks = _.sortBy(map_valid_to_links(linkers, true), (l: StructureLink) => { return l.available(); });
-    console.log(`${this}: transfer energy from ${fromLinks.length} links to ${toLinks.length} others`);
+    log.info(`${this}: transfer energy from ${fromLinks.length} links to ${toLinks.length} others`);
 
     const transferWork: Work[] = [];
     _.each(fromLinks, (fl: StructureLink) => {
@@ -164,7 +165,7 @@ export class Mayor {
 
   survey(): void {
 
-    console.log(`${this}: surveying...`);
+    log.info(`${this}: surveying...`);
     this._architect.survey();
     this._caretaker.survey();
     this._cloner.survey();
@@ -178,7 +179,7 @@ export class Mayor {
         .concat(this._cloner.schedule())
         .concat(this._caretaker.schedule());
 
-    console.log(`${this}: ${allJobs.length} jobs found while surveying.`)
+    log.info(`${this}: ${allJobs.length} jobs found while surveying.`)
 
     // Create a boss for every job that doesn't have one.
     const newBosses = _.reduce(
@@ -190,10 +191,10 @@ export class Mayor {
         return bosses;
       },
       []);
-    console.log(`${this}: ${this._bosses.length}  old bosses, and ${newBosses.length} new`);
+    log.info(`${this}: ${this._bosses.length} old bosses, and ${newBosses.length} new `);
 
     if (Game.time % 1) {
-      console.log(`${this}: surveying in ${Game.time % 10}`);
+      log.info(`${this}: surveying in ${Game.time % 10} `);
       return;
     }
 
@@ -202,12 +203,12 @@ export class Mayor {
     const [employers, noVacancies] = _.partition(allBosses, (b: Boss) => { return b.needsWorkers(); });
     const lazyWorkers = this.assignWorkers(employers, unemployed);
 
-    console.log(`${this}: ${employers.length} employers`);
-    console.log(`${this}: ${unemployed.length} unemployed workers`);
-    console.log(`${this}: ${lazyWorkers.length} lazy workers`);
-    console.log(`${this}: ${this._bosses.length} bosses before survey`)
+    log.info(`${this}: ${employers.length} employers`);
+    log.info(`${this}: ${unemployed.length} unemployed workers`);
+    log.info(`${this}: ${lazyWorkers.length} lazy workers`);
+    log.info(`${this}: ${this._bosses.length} bosses before survey`)
     this._bosses = _.filter(allBosses, (boss: Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
-    console.log(`${this}: ${this._bosses.length} bosses after survey`)
+    log.info(`${this}: ${this._bosses.length} bosses after survey`)
   }
 
   harvestJobs(): Job[] {
@@ -223,7 +224,7 @@ export class Mayor {
         return new JobHarvest(mineral, 10);
       });
 
-    console.log(`${this} scheduling ${sourceJobs.length} source harvest jobs, and ${mineralJobs.length} mineral harvest jobs...`);
+    log.info(`${this} scheduling ${sourceJobs.length} source harvest jobs, and ${mineralJobs.length} mineral harvest jobs...`);
     return sourceJobs.concat(mineralJobs);
   }
 
@@ -276,7 +277,7 @@ export class Mayor {
     });
 
     const jobs = scavengeJobs.concat(takeJobs, linkJobs);
-    console.log(`${this} scheduling ${jobs.length} pickup jobs...`);
+    log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
     return jobs;
   }
 
@@ -327,13 +328,13 @@ export class Mayor {
     });
 
     const jobs: JobUnload[] = unloadJobs.concat(_.flatten(sourceUnloadJobs));
-    console.log(`${this} scheduling ${jobs.length} unload jobs...`);
+    log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
   }
 
   report(): string[] {
     let r = new Array<string>();
-    r.push(`** Mayoral report by ${this}`);
+    r.push(`** Mayoral report by ${this} `);
     r.concat(this._architect.report());
     r.concat(this._cloner.report());
     r.concat(this._caretaker.report());
@@ -351,7 +352,7 @@ export class Mayor {
         return boss.toMemory();
       });
 
-    console.log(`${this}: saved.`)
+    log.info(`${this}: saved.`)
   }
 
   prioritizeBosses(bosses: Boss[]): Boss[] {
@@ -361,7 +362,7 @@ export class Mayor {
   assignWorkers(bosses: Boss[], availableWorkers: Creep[]): Creep[] {
 
     if (bosses.length == 0 || availableWorkers.length == 0) {
-      console.log(`${this}: no bosses or workers to assign.`)
+      log.info(`${this}: no bosses or workers to assign.`)
       return [];
     }
 
@@ -369,11 +370,11 @@ export class Mayor {
     const [emptyWorkers, energizedWorkers] = _.partition(availableWorkers, (w: Creep) => { return w.available() == 0; });
     const [fullWorkers, multipurposeWorkers] = _.partition(energizedWorkers, (w: Creep) => { return w.freeSpace() == 0; });
 
-    console.log(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
+    log.info(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
     const [hiringSinks, lazyFull] = assign_workers(sinkJobs, fullWorkers);
-    console.log(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs`);
+    log.info(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs`);
     const [hiringSources, lazyEmpty] = assign_workers(sourceJobs, emptyWorkers);
-    console.log(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left-over jobs`);
+    log.info(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left - over jobs`);
     const [hiring, lazyMulti] = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
 
     return lazyFull.concat(lazyEmpty, lazyMulti);
@@ -414,7 +415,7 @@ function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]
     assignedBosses.push(bestPairing.boss);
     assignedWorkers.push(bestPairing.worker);
     bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
-    bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)}`, bestPairing.boss.job.site().pos);
+    bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
     pairings = _.filter(pairings, (wbp: WorkerBossPairing) => { return wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker; });
   }
   while (pairings.length);

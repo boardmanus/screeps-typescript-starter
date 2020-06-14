@@ -1,6 +1,7 @@
 import { Operation } from "./Operation";
 import { Job, JobFactory, JobPrerequisite } from "./Job";
 import u from "./Utility"
+import { log } from './ScrupsLogger'
 
 
 function repair_site(job: JobRepair, worker: Creep, site: Structure) {
@@ -10,20 +11,20 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
     let res: number = worker.repair(site);
     switch (res) {
       case OK:
-        console.log(`INFO: ${job}: ${worker} repaired stuff at ${site}`);
+        log.info(`${job}: ${worker} repaired stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE: {
         res = worker.jobMoveTo(site, 3, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
-          console.log(`INFO: ${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       }
       default:
-        console.log(`WARN: ${job}: ${worker} failed while repairing at ${site} (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed while repairing at ${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -111,6 +112,6 @@ JobFactory.addBuilder(JobRepair.TYPE, (id: string): Job | undefined => {
   const site = <Structure>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  console.log(`JobFactory-build repair ${frags} - priority=${priority}`);
+  log.info(`JobFactory - build repair ${frags} - priority=${priority}`);
   return new JobRepair(site, priority);
 });

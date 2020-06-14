@@ -1,6 +1,7 @@
 import { Work } from "./Work"
 import { Mayor } from "./Mayor"
 import { Operation } from "./Operation"
+import { log } from './ScrupsLogger'
 
 export class King {
 
@@ -12,11 +13,11 @@ export class King {
     let controller = (myRooms.length) ? myRooms[0].controller : undefined;
     this._name = controller?.owner?.username ?? "of-nothing";
     this._mayors = _.map(myRooms, (room: Room): Mayor => { return new Mayor(room); });
-    console.log(`${this}: ${this._mayors.length} mayors`);
+    log.info(`${this}: ${this._mayors.length} mayors`);
   }
 
   id(): string {
-    return `king-${this._name}`
+    return `king - ${this._name}`
   }
 
 
@@ -25,7 +26,7 @@ export class King {
   }
 
   survey(): void {
-    console.log(`${this} surveying...`);
+    log.info(`${this} surveying...`);
     _.each(this._mayors, (mayor: Mayor) => { mayor.survey(); });
   }
 
@@ -37,7 +38,7 @@ export class King {
   }
 
   rule(): Operation[] {
-    console.log(`${this} about to rule the world...`);
+    log.info(`${this} about to rule the world...`);
     this.survey();
 
     const ops = _.reduce(
@@ -51,7 +52,7 @@ export class King {
       },
       []);
 
-    console.log(`${this} has ${ops.length} operations scheduled...`);
+    log.info(`${this} has ${ops.length} operations scheduled...`);
 
     return ops;
   }

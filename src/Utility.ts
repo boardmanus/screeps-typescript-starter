@@ -72,7 +72,7 @@ namespace u {
     }
     while (!outOfFunds);
 
-    console.log(`generate_body: newBody=${body}=${body_cost(body)} => remainingFunds=${funds}`)
+    log.info(`generate_body: newBody = ${body} = ${body_cost(body)} => remainingFunds = ${funds}`);
     return body;
   }
 
@@ -148,7 +148,7 @@ namespace u {
 
   const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
   export function get_path(from: Site, to: Site): RoomPosition[] {
-    return _pathCache.getValue(`${from.id}-${to.id}`, () => {
+    return _pathCache.getValue(`${from.id} - ${to.id}`, () => {
       const room = from.room;
       if (!room || from.pos.inRangeTo(to, 1)) {
         return [];

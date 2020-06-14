@@ -1,13 +1,11 @@
-//import { LoggerManager } from "typescript-logger";
-
-//export const log = LoggerManager.create('scrups');
+/*
 class ScrupsLogger {
   constructor() {
 
   }
 
   debug(msg: string) {
-    console.log(msg);
+    log.info(`msg);
   }
   info(msg: string) {
     console.log(msg);
@@ -16,8 +14,10 @@ class ScrupsLogger {
     console.log(msg);
   }
   error(msg: string) {
-    console.log(msg);
+    log.error(`${msg}`);
   }
 }
 
 export const log = new ScrupsLogger();
+*/
+export { log } from "./lib/logger/log";

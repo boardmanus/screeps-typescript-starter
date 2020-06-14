@@ -1,6 +1,7 @@
 import { Operation } from "./Operation";
 import { Job, JobPrerequisite, JobFactory } from "./Job";
 import u from "./Utility";
+import { log } from './ScrupsLogger'
 
 function upgrade_site(job: JobUpgrade, worker: Creep, site: StructureController): Operation {
   return () => {
@@ -9,20 +10,20 @@ function upgrade_site(job: JobUpgrade, worker: Creep, site: StructureController)
     let res: number = worker.upgradeController(site);
     switch (res) {
       case OK:
-        console.log(`INFO: ${job}: ${worker} upgraded controller ${site})`);
+        log.info(`${job}: ${worker} upgraded controller ${site})`);
         break;
       case ERR_NOT_IN_RANGE: {
         res = worker.jobMoveTo(site, 3, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
-          console.log(`INFO: ${job}: ${worker} moved towards controller ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved towards controller ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       }
       default:
-        console.log(`ERROR: ${job}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
         break;
     }
   }

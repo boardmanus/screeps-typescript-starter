@@ -4,6 +4,7 @@ import { Work } from "./Work";
 import { Operation } from "./Operation";
 import { JobUnload } from "./JobUnload";
 import u from "./Utility"
+import { log } from './ScrupsLogger'
 
 
 type CloningStructure = StructureSpawn | StructureExtension;
@@ -61,10 +62,10 @@ function clone_a_worker(work: CloningWork): Operation {
       case ERR_RCL_NOT_ENOUGH:
       case ERR_BUSY:
       default:
-        console.log(`WARN: ${work}: failed to spawn creep ${work.name}:${work.body} (${u.errstr(res)})`);
+        log.debug(`WARN: ${work}: failed to spawn creep ${work.name}:${work.body} (${u.errstr(res)})`);
         break;
       case OK:
-        console.log(`INFO: ${work}: started to clone ${work.name}:${work.body}`);
+        log.debug(`INFO: ${work}: started to clone ${work.name}:${work.body}`);
         break;
     }
   }
@@ -133,7 +134,7 @@ export class Cloner implements Expert {
   }
 
   survey(): void {
-    console.log(`${this} surveying...`);
+    log.debug(`${this} surveying...`);
     //let pendingJobs = find_pending_jobs(this._room.jobs);
     this._maxWorkers = max_workers_allowed(this._room);
   }
@@ -145,8 +146,8 @@ export class Cloner implements Expert {
   schedule(): Job[] {
     const sne = get_spawners_and_extensions(this._room);
     const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w: Creep): number => { return (w.ticksToLive && w.ticksToLive < 300) ? 1 : 0; }));
-    console.log(`${this}: ${sne.length} spawners and extensions requiring energy. ${nearlyDeadWorkers} workers nearly dead.`);
-    console.log(`${this} scheduling ${sne.length} clone jobs...`);
+    log.debug(`${this}: ${sne.length} spawners and extensions requiring energy. ${nearlyDeadWorkers} workers nearly dead.`);
+    log.debug(`${this} scheduling ${sne.length} clone jobs...`);
     return _.map(
       sne,
       (site: CloningStructure): Job => {
@@ -177,7 +178,7 @@ export class Cloner implements Expert {
 
   clone(jobs: Job[]): Work[] {
 
-    console.log(`${this}: ${jobs.length} unworked jobs, ${this._numWorkers} workers...`)
+    log.debug(`${this}: ${jobs.length} unworked jobs, ${this._numWorkers} workers...`)
 
     // Start specializing after links have been established.
     const links = this._room.find(FIND_MY_STRUCTURES, { filter: (s: Structure) => { return s.structureType == STRUCTURE_LINK; } });
@@ -198,13 +199,13 @@ export class Cloner implements Expert {
       || (this._numWorkers > MIN_SAFE_WORKERS
         && availableEnergy < MAX_WORKER_ENERGY
         && availableEnergy / totalEnergy < 0.9)) {
-      console.log(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy / totalEnergy}`)
+      log.debug(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy / totalEnergy}`)
       return [];
     }
 
     const creepBody = u.generate_body(this.bodyTemplate(), Math.min(MAX_WORKER_ENERGY, availableEnergy));
     if (creepBody.length == 0) {
-      console.log(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
+      log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];
     }
 

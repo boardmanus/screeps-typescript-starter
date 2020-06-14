@@ -1,6 +1,7 @@
 import { Operation } from "./Operation";
 import { Job, JobPrerequisite, JobFactory } from "./Job";
 import u from "./Utility"
+import { log } from './ScrupsLogger'
 
 function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operation {
   return () => {
@@ -15,19 +16,19 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
     switch (res) {
       case OK:
         // Finished job.
-        console.log(`INFO: ${job}: ${worker} transferred ${resource} to ${site}`);
+        log.info(`${job}: ${worker} transferred ${resource} to ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
-          console.log(`INFO: ${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
-        console.log(`WARN: ${job}: ${worker} failed to transfer ${worker.carry[resource]} ${resource} to ${site} (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed to transfer ${worker.carry[resource]} ${resource} to ${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -51,10 +52,12 @@ export class JobUnload implements Job {
 
   readonly _site: UnloadSite;
   readonly _priority: number;
+  readonly _superJob?: Job;
 
-  constructor(site: UnloadSite, priority?: number) {
+  constructor(site: UnloadSite, priority?: number, superJob?: Job) {
     this._site = site;
     this._priority = (priority !== undefined) ? priority : 1;
+    this._superJob = superJob;
   }
 
   id(): string {
@@ -65,6 +68,9 @@ export class JobUnload implements Job {
     return this.id();
   }
 
+  superJob(): Job | undefined {
+    return this._superJob;
+  }
   priority(workers: Creep[]): number {
     return this._priority;
   }

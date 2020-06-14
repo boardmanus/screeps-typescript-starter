@@ -170,8 +170,6 @@ function possible_road_sites(room: Room, numAllowed: number): RoomPosition[] {
     return [];
   }
 
-
-
   const sourceRoutes = select_road_sites(room, numAllowed, 'sources', 17, find_source_routes);
   if (sourceRoutes.length > 0) {
     return sourceRoutes;
@@ -872,7 +870,7 @@ export class Architect implements Expert {
         }
         else {
           source._container = find_site(source, STRUCTURE_CONTAINER, 1);
-          log.warn(`${this}: found ${source} container => ${source._container}`);
+          log.warning(`${this}: found ${source} container => ${source._container}`);
         }
       }
 
@@ -883,7 +881,7 @@ export class Architect implements Expert {
         }
         else {
           source._tower = find_site(source, STRUCTURE_TOWER, 5);
-          log.warn(`${this}: found ${source} tower => ${source._tower}`);
+          log.warning(`${this}: found ${source} tower => ${source._tower}`);
         }
       }
 
@@ -895,7 +893,7 @@ export class Architect implements Expert {
         else {
           if (source._container) {
             source._link = find_site(source._container, STRUCTURE_LINK, 1);
-            log.warn(`${this}: found ${source} link => ${source._link}`);
+            log.warning(`${this}: found ${source} link => ${source._link}`);
           }
         }
       }
@@ -916,7 +914,7 @@ export class Architect implements Expert {
       }
       else {
         storage._link = find_site(storage, STRUCTURE_LINK, 1);
-        log.warn(`${this}: found ${storage} link => ${storage._link}`);
+        log.warning(`${this}: found ${storage} link => ${storage._link}`);
       }
     }
   }
@@ -945,7 +943,7 @@ export class Architect implements Expert {
         }
         else {
           spawn._link = find_site(spawn, STRUCTURE_LINK, 1);
-          log.warn(`${this}: found ${spawn} link => ${spawn._link}`);
+          log.warning(`${this}: found ${spawn} link => ${spawn._link}`);
         }
       }
     });

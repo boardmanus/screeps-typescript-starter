@@ -1,6 +1,7 @@
 import { Operation } from "./Operation";
 import { Job, JobFactory, JobPrerequisite } from "./Job";
 import u from "./Utility"
+import { log } from './ScrupsLogger'
 
 export type PickupSite = Resource | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 
@@ -11,21 +12,21 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure): Ope
     let res: number = worker.withdraw(site, RESOURCE_ENERGY);
     switch (res) {
       default:
-        console.log(`ERROR: ${job}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE: {
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
         if (res == OK) {
-          console.log(`INFO: ${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
       }
         break;
       case OK:
         // Finished job.
-        console.log(`INFO: ${job}: ${worker} withdrew resources from ${site}`);
+        log.info(`${job}: ${worker} withdrew resources from ${site}`);
         break;
     }
   }
@@ -39,23 +40,23 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
     switch (res) {
       case OK:
         // Finished job.
-        console.log(`INFO: ${job}: ${worker} picked up resources from ${site}`);
+        log.info(`${job}: ${worker} picked up resources from ${site}`);
         break;
       case ERR_NOT_IN_RANGE: {
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
         if (res == OK) {
-          console.log(`INFO: ${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
           if (worker.pickup(site) == OK) {
-            console.log(`INFO: ${job}: ... and ${worker} picked up resources from ${site}`);
+            log.info(`${job}: ... and ${worker} picked up resources from ${site}`);
           }
         }
         else {
-          console.log(`WARN: ${job}: ${worker} failed moving to resources-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to resources-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       }
       default:
-        console.log(`ERROR: ${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
         break;
     }
   }

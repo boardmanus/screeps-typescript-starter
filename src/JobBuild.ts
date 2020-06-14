@@ -1,6 +1,7 @@
 import { Operation } from "./Operation";
 import { Job, JobFactory, JobPrerequisite } from "./Job";
 import u from "./Utility"
+import { log } from "lib/logger/log";
 
 
 function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
@@ -10,19 +11,19 @@ function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
     let res: number = worker.build(site);
     switch (res) {
       case OK:
-        console.log(`INFO: ${job}: ${worker} built stuff at ${site}`);
+        log.info(`${job}: ${worker} built stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
         res = worker.jobMoveTo(site, 3, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
-          console.log(`INFO: ${job}: ${worker} moved to construction site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved to construction site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          console.log(`ERROR: ${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
-        console.log(`WARN: ${job}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
         break;
     }
   }
