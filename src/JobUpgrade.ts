@@ -1,5 +1,5 @@
 import { Operation } from "./Operation";
-import { Job, JobPrerequisite, JobFactory } from "./Job";
+import * as Job from "Job";
 import u from "./Utility";
 import { log } from './ScrupsLogger'
 
@@ -29,7 +29,7 @@ function upgrade_site(job: JobUpgrade, worker: Creep, site: StructureController)
   }
 }
 
-export class JobUpgrade implements Job {
+export class JobUpgrade implements Job.Model {
 
   static readonly TYPE = 'upgrade';
 
@@ -91,15 +91,15 @@ export class JobUpgrade implements Job {
     return 0.0;
   }
 
-  satisfiesPrerequisite(_: JobPrerequisite): boolean {
+  satisfiesPrerequisite(_: Job.Prerequisite): boolean {
     return false;
   }
 
-  prerequisite(worker: Creep): JobPrerequisite {
+  prerequisite(worker: Creep): Job.Prerequisite {
     if (worker.available() == 0) {
-      return JobPrerequisite.COLLECT_ENERGY;
+      return Job.Prerequisite.COLLECT_ENERGY;
     }
-    return JobPrerequisite.NONE;
+    return Job.Prerequisite.NONE;
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -112,7 +112,7 @@ export class JobUpgrade implements Job {
 }
 
 
-JobFactory.addBuilder(JobUpgrade.TYPE, (id: string): Job | undefined => {
+Job.factory.addBuilder(JobUpgrade.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <StructureController>Game.getObjectById(frags[2]);
   if (!site) return undefined;

@@ -1,6 +1,6 @@
 import { Expert } from "./Expert";
 import { Work } from "./Work";
-import { Job } from "./Job";
+import * as Job from "Job";
 import { JobBuild } from "./JobBuild";
 import { JobRepair } from "./JobRepair";
 import { Operation } from "./Operation";
@@ -227,7 +227,7 @@ export class Caretaker implements Expert {
     return work;
   }
 
-  schedule(): Job[] {
+  schedule(): Job.Model[] {
 
     const room = this._room;
 

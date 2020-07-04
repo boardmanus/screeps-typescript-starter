@@ -1,23 +1,23 @@
-/*
+
 class ScrupsLogger {
   constructor() {
 
   }
 
   debug(msg: string) {
-    log.info(`msg);
+    console.log(`DEBUG: ${msg}`);
   }
   info(msg: string) {
-    console.log(msg);
+    console.log(`INFO: ${msg}`);
   }
-  warn(msg: string) {
-    console.log(msg);
+  warning(msg: string) {
+    console.log(`WARNING: ${msg}`);
   }
   error(msg: string) {
-    log.error(`${msg}`);
+    console.log(`ERROR: ${msg}`);
   }
 }
 
 export const log = new ScrupsLogger();
-*/
-export { log } from "./lib/logger/log";
+
+//export { log } from "./lib/logger/log";

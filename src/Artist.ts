@@ -1,11 +1,11 @@
 import { Expert } from "./Expert";
 import { Work } from "./Work";
-import { Job } from "./Job";
+import * as Job from "Job";
 import { JobBuild } from "./JobBuild";
 import { Operation } from "./Operation";
 import { FunctionCache } from "./Cache";
 import u from "./Utility";
-import log from "./ScrupsLogger";
+import { log } from "./ScrupsLogger";
 
 export class Artist implements Expert {
 
@@ -23,12 +23,10 @@ export class Artist implements Expert {
 
   survey(): void {
     log.debug(`${this} surveying...`);
-    if (Memory.control.visualize) {
 
-    }
   }
 
-  schedule(): Job[] {
+  schedule(): Job.Model[] {
     return [];
   }
 

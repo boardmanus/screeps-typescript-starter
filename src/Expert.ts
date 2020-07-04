@@ -1,4 +1,4 @@
-import { Job } from "./Job";
+import * as Job from "Job";
 
 /**
  * An Expert in a specific field.
@@ -6,9 +6,9 @@ import { Job } from "./Job";
  * Provides reports on what is going on.
  */
 export interface Expert {
-  id() : string;
-  survey() : void;
-  schedule() : Job[];
-  report() : string[];
-  save() : void;
+  id(): string;
+  survey(): void;
+  schedule(): Job.Model[];
+  report(): string[];
+  save(): void;
 }

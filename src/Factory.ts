@@ -1,19 +1,19 @@
 import { log } from './ScrupsLogger'
 
-export class Factory<T> {
+export default class Factory<T> {
 
-  private _builders: { [builderId: string]: (id: string) => T };
+  private _builders: { [builderId: string]: (id: string) => T | undefined };
 
   constructor() {
     this._builders = {};
   }
 
-  build(id: string): T {
+  build(id: string): T | undefined {
     const builder = this._builders[this.builderId(id)];
     return builder(id);
   }
 
-  addBuilder(builderId: string, builder: (id: string) => T) {
+  addBuilder(builderId: string, builder: (id: string) => T | undefined) {
     this._builders[builderId] = builder;
     log.info(`Added factory method for ${builderId}`)
   }

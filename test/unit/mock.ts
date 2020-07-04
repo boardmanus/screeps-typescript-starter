@@ -1,3 +1,4 @@
+
 export const Game = {
   creeps: [],
   rooms: [],
@@ -8,3 +9,4 @@ export const Game = {
 export const Memory = {
   creeps: []
 };
+

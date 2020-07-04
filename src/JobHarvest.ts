@@ -1,8 +1,7 @@
+import * as Job from "Job";
 import { Operation } from "./Operation";
-import { JobFactory, JobPrerequisite } from "./Job";
-import { Job } from "./Job";
-import u from "./Utility"
 import { log } from './ScrupsLogger';
+import u from "./Utility";
 
 
 type HarvestSite = Source | Mineral;
@@ -129,7 +128,7 @@ function mineral_capacity(mineral: Mineral): number {
 }
 
 
-export class JobHarvest implements Job {
+export class JobHarvest implements Job.Model {
 
   static readonly TYPE: string = 'harvest';
 
@@ -161,8 +160,8 @@ export class JobHarvest implements Job {
     return [WORK, CARRY, WORK, CARRY];
   }
 
-  satisfiesPrerequisite(prerequisite: JobPrerequisite): boolean {
-    if (prerequisite == JobPrerequisite.COLLECT_ENERGY) {
+  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
+    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY) {
       return this._site.available() > 0;
     }
 
@@ -175,12 +174,12 @@ export class JobHarvest implements Job {
   }
 
 
-  prerequisite(worker: Creep): JobPrerequisite {
+  prerequisite(worker: Creep): Job.Prerequisite {
     if (worker.carry.getUsedCapacity() == worker.carryCapacity) {
-      return JobPrerequisite.DELIVER_ENERGY;
+      return Job.Prerequisite.DELIVER_ENERGY;
     }
 
-    return JobPrerequisite.NONE;
+    return Job.Prerequisite.NONE;
   }
 
   isSatisfied(workers: Creep[]): boolean {
@@ -212,7 +211,6 @@ export class JobHarvest implements Job {
 
   work(worker: Creep): Operation[] {
     if (this.completion(worker) == 1.0) {
-      worker.setEmployed(false);
       return [];
     }
 
@@ -221,7 +219,7 @@ export class JobHarvest implements Job {
 }
 
 
-JobFactory.addBuilder(JobHarvest.TYPE, (id: string): Job | undefined => {
+Job.factory.addBuilder(JobHarvest.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site: HarvestSite = <HarvestSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;

@@ -1,44 +1,4 @@
 
-interface RoomPosition {
-  surroundingPositions(radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[];
-}
-
-interface RoomObject {
-  available(resource?: ResourceConstant): number;
-  freeSpace(resource?: ResourceConstant): number;
-  capacity(): number;
-}
-
-interface Creep {
-  _employed: boolean;
-  _lastJobSite: RoomObject;
-  setEmployed(employed: boolean): void;
-  isEmployed(): boolean;
-  setLastJobSite(lastJobSite: RoomObject): void;
-  getLastJobSite(): RoomObject | undefined;
-  jobMoveTo(pos: RoomPosition | RoomObject, range: number, style: LineStyle): number;
-}
-
-interface Source {
-  _container: StructureContainer | null;
-  _tower: StructureTower | null;
-  _link: StructureLink | null;
-}
-
-interface Mineral {
-  _container: StructureContainer | null;
-  _link: StructureLink | undefined;
-}
-
-interface StructureStorage {
-  _link: StructureLink | null;
-}
-
-interface StructureSpawn {
-  _link: StructureLink | null;
-}
-
-
 
 RoomPosition.prototype.surroundingPositions = function (radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[] {
   const minx = Math.max(0, this.x - radius);
@@ -150,11 +110,11 @@ Creep.prototype.freeSpace = function (__?: ResourceConstant): number {
 Creep.prototype.capacity = function (): number {
   return this.store.getCapacity();
 }
-Creep.prototype.setEmployed = function (employed: boolean): void {
-  this._employed = employed;
+Creep.prototype.setJob = function (job: string | undefined): void {
+  this._job = job;
 }
 Creep.prototype.isEmployed = function (): boolean {
-  return this._employed;
+  return (this._job ? true : false);
 }
 Creep.prototype.setLastJobSite = function (lastJobSite: RoomObject): void {
   this._lastJobSite = lastJobSite;

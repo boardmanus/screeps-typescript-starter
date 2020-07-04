@@ -1,5 +1,5 @@
 import { Operation } from "./Operation";
-import { Job, JobFactory, JobPrerequisite } from "./Job";
+import * as Job from "Job";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
 
@@ -30,7 +30,7 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
   }
 }
 
-export class JobRepair implements Job {
+export class JobRepair implements Job.Model {
 
   static readonly TYPE = 'repair';
 
@@ -85,20 +85,20 @@ export class JobRepair implements Job {
     return [MOVE, WORK, CARRY];
   }
 
-  satisfiesPrerequisite(prerequisite: JobPrerequisite): boolean {
-    if (prerequisite == JobPrerequisite.DELIVER_ENERGY) {
+  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
+    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY) {
       return this.completion() < 1.0;
     }
 
     return false;
   }
 
-  prerequisite(worker: Creep): JobPrerequisite {
+  prerequisite(worker: Creep): Job.Prerequisite {
     if (worker.available() == 0) {
-      return JobPrerequisite.COLLECT_ENERGY;
+      return Job.Prerequisite.COLLECT_ENERGY;
     }
 
-    return JobPrerequisite.NONE;
+    return Job.Prerequisite.NONE;
   }
 
   work(worker: Creep): Operation[] {
@@ -107,7 +107,7 @@ export class JobRepair implements Job {
 }
 
 
-JobFactory.addBuilder(JobRepair.TYPE, (id: string): Job | undefined => {
+Job.factory.addBuilder(JobRepair.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <Structure>Game.getObjectById(frags[2]);
   if (!site) return undefined;

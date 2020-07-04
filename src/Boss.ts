@@ -1,16 +1,16 @@
-import { Job, JobFactory } from "./Job";
+import * as Job from "Job";
 import { Operation } from "./Operation";
 import { Work } from "./Work";
 import u from "./Utility";
 import { log } from './ScrupsLogger';
 
-export class Boss implements Work {
+export default class Boss implements Work {
 
-  readonly job: Job;
+  readonly job: Job.Model;
   private _workers: Creep[];
 
   static fromMemory(memory: BossMemory): Boss | undefined {
-    const job = JobFactory.build(memory.job);
+    const job = Job.factory.build(memory.job);
     if (!job) return undefined;
 
     const workers = _.filter(
@@ -18,13 +18,13 @@ export class Boss implements Work {
       (worker: Creep) => {
         if (job.completion(worker) < 1.0) {
           log.debug(`${job.id()}: not complete ${worker.id}`);
-          worker.setEmployed(true);
+          worker.setJob(job.id());
           return true;
         }
 
         log.debug(`${job.id()}: complete!`);
         worker.setLastJobSite(job.site());
-        worker.setEmployed(false);
+        worker.setJob(undefined);
         return false;
       });
 
@@ -42,11 +42,11 @@ export class Boss implements Work {
     return memory;
   }
 
-  constructor(job: Job, workers?: Creep[]) {
+  constructor(job: Job.Model, workers?: Creep[]) {
     this.job = job;
     this._workers = workers || [];
 
-    _.each(this._workers, (worker: Creep) => { worker.setEmployed(true); });
+    _.each(this._workers, (worker: Creep) => { worker.setJob(job.id()); });
   }
 
   id(): string {
@@ -84,13 +84,12 @@ export class Boss implements Work {
   }
 
   assignWorker(worker: Creep) {
-    worker.memory.job = this.job.id();
     if (_.find(this._workers, (w: Creep) => { return worker.id == w.id; })) {
       log.debug(`ERROR: ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
       return;
     }
     log.debug(`${this}: assigning worker ${worker}`);
-    worker.setEmployed(true);
+    worker.setJob(this.job.id());
     this._workers.push(worker);
   }
 }

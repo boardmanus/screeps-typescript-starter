@@ -1,16 +1,18 @@
 import { Architect } from "./Architect";
 import { Caretaker } from "./Caretaker";
 import { Cloner } from "./Cloner";
-import { Job, JobPrerequisite } from "./Job";
+import * as Job from "Job";
 import { Work } from "./Work";
 import { JobHarvest } from "./JobHarvest";
 import { JobUpgrade } from "./JobUpgrade";
 import { JobPickup } from "./JobPickup";
 import { JobUnload } from "./JobUnload";
-import { Boss } from "./Boss";
+import Boss from "./Boss";
+import Executive from "./Executive";
 import { Operation } from "./Operation";
 import u from "./Utility";
 import { log } from './ScrupsLogger';
+import BusinessEnergyMining from "BusinessMining";
 
 
 function worker_rating(worker: Creep, boss: Boss, minPriority: number): number {
@@ -42,13 +44,17 @@ function map_valid_bosses(memory: BossMemory[]): Boss[] {
     (boss: BossMemory): Boss | undefined => { return Boss.fromMemory(boss); });
 }
 
+function map_valid_executives(memory: ExecutiveMemory[]): Executive[] {
+  return u.map_valid(
+    memory,
+    (executive: ExecutiveMemory): Executive | undefined => { return Executive.fromMemory(executive); });
+}
+
 function map_valid_to_links(linkers: (Source | StructureStorage | StructureSpawn)[], to: boolean): StructureLink[] {
-  return _.filter(u.map_valid(linkers, (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined | null => {
-    return s._link;
-  }),
-    (l: StructureLink) => {
-      return (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100);
-    });
+  return _.filter(
+    u.map_valid(linkers,
+      (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined | null => s._link),
+    (l: StructureLink) => (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100));
 }
 
 class TransferWork implements Work {
@@ -96,6 +102,7 @@ export class Mayor {
   private _architect: Architect;
   private _caretaker: Caretaker;
   private _cloner: Cloner;
+  private _executives: Executive[];
   private _bosses: Boss[];
 
   constructor(room: Room) {
@@ -103,6 +110,7 @@ export class Mayor {
     this._architect = new Architect(room);
     this._caretaker = new Caretaker(room);
     this._cloner = new Cloner(room);
+    this._executives = map_valid_executives(room.memory.executives);
     this._bosses = map_valid_bosses(room.memory.bosses);
   }
 
@@ -170,7 +178,13 @@ export class Mayor {
     this._caretaker.survey();
     this._cloner.survey();
 
-    const allJobs: Job[] =
+    const miningBusinesses: BusinessEnergyMining[] =
+      _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source, 1));
+
+    const noCEOs = _.filter(miningBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
+    const newExecutives = _.map(noCEOs, (b) => new Executive(b));
+
+    const allJobs: Job.Model[] =
       this.harvestJobs()
         .concat(this.upgradeJobs())
         .concat(this.pickupJobs())
@@ -184,8 +198,8 @@ export class Mayor {
     // Create a boss for every job that doesn't have one.
     const newBosses = _.reduce(
       allJobs,
-      (bosses: Boss[], job: Job): Boss[] => {
-        if (_.every(this._bosses, (boss: Boss): boolean => { return boss.job.id() != job.id(); })) {
+      (bosses: Boss[], job: Job.Model): Boss[] => {
+        if (_.every(this._bosses, (boss) => boss.job.id() != job.id())) {
           bosses.push(new Boss(job));
         }
         return bosses;
@@ -211,29 +225,24 @@ export class Mayor {
     log.info(`${this}: ${this._bosses.length} bosses after survey`)
   }
 
-  harvestJobs(): Job[] {
-    const sourceJobs: Job[] = _.map<Source, Job>(
-      this._room.find(FIND_SOURCES_ACTIVE),
-      (source: Source): Job => {
-        return new JobHarvest(source);
-      });
+  harvestJobs(): Job.Model[] {
 
-    const mineralJobs: Job[] = _.map<Mineral, Job>(
+    const mineralJobs: Job.Model[] = _.map<Mineral, Job.Model>(
       this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
-      (mineral: Mineral): Job => {
+      (mineral: Mineral): Job.Model => {
         return new JobHarvest(mineral, 10);
       });
 
-    log.info(`${this} scheduling ${sourceJobs.length} source harvest jobs, and ${mineralJobs.length} mineral harvest jobs...`);
-    return sourceJobs.concat(mineralJobs);
+    log.info(`${this} scheduling ${mineralJobs.length} mineral harvest jobs...`);
+    return mineralJobs;
   }
 
-  pickupJobs(): Job[] {
+  pickupJobs(): Job.Model[] {
     const room = this._room;
 
-    const scavengeJobs: Job[] = _.map(
+    const scavengeJobs: Job.Model[] = _.map(
       room.find(FIND_DROPPED_RESOURCES),
-      (r: Resource): Job => {
+      (r: Resource): Job.Model => {
         return new JobPickup(r, 5);
       });
 
@@ -241,13 +250,13 @@ export class Mayor {
     //  room.find(FIND_TOMBSTONES)
     //)
 
-    const takeJobs: Job[] = _.map(
+    const takeJobs: Job.Model[] = _.map(
       room.find<StructureContainer>(FIND_STRUCTURES, {
         filter: (s: AnyStructure) => {
           return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.available() > 0;
         }
       }),
-      (s: StructureContainer): Job => {
+      (s: StructureContainer): Job.Model => {
         return new JobPickup(s, 1);
       });
 
@@ -281,7 +290,7 @@ export class Mayor {
     return jobs;
   }
 
-  upgradeJobs(): Job[] {
+  upgradeJobs(): Job.Model[] {
     const controller = this._room.controller;
     if (!controller) {
       return [];
@@ -290,7 +299,7 @@ export class Mayor {
     return [new JobUpgrade(controller)];
   }
 
-  unloadJobs(): Job[] {
+  unloadJobs(): Job.Model[] {
     const room = this._room;
     const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, {
       filter: (s: AnyStructure) => {
@@ -366,7 +375,7 @@ export class Mayor {
       return [];
     }
 
-    const [sourceJobs, sinkJobs] = _.partition(bosses, (b: Boss) => { return b.job.satisfiesPrerequisite(JobPrerequisite.COLLECT_ENERGY); });
+    const [sourceJobs, sinkJobs] = _.partition(bosses, (b: Boss) => { return b.job.satisfiesPrerequisite(Job.Prerequisite.COLLECT_ENERGY); });
     const [emptyWorkers, energizedWorkers] = _.partition(availableWorkers, (w: Creep) => { return w.available() == 0; });
     const [fullWorkers, multipurposeWorkers] = _.partition(energizedWorkers, (w: Creep) => { return w.freeSpace() == 0; });
 

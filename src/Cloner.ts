@@ -1,5 +1,5 @@
 import { Expert } from "./Expert";
-import { Job } from "./Job";
+import * as Job from "Job";
 import { Work } from "./Work";
 import { Operation } from "./Operation";
 import { JobUnload } from "./JobUnload";
@@ -113,7 +113,7 @@ export class Cloner implements Expert {
   private _numWorkers: number;
   private _maxWorkers: number;
 
-  private getUniqueCreepName(job?: Job): string {
+  private getUniqueCreepName(job?: Job.Model): string {
     return `${this._room.name}-${this._uniqueId++}`;
   }
 
@@ -143,14 +143,14 @@ export class Cloner implements Expert {
     this._room.memory.cloneCount = this._uniqueId;
   }
 
-  schedule(): Job[] {
+  schedule(): Job.Model[] {
     const sne = get_spawners_and_extensions(this._room);
     const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w: Creep): number => { return (w.ticksToLive && w.ticksToLive < 300) ? 1 : 0; }));
     log.debug(`${this}: ${sne.length} spawners and extensions requiring energy. ${nearlyDeadWorkers} workers nearly dead.`);
     log.debug(`${this} scheduling ${sne.length} clone jobs...`);
     return _.map(
       sne,
-      (site: CloningStructure): Job => {
+      (site: CloningStructure): Job.Model => {
         const workerHealthRatio = (this._numWorkers - nearlyDeadWorkers) / this._maxWorkers;
         return new JobUnload(site, 4 + (1.0 - workerHealthRatio) * 6);
       });
@@ -162,7 +162,7 @@ export class Cloner implements Expert {
     return r;
   }
 
-  private bodyTemplate(job?: Job): BodyPartConstant[] {
+  private bodyTemplate(job?: Job.Model): BodyPartConstant[] {
 
     if (job) {
       return job.baseWorkerBody();
@@ -176,7 +176,7 @@ export class Cloner implements Expert {
     return [WORK, MOVE, CARRY, MOVE]
   }
 
-  clone(jobs: Job[]): Work[] {
+  clone(jobs: Job.Model[]): Work[] {
 
     log.debug(`${this}: ${jobs.length} unworked jobs, ${this._numWorkers} workers...`)
 

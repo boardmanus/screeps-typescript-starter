@@ -1,5 +1,5 @@
 import { Operation } from "./Operation";
-import { Job, JobFactory, JobPrerequisite } from "./Job";
+import * as Job from "Job";
 import u from "./Utility"
 import { log } from "lib/logger/log";
 
@@ -29,7 +29,7 @@ function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
   }
 }
 
-export class JobBuild implements Job {
+export class JobBuild implements Job.Model {
 
   static readonly TYPE = 'build';
 
@@ -81,20 +81,20 @@ export class JobBuild implements Job {
     return [MOVE, WORK, CARRY];
   }
 
-  satisfiesPrerequisite(prerequisite: JobPrerequisite): boolean {
-    if (prerequisite == JobPrerequisite.DELIVER_ENERGY) {
+  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
+    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY) {
       return this.completion() < 1.0;
     }
 
     return false;
   }
 
-  prerequisite(worker: Creep): JobPrerequisite {
+  prerequisite(worker: Creep): Job.Prerequisite {
     if (worker.available() == 0) {
-      return JobPrerequisite.COLLECT_ENERGY;
+      return Job.Prerequisite.COLLECT_ENERGY;
     }
 
-    return JobPrerequisite.NONE;
+    return Job.Prerequisite.NONE;
   }
 
   work(worker: Creep): Operation[] {
@@ -103,7 +103,7 @@ export class JobBuild implements Job {
 }
 
 
-JobFactory.addBuilder(JobBuild.TYPE, (id: string): Job | undefined => {
+Job.factory.addBuilder(JobBuild.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <ConstructionSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;

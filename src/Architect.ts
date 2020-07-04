@@ -1,6 +1,6 @@
 import { Expert } from "./Expert";
 import { Work } from "./Work";
-import { Job } from "./Job";
+import * as Job from "Job";
 import { log } from "./ScrupsLogger";
 import { JobBuild } from "./JobBuild";
 import { Operation } from "./Operation";
@@ -525,7 +525,7 @@ function possible_extractor_sites(room: Room): RoomPosition[] {
   return viableSites;
 }
 
-class BuildingWork implements Work {
+export class BuildingWork implements Work {
 
   readonly site: RoomPosition;
   readonly type: BuildableStructureConstant;
@@ -827,12 +827,12 @@ export class Architect implements Expert {
     return extensionWorks.concat(containerWorks, storageWorks, roadWorks, towerWorks, linkWorks, extractorWorks);
   }
 
-  schedule(): Job[] {
+  schedule(): Job.Model[] {
 
     const room = this._room;
 
     const constructionSites: ConstructionSite[] = room.find(FIND_MY_CONSTRUCTION_SITES);
-    const constructionJobs = _.map(constructionSites, (site: ConstructionSite): Job => {
+    const constructionJobs = _.map(constructionSites, (site: ConstructionSite): Job.Model => {
       return new JobBuild(site, 5);
     });
 

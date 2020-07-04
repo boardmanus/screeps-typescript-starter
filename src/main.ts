@@ -2,7 +2,7 @@ import { ErrorMapper } from "utils/ErrorMapper";
 import { King } from "./King";
 import { Operation } from "./Operation";
 import { log } from './ScrupsLogger'
-import "./extensions";
+import 'types.impl';
 import * as data from "../package.json";
 
 

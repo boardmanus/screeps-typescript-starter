@@ -1,9 +1,7 @@
 import { Operation } from "./Operation";
-import { Job, JobFactory, JobPrerequisite } from "./Job";
+import * as Job from "Job";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
-
-export type PickupSite = Resource | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 
 
 function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure): Operation {
@@ -62,7 +60,7 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
   }
 }
 
-export class JobPickup implements Job {
+export class JobPickup implements Job.Model {
 
   static readonly TYPE = 'pickup';
 
@@ -124,38 +122,34 @@ export class JobPickup implements Job {
     return [CARRY, MOVE];
   }
 
-  satisfiesPrerequisite(prerequisite: JobPrerequisite): boolean {
-    if (prerequisite == JobPrerequisite.COLLECT_ENERGY) {
+  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
+    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY) {
       return this._site.available() > 0;
     }
 
     return false;
   }
 
-  prerequisite(worker: Creep): JobPrerequisite {
+  prerequisite(worker: Creep): Job.Prerequisite {
     if (worker.carry.getUsedCapacity() == worker.carryCapacity) {
-      return JobPrerequisite.DELIVER_ENERGY;
+      return Job.Prerequisite.DELIVER_ENERGY;
     }
 
-    return JobPrerequisite.NONE;
+    return Job.Prerequisite.NONE;
   }
 
   work(worker: Creep): Operation[] {
-
-    if (this._site instanceof Structure) {
-      return [withdraw_from_site(this, worker, this._site)];
-    }
-
-    else if (this._site instanceof Resource) {
+    if (this._site instanceof Resource) {
       return [pickup_at_site(this, worker, this._site)];
     }
-
-    return [];
+    else {
+      return [withdraw_from_site(this, worker, this._site)];
+    }
   }
 }
 
 
-JobFactory.addBuilder(JobPickup.TYPE, (id: string): Job | undefined => {
+Job.factory.addBuilder(JobPickup.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <PickupSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;

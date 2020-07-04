@@ -1,5 +1,5 @@
 import { Operation } from "./Operation";
-import { Job, JobPrerequisite, JobFactory } from "./Job";
+import * as Job from "Job";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
 
@@ -45,16 +45,15 @@ function resources_available(worker: Creep, site: UnloadSite): number {
   }
 }
 
-export type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
-export class JobUnload implements Job {
+export class JobUnload implements Job.Model {
 
   static readonly TYPE = 'unload';
 
   readonly _site: UnloadSite;
   readonly _priority: number;
-  readonly _superJob?: Job;
+  readonly _superJob?: Job.Model;
 
-  constructor(site: UnloadSite, priority?: number, superJob?: Job) {
+  constructor(site: UnloadSite, priority?: number, superJob?: Job.Model) {
     this._site = site;
     this._priority = (priority !== undefined) ? priority : 1;
     this._superJob = superJob;
@@ -68,7 +67,7 @@ export class JobUnload implements Job {
     return this.id();
   }
 
-  superJob(): Job | undefined {
+  superJob(): Job.Model | undefined {
     return this._superJob;
   }
   priority(workers: Creep[]): number {
@@ -77,9 +76,9 @@ export class JobUnload implements Job {
 
   efficiency(worker: Creep): number {
 
-    if (worker.getLastJobSite() === this._site) {
-      return 0;
-    }
+    //if (worker.getLastJobSite() === this._site) {
+    //  return 0;
+    //}
 
     switch (this._site.structureType) {
       case STRUCTURE_LINK:
@@ -121,15 +120,15 @@ export class JobUnload implements Job {
     return 1.0 - this._site.freeSpace() / this._site.capacity();
   }
 
-  satisfiesPrerequisite(p: JobPrerequisite): boolean {
-    return p == JobPrerequisite.DELIVER_ENERGY && this._site.freeSpace() > 0;
+  satisfiesPrerequisite(p: Job.Prerequisite): boolean {
+    return p == Job.Prerequisite.DELIVER_ENERGY && this._site.freeSpace() > 0;
   }
 
-  prerequisite(worker: Creep): JobPrerequisite {
+  prerequisite(worker: Creep): Job.Prerequisite {
     if (resources_available(worker, this._site) == 0) {
-      return JobPrerequisite.COLLECT_ENERGY;
+      return Job.Prerequisite.COLLECT_ENERGY;
     }
-    return JobPrerequisite.NONE;
+    return Job.Prerequisite.NONE;
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -142,7 +141,7 @@ export class JobUnload implements Job {
 }
 
 
-JobFactory.addBuilder(JobUnload.TYPE, (id: string): Job | undefined => {
+Job.factory.addBuilder(JobUnload.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <UnloadSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
