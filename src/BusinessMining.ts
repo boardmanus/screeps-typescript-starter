@@ -6,6 +6,7 @@ import { JobPickup } from 'JobPickup';
 import { JobRepair } from 'JobRepair';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
+import { log } from 'ScrupsLogger';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
@@ -73,6 +74,10 @@ export default class BusinessEnergyMining implements Business.Model {
     return Business.id(BusinessEnergyMining.TYPE, this._mine.id, this._priority);
   }
 
+  toString(): string {
+    return this.id();
+  }
+
   site(): RoomObject {
     return this._mine;
   }
@@ -94,6 +99,8 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobRepair(mine._container, this._priority + 2));
       jobs.push(new JobUnload(mine._container, this._priority + 3));
     }
+    log.debug(`${this}: permanentJobs-${jobs}`);
+
     return jobs;
   }
 
@@ -112,6 +119,7 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobPickup(mine._container));
     }
 
+    log.debug(`${this}: contractJobs-${jobs}`);
     return jobs;
   }
 

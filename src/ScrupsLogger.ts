@@ -1,4 +1,4 @@
-
+/*
 class ScrupsLogger {
   constructor() {
 
@@ -19,5 +19,5 @@ class ScrupsLogger {
 }
 
 export const log = new ScrupsLogger();
-
-//export { log } from "./lib/logger/log";
+*/
+export { log } from "./lib/logger/log";

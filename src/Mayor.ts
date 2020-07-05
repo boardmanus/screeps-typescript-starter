@@ -126,7 +126,8 @@ export class Mayor {
 
     const noWork: Work[] = [];
 
-    const allWork = noWork.concat(
+    const allWork: Work[] = noWork.concat(
+      this._executives,
       this._bosses,
       this._cloner.clone([]),
       this._architect.design(),
@@ -180,18 +181,21 @@ export class Mayor {
 
     const miningBusinesses: BusinessEnergyMining[] =
       _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source, 1));
-
-    const noCEOs = _.filter(miningBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
-    const newExecutives = _.map(noCEOs, (b) => new Executive(b));
+    const unmannedBusinesses = _.filter(miningBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
+    const newExecutives = _.map(unmannedBusinesses, (b) => new Executive(b));
+    this._executives = this._executives.concat(newExecutives);
+    log.debug(`${this}: ${this._executives.length} executives after survey`);
 
     const allJobs: Job.Model[] =
       this.harvestJobs()
-        .concat(this.upgradeJobs())
-        .concat(this.pickupJobs())
-        .concat(this.unloadJobs())
-        .concat(this._architect.schedule())
-        .concat(this._cloner.schedule())
-        .concat(this._caretaker.schedule());
+        .concat(
+          this.upgradeJobs(),
+          this.pickupJobs(),
+          this.unloadJobs(),
+          this._architect.schedule(),
+          this._cloner.schedule(),
+          this._caretaker.schedule(),
+          _.flatten(_.map(this._executives, (ceo) => ceo.business.contractJobs())));
 
     log.info(`${this}: ${allJobs.length} jobs found while surveying.`)
 
@@ -355,11 +359,8 @@ export class Mayor {
     this._cloner.save();
     this._caretaker.save();
 
-    this._room.memory.bosses = _.map(
-      this._bosses,
-      (boss: Boss): BossMemory => {
-        return boss.toMemory();
-      });
+    this._room.memory.executives = _.map(this._executives, (e) => e.toMemory());
+    this._room.memory.bosses = _.map(this._bosses, (boss) => boss.toMemory());
 
     log.info(`${this}: saved.`)
   }

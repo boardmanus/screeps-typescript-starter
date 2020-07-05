@@ -61,7 +61,7 @@ export default class Executive implements Work {
   }
 
   id(): string {
-    return `boss-${this.business.id()}`;
+    return `ceo-${this.business.id()}`;
   }
 
   toString(): string {
@@ -77,8 +77,10 @@ export default class Executive implements Work {
   }
 
   work(): Operation[] {
-    return _.flatten(_.map(
+    const executiveOperations = _.flatten(_.map(
       this._employees.concat(this._contractors),
       (boss: Boss) => boss.work()));
+    log.debug(`${this}: ${executiveOperations.length} operations`);
+    return executiveOperations;
   }
 }

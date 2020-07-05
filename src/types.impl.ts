@@ -37,12 +37,12 @@ Source.prototype.available = function (resource = RESOURCE_ENERGY): number {
 }
 
 Mineral.prototype.available = function (resource?: ResourceConstant): number {
-  return (!resource || (resource == this.mineralType)) ? this.mineralAmount : 0;
+  return (resource == this.mineralType) ? this.mineralAmount : 0;
 }
 
 
 StructureExtension.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 StructureExtension.prototype.freeSpace = function (resource = RESOURCE_ENERGY): number {
   return this.store.getFreeCapacity(resource) ?? 0;
@@ -52,7 +52,7 @@ StructureExtension.prototype.capacity = function (): number {
 }
 
 StructureLink.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 StructureLink.prototype.freeSpace = function (resource = RESOURCE_ENERGY): number {
   return this.store.getFreeCapacity(resource) ?? 0;
@@ -62,7 +62,7 @@ StructureLink.prototype.capacity = function (): number {
 }
 
 StructureSpawn.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 StructureSpawn.prototype.freeSpace = function (resource = RESOURCE_ENERGY): number {
   return this.store.getFreeCapacity(resource) ?? 0;
@@ -72,7 +72,7 @@ StructureSpawn.prototype.capacity = function (): number {
 }
 
 StructureContainer.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 StructureContainer.prototype.freeSpace = function (__?: ResourceConstant): number {
   return this.store.getFreeCapacity();
@@ -82,7 +82,7 @@ StructureContainer.prototype.capacity = function (): number {
 }
 
 StructureStorage.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 StructureStorage.prototype.freeSpace = function (__?: ResourceConstant): number {
   return this.store.getFreeCapacity();
@@ -92,17 +92,17 @@ StructureStorage.prototype.capacity = function (): number {
 }
 
 StructureTower.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 StructureTower.prototype.freeSpace = function (resource = RESOURCE_ENERGY): number {
-  return this.store.getFreeCapacity(resource) || 0;
+  return this.store.getFreeCapacity(resource) ?? 0;
 }
 StructureTower.prototype.capacity = function (): number {
-  return this.store.getCapacity() || 0;
+  return this.store.getCapacity() ?? 0;
 }
 
 Creep.prototype.available = function (resource = RESOURCE_ENERGY): number {
-  return this.store[resource] || 0;
+  return this.store[resource] ?? 0;
 }
 Creep.prototype.freeSpace = function (__?: ResourceConstant): number {
   return this.store.getFreeCapacity();
