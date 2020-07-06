@@ -5,12 +5,17 @@ export interface Model {
   id(): string;
   site(): RoomObject;
   priority(): number;
+  survey(): void;
   permanentJobs(): Job.Model[];
   contractJobs(): Job.Model[];
 }
 
 export const factory = new Factory<Model>();
 
-export function id(type: string, targetId: string, priority: number): string {
+export function id(type: string, targetId: string): string {
+  return `bus-${type}-${targetId}`;
+}
+
+export function buildId(type: string, targetId: string, priority: number): string {
   return `bus-${type}-${targetId}-${priority}`;
 }

@@ -81,7 +81,8 @@ export class JobPickup implements Job.Model {
     return this.id();
   }
 
-  priority(workers: Creep[]): number {
+  priority(workers?: Creep[]): number {
+    if (!workers) return this._priority;
     return this._priority;
   }
 
@@ -112,7 +113,7 @@ export class JobPickup implements Job.Model {
   completion(worker?: Creep): number {
 
     if (worker) {
-      return worker.carry.getUsedCapacity() / worker.carryCapacity;
+      return 1.0 - worker.freeSpace() / worker.capacity();
     }
 
     return this._site.available() > 0 ? 0.0 : 1.0;

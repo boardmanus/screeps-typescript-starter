@@ -176,6 +176,13 @@ namespace u {
     const e = energy / t;
     return e;
   }
+
+  export function find_my_sites(obj: RoomObject, type: StructureConstant, radius: number): AnyOwnedStructure[] {
+    const sites = obj.room?.find(FIND_MY_STRUCTURES, {
+      filter: (s: Structure) => (s.structureType == type) && obj.pos.inRangeTo(s.pos, radius)
+    });
+    return sites ?? [];
+  }
 }
 
 export default u;

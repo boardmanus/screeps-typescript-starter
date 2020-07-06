@@ -34,7 +34,7 @@ export default class Boss implements Work {
 
   toMemory(): BossMemory {
     const memory = <BossMemory>{
-      job: this.job.id(),
+      job: `${this.job.id()}-${this.priority()}`,
       workers: _.map(this._workers, (worker: Creep): string => { return worker.id }),
     };
 
@@ -50,7 +50,7 @@ export default class Boss implements Work {
   }
 
   id(): string {
-    return `boss-${this.job}`;
+    return `boss-${this.job.id()}`;
   }
 
   toString(): string {

@@ -35,10 +35,6 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
 }
 
 function resources_available(worker: Creep, site: UnloadSite): number {
-  if (!worker) {
-    return 0;
-  }
-
   switch (site.structureType) {
     case STRUCTURE_STORAGE: {
       return worker.carry.getUsedCapacity();
@@ -74,15 +70,15 @@ export class JobUnload implements Job.Model {
   superJob(): Job.Model | undefined {
     return this._superJob;
   }
-  priority(workers: Creep[]): number {
+  priority(workers?: Creep[]): number {
     return this._priority;
   }
 
   efficiency(worker: Creep): number {
 
-    //if (worker.getLastJobSite() === this._site) {
-    //  return 0;
-    //}
+    if (worker.getLastJobSite() === this._site) {
+      return 0;
+    }
 
     switch (this._site.structureType) {
       case STRUCTURE_LINK:
@@ -117,10 +113,11 @@ export class JobUnload implements Job.Model {
       }
     }
 
-    if (resources_available(worker, this._site) == 0) {
+    if (worker && (resources_available(worker, this._site) == 0)) {
       return 1.0;
     }
 
+    log.debug(`${this}: not completed (1.0 - ${this._site.freeSpace()} / ${this._site.capacity()})`)
     return 1.0 - this._site.freeSpace() / this._site.capacity();
   }
 
@@ -140,6 +137,7 @@ export class JobUnload implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
+    log.debug(`${this}: work operations for ${worker}`);
     return [unload_at_site(this, worker, this._site)];
   }
 }

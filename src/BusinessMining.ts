@@ -7,11 +7,30 @@ import { JobRepair } from 'JobRepair';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
+import { object, min } from 'lodash';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
   pos: RoomPosition
 };
+
+function find_mine_structures(mine: Source): AnyStructure[] {
+  return mine.room?.find(FIND_STRUCTURES, {
+    filter: (s: Structure) => {
+      return ((s.structureType == STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1)
+        || (s.structureType == STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2));
+    }
+  });
+}
+
+function find_nearby_attackers(mine: Source): Creep[] {
+  return mine.pos.findInRange(FIND_HOSTILE_CREEPS, 5, {
+    filter: (creep: Creep) => {
+      return ((creep.getActiveBodyparts(ATTACK) > 0)
+        || (creep.getActiveBodyparts(RANGED_ATTACK) > 0));
+    }
+  });
+}
 
 function can_build_container(source: Source): boolean {
   const rcl = source.room.controller?.level ?? 0;
@@ -71,7 +90,7 @@ export default class BusinessEnergyMining implements Business.Model {
   }
 
   id(): string {
-    return Business.id(BusinessEnergyMining.TYPE, this._mine.id, this._priority);
+    return Business.id(BusinessEnergyMining.TYPE, this._mine.id);
   }
 
   toString(): string {
@@ -86,8 +105,32 @@ export default class BusinessEnergyMining implements Business.Model {
     return this._priority;
   }
 
+  survey() {
+    const mine = this._mine;
+    if (!mine._container || !mine._link) {
+      const sites = find_mine_structures(mine);
+      for (const site of sites) {
+        if (site instanceof StructureLink) {
+          mine._link = site;
+          log.info(`${mine}: updated container to ${site}`);
+
+        }
+        else if (site instanceof StructureContainer) {
+          mine._container = site;
+          log.info(`${mine}: updated link to ${site}`);
+        }
+      }
+    }
+  }
+
   permanentJobs(): Job.Model[] {
     const mine: Source = this._mine;
+    const attackers = find_nearby_attackers(mine);
+    if (attackers.length > 0) {
+      log.warning(`${this}: [${attackers}] near mine - no permanent jobs!`);
+      return [];
+    }
+
     const jobs: Job.Model[] = [];
     if (mine._link || mine._container) {
       jobs.push(new JobHarvest(mine, this._priority));
@@ -106,6 +149,12 @@ export default class BusinessEnergyMining implements Business.Model {
 
   contractJobs(): Job.Model[] {
     const mine: Source = this._mine;
+    const attackers = find_nearby_attackers(mine);
+    if (attackers.length > 0) {
+      log.warning(`${this}: ${attackers} near mine - no contract jobs!`);
+      return [];
+    }
+
     let jobs: Job.Model[] = [];
 
     if (!mine._link && !mine._container) {
@@ -148,3 +197,5 @@ Business.factory.addBuilder(BusinessEnergyMining.TYPE, (id: string): Business.Mo
   const priority = Number(frags[3]);
   return new BusinessEnergyMining(mine, priority);
 });
+
+

@@ -49,7 +49,8 @@ export class JobUpgrade implements Job.Model {
     return this.id();
   }
 
-  priority(workers: Creep[]): number {
+  priority(workers?: Creep[]): number {
+    if (!workers) return this._priority;
     let priority: number;
     const downgrade = CONTROLLER_DOWNGRADE[this._site.level];
     if (this._site.ticksToDowngrade < downgrade / 5) {

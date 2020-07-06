@@ -141,14 +141,15 @@ export class JobHarvest implements Job.Model {
   }
 
   id(): string {
-    return `job-${JobHarvest.TYPE}-${this._site.id}-${this._priority}`;
+    return `job-${JobHarvest.TYPE}-${this._site.id}`;
   }
 
   toString(): string {
     return this.id();
   }
 
-  priority(workers: Creep[]): number {
+  priority(workers?: Creep[]): number {
+    if (!workers) return this._priority;
     return this._priority * 2 / (workers.length + 1);
   }
 

@@ -44,7 +44,7 @@ export class JobBuild implements Job.Model {
   }
 
   id(): string {
-    return `job-${JobBuild.TYPE}-${this._site.id}-${this._priority}`;
+    return `job-${JobBuild.TYPE}-${this._site.id}`;
   }
 
   toString(): string {
@@ -54,7 +54,9 @@ export class JobBuild implements Job.Model {
   site(): RoomObject {
     return this._site;
   }
-  priority(workers: Creep[]): number {
+
+  priority(workers?: Creep[]): number {
+    if (!workers) return this._priority;
     return this._priority / (workers.length + 1);
   }
 

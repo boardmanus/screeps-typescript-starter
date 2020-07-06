@@ -183,32 +183,28 @@ export class Mayor {
       _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source, 1));
     const unmannedBusinesses = _.filter(miningBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
     const newExecutives = _.map(unmannedBusinesses, (b) => new Executive(b));
+    log.debug(`${this}: ${this._executives.length} executives after survey (${this._executives.length} old, ${newExecutives.length} new)`);
     this._executives = this._executives.concat(newExecutives);
-    log.debug(`${this}: ${this._executives.length} executives after survey`);
 
-    const allJobs: Job.Model[] =
-      this.harvestJobs()
-        .concat(
+    const allJobs: Job.Model[] = new Array<Job.Model>().concat(
+      _.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
           this.upgradeJobs(),
           this.pickupJobs(),
           this.unloadJobs(),
+          this.mineralJobs(),
           this._architect.schedule(),
           this._cloner.schedule(),
-          this._caretaker.schedule(),
-          _.flatten(_.map(this._executives, (ceo) => ceo.business.contractJobs())));
+          this._caretaker.schedule());
 
-    log.info(`${this}: ${allJobs.length} jobs found while surveying.`)
+    log.info(`${this}: ${allJobs.length} jobs found while surveying.`);
 
     // Create a boss for every job that doesn't have one.
-    const newBosses = _.reduce(
-      allJobs,
-      (bosses: Boss[], job: Job.Model): Boss[] => {
-        if (_.every(this._bosses, (boss) => boss.job.id() != job.id())) {
-          bosses.push(new Boss(job));
-        }
-        return bosses;
-      },
-      []);
+    const [newJobs, oldJobs] = _.partition(allJobs,
+      (job: Job.Model) => _.every(this._bosses,
+        (boss) => boss.job.id() != job.id()));
+
+    const newBosses = _.map(newJobs, (job) => new Boss(job));
+    log.debug(`${this}: old jobs [${oldJobs}]`);
     log.info(`${this}: ${this._bosses.length} old bosses, and ${newBosses.length} new `);
 
     if (Game.time % 1) {
@@ -216,9 +212,9 @@ export class Mayor {
       return;
     }
 
-    const unemployed: Creep[] = this._room.find(FIND_MY_CREEPS, { filter: (worker: Creep) => { return !worker.isEmployed(); } });
+    const unemployed: Creep[] = this._room.find(FIND_MY_CREEPS, { filter: (worker: Creep) => !worker.isEmployed() });
     const allBosses = this._bosses.concat(newBosses);
-    const [employers, noVacancies] = _.partition(allBosses, (b: Boss) => { return b.needsWorkers(); });
+    const [employers, noVacancies] = _.partition(allBosses, (b: Boss) => b.needsWorkers());
     const lazyWorkers = this.assignWorkers(employers, unemployed);
 
     log.info(`${this}: ${employers.length} employers`);
@@ -227,9 +223,10 @@ export class Mayor {
     log.info(`${this}: ${this._bosses.length} bosses before survey`)
     this._bosses = _.filter(allBosses, (boss: Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
     log.info(`${this}: ${this._bosses.length} bosses after survey`)
+    log.debug(`${this}: ${this._bosses} bosses after survey`)
   }
 
-  harvestJobs(): Job.Model[] {
+  mineralJobs(): Job.Model[] {
 
     const mineralJobs: Job.Model[] = _.map<Mineral, Job.Model>(
       this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
@@ -307,7 +304,7 @@ export class Mayor {
     const room = this._room;
     const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, {
       filter: (s: AnyStructure) => {
-        return (s.structureType == STRUCTURE_STORAGE || s.structureType == STRUCTURE_TOWER) && s.freeSpace() > 0;
+        return (s.structureType == STRUCTURE_TOWER) && s.freeSpace() > 0;
       }
     });
     const foes = room.find(FIND_HOSTILE_CREEPS);
@@ -386,7 +383,7 @@ export class Mayor {
     const [hiringSources, lazyEmpty] = assign_workers(sourceJobs, emptyWorkers);
     log.info(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left - over jobs`);
     const [hiring, lazyMulti] = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
-
+    log.debug(`${this}: hiring [${hiring}]`);
     return lazyFull.concat(lazyEmpty, lazyMulti);
   }
 }

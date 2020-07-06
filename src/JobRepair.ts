@@ -55,7 +55,8 @@ export class JobRepair implements Job.Model {
     return this._site;
   }
 
-  priority(workers: Creep[]): number {
+  priority(workers?: Creep[]): number {
+    if (!workers) return this._priority;
     return this._priority / (workers.length + 1);
   }
 

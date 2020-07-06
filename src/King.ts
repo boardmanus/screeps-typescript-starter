@@ -17,7 +17,7 @@ export class King {
   }
 
   id(): string {
-    return `king - ${this._name}`
+    return `king-${this._name}`
   }
 
 
