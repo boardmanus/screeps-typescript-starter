@@ -113,6 +113,5 @@ Job.factory.addBuilder(JobRepair.TYPE, (id: string): Job.Model | undefined => {
   const site = <Structure>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  log.info(`JobFactory - build repair ${frags} - priority=${priority}`);
   return new JobRepair(site, priority);
 });

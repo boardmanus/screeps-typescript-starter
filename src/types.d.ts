@@ -29,10 +29,15 @@ interface BossMemory {
   workers: string[];
 }
 
+interface WorkerMemory {
+  job: string;
+  worker: string;
+}
+
 interface ExecutiveMemory {
   business: string;
-  employees: BossMemory[];
-  contractors: BossMemory[];
+  employees: WorkerMemory[];
+  resumes: string[];
 }
 
 interface ArchitectMemory {

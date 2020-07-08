@@ -48,7 +48,7 @@ StructureExtension.prototype.freeSpace = function (resource = RESOURCE_ENERGY): 
   return this.store.getFreeCapacity(resource) ?? 0;
 }
 StructureExtension.prototype.capacity = function (): number {
-  return this.store.getCapacity() ?? 0;
+  return this.store.getCapacity(RESOURCE_ENERGY) ?? 0;
 }
 
 StructureLink.prototype.available = function (resource = RESOURCE_ENERGY): number {
@@ -58,7 +58,7 @@ StructureLink.prototype.freeSpace = function (resource = RESOURCE_ENERGY): numbe
   return this.store.getFreeCapacity(resource) ?? 0;
 }
 StructureLink.prototype.capacity = function (): number {
-  return this.store.getCapacity() ?? 0;
+  return this.store.getCapacity(RESOURCE_ENERGY) ?? 0;
 }
 
 StructureSpawn.prototype.available = function (resource = RESOURCE_ENERGY): number {
@@ -68,7 +68,7 @@ StructureSpawn.prototype.freeSpace = function (resource = RESOURCE_ENERGY): numb
   return this.store.getFreeCapacity(resource) ?? 0;
 }
 StructureSpawn.prototype.capacity = function (): number {
-  return this.store.getCapacity() ?? 0;
+  return this.store.getCapacity(RESOURCE_ENERGY) ?? 0;
 }
 
 StructureContainer.prototype.available = function (resource = RESOURCE_ENERGY): number {

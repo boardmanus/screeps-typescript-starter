@@ -21,9 +21,12 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
       case ERR_NOT_OWNER:
       case ERR_INVALID_TARGET:
       case ERR_NO_BODYPART:
-      case ERR_BUSY:
       default:
         log.error(`${job}: unexpected failure when ${worker} tried withdrawing energy from ${site} (${u.errstr(res)})`);
+        break;
+
+      case ERR_BUSY:
+        log.warning(`${job}: ${worker} still spawning (${u.errstr(res)})`);
         break;
       case ERR_NOT_ENOUGH_RESOURCES:
         // The site is empty - this job is complete

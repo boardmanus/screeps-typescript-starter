@@ -29,6 +29,20 @@ function upgrade_site(job: JobUpgrade, worker: Creep, site: StructureController)
   }
 }
 
+const PRIORITY_BY_LEVEL: number[] = [
+  6,
+  5,
+  5,
+  5,
+  4,
+  4,
+  4,
+  3,
+  3,
+  3,
+  3
+];
+
 export class JobUpgrade implements Job.Model {
 
   static readonly TYPE = 'upgrade';
@@ -38,7 +52,7 @@ export class JobUpgrade implements Job.Model {
 
   constructor(site: StructureController, priority?: number) {
     this._site = site;
-    this._priority = (priority !== undefined) ? priority : 3;
+    this._priority = priority ?? PRIORITY_BY_LEVEL[site.room.controller?.level ?? 0];
   }
 
   id(): string {

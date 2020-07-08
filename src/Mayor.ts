@@ -115,7 +115,7 @@ export class Mayor {
   }
 
   id(): string {
-    return `mayor - ${this._room.name}`;
+    return `mayor-${this._room.name}`;
   }
 
   toString(): string {
@@ -129,7 +129,7 @@ export class Mayor {
     const allWork: Work[] = noWork.concat(
       this._executives,
       this._bosses,
-      this._cloner.clone([]),
+      this._cloner.clone(this._executives, []),
       this._architect.design(),
       this._caretaker.repair(),
       this.transferEnergy());
@@ -184,17 +184,20 @@ export class Mayor {
     const unmannedBusinesses = _.filter(miningBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
     const newExecutives = _.map(unmannedBusinesses, (b) => new Executive(b));
     log.debug(`${this}: ${this._executives.length} executives after survey (${this._executives.length} old, ${newExecutives.length} new)`);
-    this._executives = this._executives.concat(newExecutives);
+    this._executives.push(...newExecutives);
+    for (const ceo of this._executives) {
+      ceo.survey();
+    }
 
     const allJobs: Job.Model[] = new Array<Job.Model>().concat(
       _.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
-          this.upgradeJobs(),
-          this.pickupJobs(),
-          this.unloadJobs(),
-          this.mineralJobs(),
-          this._architect.schedule(),
-          this._cloner.schedule(),
-          this._caretaker.schedule());
+      this.upgradeJobs(),
+      this.pickupJobs(),
+      this.unloadJobs(),
+      this.mineralJobs(),
+      this._architect.schedule(),
+      this._cloner.schedule(),
+      this._caretaker.schedule());
 
     log.info(`${this}: ${allJobs.length} jobs found while surveying.`);
 
@@ -373,9 +376,9 @@ export class Mayor {
       return [];
     }
 
-    const [sourceJobs, sinkJobs] = _.partition(bosses, (b: Boss) => { return b.job.satisfiesPrerequisite(Job.Prerequisite.COLLECT_ENERGY); });
     const [emptyWorkers, energizedWorkers] = _.partition(availableWorkers, (w: Creep) => { return w.available() == 0; });
     const [fullWorkers, multipurposeWorkers] = _.partition(energizedWorkers, (w: Creep) => { return w.freeSpace() == 0; });
+    const [sourceJobs, sinkJobs] = _.partition(bosses, (b: Boss) => { return b.job.satisfiesPrerequisite(Job.Prerequisite.COLLECT_ENERGY); });
 
     log.info(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
     const [hiringSinks, lazyFull] = assign_workers(sinkJobs, fullWorkers);
@@ -400,7 +403,7 @@ function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairin
     });
   });
 
-  return _.sortBy(pairings, (wbp: WorkerBossPairing): number => { return wbp.rating; });
+  return _.sortBy(pairings, (wbp: WorkerBossPairing) => wbp.rating);
 }
 
 function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {

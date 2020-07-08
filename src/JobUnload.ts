@@ -24,11 +24,11 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
           log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
-        log.warning(`${job}: ${worker} failed to transfer ${worker.carry[resource]} ${resource} to ${site} (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed to transfer ${worker.store[resource]} ${resource} to ${site} (${u.errstr(res)})`);
         break;
     }
   }

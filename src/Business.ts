@@ -6,6 +6,7 @@ export interface Model {
   site(): RoomObject;
   priority(): number;
   survey(): void;
+  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];
   permanentJobs(): Job.Model[];
   contractJobs(): Job.Model[];
 }

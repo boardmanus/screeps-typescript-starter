@@ -8,15 +8,28 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 import { object, min } from 'lodash';
+import { JobBuild } from 'JobBuild';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
   pos: RoomPosition
 };
 
+const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY];
+const IDEAL_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY, WORK, CARRY, MOVE];
+
 function find_mine_structures(mine: Source): AnyStructure[] {
   return mine.room?.find(FIND_STRUCTURES, {
     filter: (s: Structure) => {
+      return ((s.structureType == STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1)
+        || (s.structureType == STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2));
+    }
+  });
+}
+
+function find_mine_construction(mine: Source): ConstructionSite[] {
+  return mine.room?.find(FIND_CONSTRUCTION_SITES, {
+    filter: (s: ConstructionSite) => {
       return ((s.structureType == STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1)
         || (s.structureType == STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2));
     }
@@ -34,10 +47,34 @@ function find_nearby_attackers(mine: Source): Creep[] {
 
 function can_build_container(source: Source): boolean {
   const rcl = source.room.controller?.level ?? 0;
+  if (rcl < 3) {
+    return false;
+  }
+
   const numContainers = u.find_num_building_sites(source.room, STRUCTURE_CONTAINER);
   const allowedNumContainers = CONTROLLER_STRUCTURES.container[rcl];
-  return ((rcl > 1) && ((allowedNumContainers - numContainers) > 0));
+
+  return ((allowedNumContainers - numContainers) > 0);
 }
+
+function can_build_link(source: Source): boolean {
+  if (!source._container) {
+    // Must have a container before a link can be built.
+    return false;
+  }
+
+  const rcl = source.room.controller?.level ?? 0;
+  const links = u.find_building_sites(source.room, STRUCTURE_LINK);
+  const allowedNumContainers = CONTROLLER_STRUCTURES.container[rcl];
+  if ((allowedNumContainers - links.length) < 1) {
+    return false;
+  }
+
+  // Link to take energy must already be established.
+  const haveSinkLink = _.find(links, (l: StructureLink) => l._isSink) ? true : false;
+  return haveSinkLink;
+}
+
 
 function container_building_work(source: Source): BuildingWork {
   return new BuildingWork(source.room, source.pos, STRUCTURE_CONTAINER)
@@ -45,36 +82,6 @@ function container_building_work(source: Source): BuildingWork {
 
 function link_building_work(source: Source): BuildingWork {
   return new BuildingWork(source.room, source.pos, STRUCTURE_LINK)
-}
-
-function harvest_spaces(source: Source): RoomPosition[] {
-  const positions = source.pos.surroundingPositions(1, (p: RoomPosition): boolean => {
-    const terrain = p.look();
-    return _.reduce(terrain, (a: boolean, t: LookAtResult): boolean => {
-      if (!a) {
-        return false;
-      }
-      switch (t.type) {
-        case LOOK_STRUCTURES:
-          return !t.structure || u.is_passible_structure(t.structure);
-        case LOOK_TERRAIN:
-          return (t.terrain != 'wall');
-        default:
-          break;
-      }
-      return true;
-    },
-      true);
-  });
-
-  return positions;
-}
-
-function harvest_contracts(mine: Source, priority: number): JobHarvest[] {
-  const jobs = _.map(harvest_spaces(mine), (pos: RoomPosition) => {
-    return new JobHarvest(mine, priority++);
-  });
-  return jobs;
 }
 
 export default class BusinessEnergyMining implements Business.Model {
@@ -110,17 +117,38 @@ export default class BusinessEnergyMining implements Business.Model {
     if (!mine._container || !mine._link) {
       const sites = find_mine_structures(mine);
       for (const site of sites) {
-        if (site instanceof StructureLink) {
+        if (!mine._link && (site instanceof StructureLink)) {
           mine._link = site;
-          log.info(`${mine}: updated container to ${site}`);
-
-        }
-        else if (site instanceof StructureContainer) {
-          mine._container = site;
+          mine._link._isSink = false;
           log.info(`${mine}: updated link to ${site}`);
+        }
+        else if (!mine._container && (site instanceof StructureContainer)) {
+          mine._container = site;
+          log.info(`${mine}: updated container to ${site}`);
         }
       }
     }
+  }
+
+  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
+
+    log.debug(`${this}: employeeBody(${availEnergy}, ${maxEnergy})`)
+    const minCost = _.sum(MIN_EMPLOYEE_BODY, (part: BodyPartConstant) => BODYPART_COST[part]);
+    if (availEnergy < minCost) {
+      log.debug(`${this}: employeeBody: minCost=${minCost}`)
+      return [];
+    }
+
+    const idealCost = _.sum(IDEAL_EMPLOYEE_BODY, (part: BodyPartConstant) => BODYPART_COST[part]);
+    if (availEnergy >= idealCost) {
+      log.debug(`${this}: employeeBody: idealCost=${idealCost} ${IDEAL_EMPLOYEE_BODY}`)
+      return IDEAL_EMPLOYEE_BODY;
+    }
+    else if (idealCost <= maxEnergy) {
+      return [];
+    }
+    log.debug(`${this}: employeeBody: minCost=${minCost} ${MIN_EMPLOYEE_BODY}`)
+    return MIN_EMPLOYEE_BODY;
   }
 
   permanentJobs(): Job.Model[] {
@@ -136,12 +164,17 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobHarvest(mine, this._priority));
     }
     if (mine._link) {
-      jobs.push(new JobUnload(mine._link, this._priority + 1));
+      jobs.push(new JobUnload(mine._link, this._priority - 0.1));
     }
     if (mine._container) {
-      jobs.push(new JobRepair(mine._container, this._priority + 2));
-      jobs.push(new JobUnload(mine._container, this._priority + 3));
+      jobs.push(new JobRepair(mine._container, this._priority - 0.2));
+      jobs.push(new JobUnload(mine._container, this._priority - 0.3));
     }
+
+    // Get employees to build their own structures
+    const buildsites = find_mine_construction(this._mine);
+    _.each(buildsites, (s) => jobs.push(new JobBuild(s, this._priority)));
+
     log.debug(`${this}: permanentJobs-${jobs}`);
 
     return jobs;
@@ -180,7 +213,7 @@ export default class BusinessEnergyMining implements Business.Model {
       work.push(container_building_work(mine));
     }
 
-    if (!mine._link) {
+    if (!mine._link && can_build_link(mine)) {
       work.push(link_building_work(mine));
     }
 

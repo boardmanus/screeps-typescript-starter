@@ -256,13 +256,13 @@ function possible_lab_sites(spawn: StructureSpawn, numExtensions: number): RoomP
   return sites;
 }
 
-function find_site<S extends Structure>(obj: RoomObject, type: StructureConstant, radius: number): S | null {
-  let site: Structure | null = null;
+function find_site<S extends Structure>(obj: RoomObject, type: StructureConstant, radius: number): S | undefined {
+  let site: Structure | undefined = undefined;
   const viableSites = obj.pos.surroundingPositions(radius, (pos: RoomPosition): boolean => {
     if (site) return false;
     const structures = pos.lookFor(LOOK_STRUCTURES);
     for (const s of structures) {
-      site = (s && s.structureType == type) ? s : null;
+      site = (s && s.structureType == type) ? s : undefined;
       if (site) return true;
     }
     return false;
@@ -564,6 +564,23 @@ export class BuildingWork implements Work {
   }
 }
 
+const PRIORITY_BY_LEVEL: number[] = [
+  0,
+  0,
+  1,
+  2,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+];
 
 export class Architect implements Expert {
 
@@ -747,7 +764,7 @@ export class Architect implements Expert {
     // Get all the containers
     const containers: Structure[] = _.sortBy(u.map_valid(
       room.find(FIND_SOURCES, { filter: (s: Source) => { return !s._link; } }),
-      (s: Source): Structure | null => { return s._container; }),
+      (s: Source): Structure | undefined => { return s._container; }),
       (s: Structure) => { return -s.pos.getRangeTo(storage); });
 
     const spawns: Structure[] = room.find(FIND_MY_SPAWNS, { filter: (s: StructureSpawn) => { return !s._link; } });
@@ -833,7 +850,11 @@ export class Architect implements Expert {
 
     const constructionSites: ConstructionSite[] = room.find(FIND_MY_CONSTRUCTION_SITES);
     const constructionJobs = _.map(constructionSites, (site: ConstructionSite): Job.Model => {
-      return new JobBuild(site, 5);
+      let priority = PRIORITY_BY_LEVEL[site.room?.controller?.level ?? 0];
+      if (site.structureType == STRUCTURE_EXTENSION) {
+        priority = 6;
+      }
+      return new JobBuild(site, priority);
     });
 
     log.debug(`${this} scheduling ${constructionJobs.length}...`);

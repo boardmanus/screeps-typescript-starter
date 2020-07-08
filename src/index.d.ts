@@ -19,22 +19,26 @@ interface Creep {
 }
 
 interface Source {
-  _container: StructureContainer | null;
-  _tower: StructureTower | null;
-  _link: StructureLink | null;
+  _container: StructureContainer | undefined;
+  _tower: StructureTower | undefined;
+  _link: StructureLink | undefined;
 }
 
 interface Mineral {
-  _container: StructureContainer | null;
+  _container: StructureContainer | undefined;
   _link: StructureLink | undefined;
 }
 
 interface StructureStorage {
-  _link: StructureLink | null;
+  _link: StructureLink | undefined;
 }
 
 interface StructureSpawn {
-  _link: StructureLink | null;
+  _link: StructureLink | undefined;
+}
+
+interface StructureLink {
+  _isSink: boolean | undefined;
 }
 
 

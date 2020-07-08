@@ -3,6 +3,8 @@ import * as Job from "Job";
 import { Work } from "./Work";
 import { Operation } from "./Operation";
 import { JobUnload } from "./JobUnload";
+import Executive from "Executive";
+import * as Business from "Business";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
 
@@ -25,7 +27,9 @@ function get_cloning_energy(room: Room): [number, number] {
   return _.reduce(
     get_cloning_energy_sites(room),
     (energy: [number, number], site: Structure): [number, number] => {
-      return [energy[0] + site.available(), energy[1] + site.capacity()];
+      energy[0] += site.available();
+      energy[1] += site.capacity();
+      return energy;
     },
     [0, 0]);
 }
@@ -62,10 +66,14 @@ function clone_a_worker(work: CloningWork): Operation {
       case ERR_RCL_NOT_ENOUGH:
       case ERR_BUSY:
       default:
-        log.debug(`WARN: ${work}: failed to spawn creep ${work.name}:${work.body} (${u.errstr(res)})`);
+        log.warning(`${work}: failed to spawn creep ${work.name}:${work.body} (${u.errstr(res)})`);
         break;
       case OK:
-        log.debug(`INFO: ${work}: started to clone ${work.name}:${work.body}`);
+        log.info(`${work}: started to clone ${work.name}:${work.body}`);
+        if (work.ceo) {
+          log.info(`${work}: got ${work.name} resume for employee of ${work.ceo}`);
+          work.ceo.addEmployeeResume(work.name)
+        }
         break;
     }
   }
@@ -81,11 +89,13 @@ class CloningWork implements Work {
   readonly site: StructureSpawn;
   readonly name: string;
   readonly body: BodyPartConstant[];
+  readonly ceo: Executive | undefined;
 
-  constructor(site: StructureSpawn, name: string, body: BodyPartConstant[]) {
+  constructor(site: StructureSpawn, name: string, body: BodyPartConstant[], ceo?: Executive) {
     this.site = site;
     this.name = name;
     this.body = body;
+    this.ceo = ceo;
   }
 
   id() {
@@ -105,6 +115,22 @@ class CloningWork implements Work {
   }
 }
 
+const PRIORITY_MULTIPLIER_BY_LEVEL: number[] = [
+  20,
+  15,
+  10,
+  8,
+  6,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5,
+  5
+];
+
 export class Cloner implements Expert {
 
   private _room: Room;
@@ -113,8 +139,8 @@ export class Cloner implements Expert {
   private _numWorkers: number;
   private _maxWorkers: number;
 
-  private getUniqueCreepName(job?: Job.Model): string {
-    return `${this._room.name}-${this._uniqueId++}`;
+  private getUniqueCreepName(business?: Business.Model): string {
+    return `${business?.id() ?? this._room.name}-${this._uniqueId++}`;
   }
 
   constructor(room: Room) {
@@ -152,7 +178,7 @@ export class Cloner implements Expert {
       sne,
       (site: CloningStructure): Job.Model => {
         const workerHealthRatio = (this._numWorkers - nearlyDeadWorkers) / this._maxWorkers;
-        return new JobUnload(site, 4 + (1.0 - workerHealthRatio) * 6);
+        return new JobUnload(site, 4 + (1.0 - workerHealthRatio) * PRIORITY_MULTIPLIER_BY_LEVEL[site.room.controller?.level ?? 0]);
       });
   }
 
@@ -176,13 +202,9 @@ export class Cloner implements Expert {
     return [WORK, MOVE, CARRY, MOVE]
   }
 
-  clone(jobs: Job.Model[]): Work[] {
+  clone(ceos: Executive[], jobs: Job.Model[]): Work[] {
 
     log.debug(`${this}: ${jobs.length} unworked jobs, ${this._numWorkers} workers...`)
-
-    // Start specializing after links have been established.
-    const links = this._room.find(FIND_MY_STRUCTURES, { filter: (s: Structure) => { return s.structureType == STRUCTURE_LINK; } });
-    const specialize = (links.length > 2);
 
     const spawners = _.filter(get_spawners(this._room), (s: StructureSpawn) => {
       return !s.spawning;
@@ -193,6 +215,18 @@ export class Cloner implements Expert {
     }
 
     let [availableEnergy, totalEnergy] = get_cloning_energy(this._room);
+
+    // Start specializing after links have been established.
+    const ceosWithVacancies = _.sortBy(_.filter(ceos, (ceo) => !ceo.hasEmployee()), (ceo) => ceo.priority());
+    if (ceosWithVacancies.length) {
+      log.info(`${this}: ${ceosWithVacancies.length} ceo's with vacancies`);
+      const ceo = ceosWithVacancies[0];
+      const employeeBody = ceo.employeeBody(availableEnergy, totalEnergy);
+      if (employeeBody.length > 0) {
+        return [new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, ceo)];
+      }
+    }
+
     if (this._numWorkers >= MAX_WORKERS
       || (this._numWorkers >= MAX_HEAVY_WORKERS
         && totalEnergy >= MAX_WORKER_ENERGY)
@@ -220,8 +254,6 @@ export class Cloner implements Expert {
       return [];
     }
 
-    const creepName: string = this.getUniqueCreepName();
-
-    return [new CloningWork(spawners[0], creepName, creepBody)];
+    return [new CloningWork(spawners[0], this.getUniqueCreepName(), creepBody)];
   }
 }

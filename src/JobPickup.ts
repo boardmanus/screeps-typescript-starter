@@ -18,7 +18,7 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure): Ope
           log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
       }
         break;
@@ -43,13 +43,13 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
       case ERR_NOT_IN_RANGE: {
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
         if (res == OK) {
-          log.info(`${job}: ${worker} moved towards resources-${site} (${worker.pos.getRangeTo(site)} sq)`);
+          log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
           if (worker.pickup(site) == OK) {
             log.info(`${job}: ... and ${worker} picked up resources from ${site}`);
           }
         }
         else {
-          log.warning(`${job}: ${worker} failed moving to resources-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       }

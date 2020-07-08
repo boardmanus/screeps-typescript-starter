@@ -80,12 +80,17 @@ namespace u {
     return body.length * CREEP_SPAWN_TIME;
   }
 
-  export function find_num_building_sites(room: Room, type: StructureConstant): number {
-    const numConstuctionSites =
-      room.find(FIND_CONSTRUCTION_SITES, { filter: (c: ConstructionSite) => { return c.structureType == type } }).length;
-    const numStructures =
-      room.find(FIND_STRUCTURES, { filter: (s: AnyStructure) => { return s.structureType == type } }).length;
+  export function find_construction_sites(room: Room, type: BuildableStructureConstant): ConstructionSite[] {
+    return room.find(FIND_CONSTRUCTION_SITES, { filter: (s) => (s.structureType === type) });
+  }
 
+  export function find_building_sites(room: Room, type: StructureConstant): AnyStructure[] {
+    return room.find(FIND_STRUCTURES, { filter: (s) => (s.structureType === type) });
+  }
+
+  export function find_num_building_sites(room: Room, type: StructureConstant | BuildableStructureConstant): number {
+    const numConstuctionSites = find_construction_sites(room, type as BuildableStructureConstant).length;
+    const numStructures = find_building_sites(room, type).length;
     return numConstuctionSites + numStructures;
   }
 
