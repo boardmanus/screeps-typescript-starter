@@ -165,6 +165,10 @@ namespace u {
     });
   }
 
+  export function work_energy(worker: Creep, maxEnergyPerPart: number): number {
+    return _.sum(worker.body, (b) => (b.type == WORK) ? maxEnergyPerPart : 0);
+  }
+
   export function work_efficiency(worker: Creep, site: Site, energy: number, maxEnergyPerPart: number): number {
     const numWorkerParts = _.sum(worker.body, (b: BodyPartDefinition): number => { return (b.type == WORK) ? 1 : 0; });
     if (numWorkerParts == 0) {

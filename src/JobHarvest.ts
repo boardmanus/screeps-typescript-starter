@@ -7,6 +7,23 @@ import u from "./Utility";
 type HarvestSite = Source | Mineral;
 
 
+function unload_at_site(job: JobHarvest, worker: Creep, site: StructureLink | StructureContainer): void {
+  if ((worker.available() == 0) || (site.freeSpace() == 0)) {
+    return;
+  }
+
+  let res: number = worker.transfer(site, RESOURCE_ENERGY);
+  switch (res) {
+    case OK:
+      // Finished job.
+      log.info(`${job}: ${worker} transferred energy to ${site}`);
+      break;
+    default:
+      log.warning(`${job}: ${worker} failed to transfer ${worker.store[RESOURCE_ENERGY]} energy to ${site} (${u.errstr(res)})`);
+      break;
+  }
+}
+
 /**
  * Gets the worker to pickup resources from the job site.
  * @param {Creep} worker to perform the repairSite
@@ -47,6 +64,14 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
         break;
       case OK:
         log.info(`${job}: ${worker} is harvesting at ${site}`);
+        if ((site._link || site._container) && (worker.freeSpace() < u.work_energy(worker, HARVEST_POWER))) {
+          if (site._link) {
+            unload_at_site(job, worker, site._link);
+          }
+          if (site._container) {
+            unload_at_site(job, worker, site._container);
+          }
+        }
         break;
     }
   }

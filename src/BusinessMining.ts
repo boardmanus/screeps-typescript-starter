@@ -175,7 +175,7 @@ export default class BusinessEnergyMining implements Business.Model {
     const buildsites = find_mine_construction(this._mine);
     _.each(buildsites, (s) => jobs.push(new JobBuild(s, this._priority)));
 
-    log.debug(`${this}: permanentJobs-${jobs}`);
+    log.debug(`${this}: permanent ${jobs}`);
 
     return jobs;
   }
@@ -201,7 +201,7 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobPickup(mine._container));
     }
 
-    log.debug(`${this}: contractJobs-${jobs}`);
+    log.debug(`${this}: contracts ${jobs}`);
     return jobs;
   }
 

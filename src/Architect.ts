@@ -659,10 +659,9 @@ export class Architect implements Expert {
       return [];
     }
 
-    const sources: RoomObject[] = room.find(FIND_SOURCES);
     const minerals: RoomObject[] = room.find(FIND_MY_STRUCTURES, { filter: (s: Structure) => { return s.structureType == STRUCTURE_EXTRACTOR; } });
     const containerPos: RoomPosition[] = _.flatten(_.map(
-      sources.concat(minerals),
+      minerals,
       (source: RoomObject): RoomPosition[] => {
         return possible_container_sites(source);
       }));
