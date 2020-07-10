@@ -11,11 +11,11 @@ function time(): string {
 
 export class Log {
 
-  public get level(): number { return Memory.log.level; }
+  public get level(): number { return Memory.log?.level ?? 1; }
   public set level(value: number) { Memory.log.level = value; }
-  public get showSource(): boolean { return Memory.log.showSource; }
+  public get showSource(): boolean { return Memory.log?.showSource ?? false; }
   public set showSource(value: boolean) { Memory.log.showSource = value; }
-  public get showTick(): boolean { return Memory.log.showTick; }
+  public get showTick(): boolean { return Memory.log?.showTick ?? false; }
   public set showTick(value: boolean) { Memory.log.showTick = value; }
 
   constructor() {

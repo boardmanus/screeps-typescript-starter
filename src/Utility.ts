@@ -80,6 +80,15 @@ namespace u {
     return body.length * CREEP_SPAWN_TIME;
   }
 
+  export function find_nearby_attackers(obj: RoomObject): Creep[] {
+    return obj.pos.findInRange(FIND_HOSTILE_CREEPS, 5, {
+      filter: (creep: Creep) => {
+        return ((creep.getActiveBodyparts(ATTACK) > 0)
+          || (creep.getActiveBodyparts(RANGED_ATTACK) > 0));
+      }
+    });
+  }
+
   export function find_construction_sites(room: Room, type: BuildableStructureConstant): ConstructionSite[] {
     return room.find(FIND_CONSTRUCTION_SITES, { filter: (s) => (s.structureType === type) });
   }
@@ -167,6 +176,20 @@ namespace u {
 
   export function work_energy(worker: Creep, maxEnergyPerPart: number): number {
     return _.sum(worker.body, (b) => (b.type == WORK) ? maxEnergyPerPart : 0);
+  }
+
+  export function taxi_efficiency(worker: Creep, site: Site, energy: number): number {
+    const numCarryParts = _.sum(worker.body, (b: BodyPartDefinition): number => { return (b.type == CARRY) ? 1 : 0; });
+    if (numCarryParts == 0) {
+      return 0;
+    }
+
+    const timeToMove = Math.ceil(u.creep_movement_time(worker, site));
+
+    // Efficiency is the energy exchange per second from where the creep is.
+    const t = Math.max(1, timeToMove);
+    const e = energy / t;
+    return e;
   }
 
   export function work_efficiency(worker: Creep, site: Site, energy: number, maxEnergyPerPart: number): number {

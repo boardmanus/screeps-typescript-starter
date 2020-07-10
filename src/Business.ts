@@ -1,4 +1,5 @@
 import * as Job from 'Job';
+import { BuildingWork } from 'Architect';
 import Factory from 'Factory';
 
 export interface Model {
@@ -9,6 +10,7 @@ export interface Model {
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];
   permanentJobs(): Job.Model[];
   contractJobs(): Job.Model[];
+  buildings(): BuildingWork[];
 }
 
 export const factory = new Factory<Model>();

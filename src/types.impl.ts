@@ -36,6 +36,14 @@ Source.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return (resource == RESOURCE_ENERGY) ? this.energy : 0;
 }
 
+Source.prototype.link = function (): StructureLink | undefined {
+  return (this._link instanceof StructureLink) ? this._link : undefined;
+}
+
+Source.prototype.container = function (): StructureContainer | undefined {
+  return (this._container instanceof StructureContainer) ? this._container : undefined;
+}
+
 Mineral.prototype.available = function (resource?: ResourceConstant): number {
   return (resource == this.mineralType) ? this.mineralAmount : 0;
 }

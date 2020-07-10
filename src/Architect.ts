@@ -2,10 +2,13 @@ import { Expert } from "./Expert";
 import { Work } from "./Work";
 import * as Job from "Job";
 import { log } from "./ScrupsLogger";
-import { JobBuild } from "./JobBuild";
+import JobBuild from "JobBuild";
+import Executive from "Executive";
+import * as Business from "Business";
 import { Operation } from "./Operation";
 import { FunctionCache } from "./Cache";
 import u from "./Utility";
+import BusinessEnergyMining from "BusinessMining";
 
 const ROADING_FIND_PATH_OPTIONS: PathFinderOpts = {
   plainCost: 1,
@@ -762,8 +765,8 @@ export class Architect implements Expert {
 
     // Get all the containers
     const containers: Structure[] = _.sortBy(u.map_valid(
-      room.find(FIND_SOURCES, { filter: (s: Source) => { return !s._link; } }),
-      (s: Source): Structure | undefined => { return s._container; }),
+      room.find(FIND_SOURCES, { filter: (s: Source) => { return !s.link(); } }),
+      (s: Source): Structure | undefined => { return s.container(); }),
       (s: Structure) => { return -s.pos.getRangeTo(storage); });
 
     const spawns: Structure[] = room.find(FIND_MY_SPAWNS, { filter: (s: StructureSpawn) => { return !s._link; } });
@@ -832,7 +835,8 @@ export class Architect implements Expert {
     });
   }
 
-  design(): Work[] {
+  design(ceos: Executive[]): Work[] {
+    const businessWorks: Work[] = _.flatten(_.map(ceos, (ceo) => ceo.business.buildings()));
     const extensionWorks: Work[] = this.designExtensions();
     const containerWorks: Work[] = this.designContainers();
     const storageWorks: Work[] = this.designStorage();
@@ -840,7 +844,7 @@ export class Architect implements Expert {
     const towerWorks: Work[] = this.designTowers();
     const linkWorks: Work[] = this.designLinks();
     const extractorWorks: Work[] = this.designExtractors();
-    return extensionWorks.concat(containerWorks, storageWorks, roadWorks, towerWorks, linkWorks, extractorWorks);
+    return extensionWorks.concat(businessWorks, containerWorks, storageWorks, roadWorks, towerWorks, linkWorks, extractorWorks);
   }
 
   schedule(): Job.Model[] {
@@ -888,9 +892,12 @@ export class Architect implements Expert {
         if (container) {
           source._container = container;
         }
-        else {
-          source._container = find_site(source, STRUCTURE_CONTAINER, 1);
-          log.warning(`${this}: found ${source} container => ${source._container}`);
+      }
+
+      if (sm.link) {
+        const link = Game.getObjectById<StructureLink>(sm.link);
+        if (link) {
+          source._link = link;
         }
       }
 
@@ -902,19 +909,6 @@ export class Architect implements Expert {
         else {
           source._tower = find_site(source, STRUCTURE_TOWER, 5);
           log.warning(`${this}: found ${source} tower => ${source._tower}`);
-        }
-      }
-
-      if (sm.link) {
-        const link = Game.getObjectById<StructureLink>(sm.link);
-        if (link) {
-          source._link = link;
-        }
-        else {
-          if (source._container) {
-            source._link = find_site(source._container, STRUCTURE_LINK, 1);
-            log.warning(`${this}: found ${source} link => ${source._link}`);
-          }
         }
       }
     });

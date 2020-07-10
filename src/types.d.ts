@@ -73,5 +73,5 @@ interface Memory {
 
 
 type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
-type PickupSite = Resource | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
+type PickupSite = Resource | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 

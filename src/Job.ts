@@ -10,6 +10,7 @@ export enum Prerequisite {
 
 export interface Model {
   id(): string;
+  type(): string;
   site(): RoomObject;
   priority(workers: Creep[]): number;
   isSatisfied(workers: Creep[]): boolean;

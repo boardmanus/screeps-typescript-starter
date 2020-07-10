@@ -30,7 +30,7 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
   }
 }
 
-export class JobRepair implements Job.Model {
+export default class JobRepair implements Job.Model {
 
   static readonly TYPE = 'repair';
 
@@ -44,7 +44,11 @@ export class JobRepair implements Job.Model {
   }
 
   id(): string {
-    return `job-${JobRepair.TYPE}-${this._site.id}-${Math.round(this._priority)}`;
+    return `job-${JobRepair.TYPE}-${this._site.id}`;
+  }
+
+  type(): string {
+    return JobRepair.TYPE;
   }
 
   toString(): string {

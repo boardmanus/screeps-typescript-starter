@@ -43,7 +43,7 @@ const PRIORITY_BY_LEVEL: number[] = [
   3
 ];
 
-export class JobUpgrade implements Job.Model {
+export default class JobUpgrade implements Job.Model {
 
   static readonly TYPE = 'upgrade';
 
@@ -56,7 +56,11 @@ export class JobUpgrade implements Job.Model {
   }
 
   id(): string {
-    return `job-${JobUpgrade.TYPE}-${this._site.id}-${this._priority}`;
+    return `job-${JobUpgrade.TYPE}-${this._site.id}`;
+  }
+
+  type(): string {
+    return JobUpgrade.TYPE;
   }
 
   toString(): string {

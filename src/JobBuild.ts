@@ -29,7 +29,7 @@ function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
   }
 }
 
-export class JobBuild implements Job.Model {
+export default class JobBuild implements Job.Model {
 
   static readonly TYPE = 'build';
 
@@ -45,6 +45,10 @@ export class JobBuild implements Job.Model {
 
   id(): string {
     return `job-${JobBuild.TYPE}-${this._site.id}`;
+  }
+
+  type(): string {
+    return JobBuild.TYPE;
   }
 
   toString(): string {

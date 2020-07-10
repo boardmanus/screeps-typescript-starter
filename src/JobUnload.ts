@@ -9,9 +9,10 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
     worker.say('🚑');
     let resource: ResourceConstant = RESOURCE_ENERGY;
     if (site.structureType == STRUCTURE_CONTAINER || site.structureType == STRUCTURE_STORAGE) {
-      resource = <ResourceConstant>_.max(Object.keys(worker.carry), (r: ResourceConstant) => { return worker.carry[r]; });
+      resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
     }
 
+    log.debug(`${job}: ${worker} trying to transfer ${worker.store[resource]} of ${resource} to ${site}`)
     let res: number = worker.transfer(site, resource);
     switch (res) {
       case OK:
@@ -45,31 +46,30 @@ function resources_available(worker: Creep, site: UnloadSite): number {
   }
 }
 
-export class JobUnload implements Job.Model {
+export default class JobUnload implements Job.Model {
 
   static readonly TYPE = 'unload';
 
   readonly _site: UnloadSite;
   readonly _priority: number;
-  readonly _superJob?: Job.Model;
 
-  constructor(site: UnloadSite, priority?: number, superJob?: Job.Model) {
+  constructor(site: UnloadSite, priority: number = 1) {
     this._site = site;
-    this._priority = (priority !== undefined) ? priority : 1;
-    this._superJob = superJob;
+    this._priority = priority;
   }
 
   id(): string {
-    return `job-${JobUnload.TYPE}-${this._site.id}-${this._priority}`;
+    return `job-${JobUnload.TYPE}-${this._site.id}`;
+  }
+
+  type(): string {
+    return JobUnload.TYPE;
   }
 
   toString(): string {
     return this.id();
   }
 
-  superJob(): Job.Model | undefined {
-    return this._superJob;
-  }
   priority(workers?: Creep[]): number {
     return this._priority;
   }
@@ -93,7 +93,7 @@ export class JobUnload implements Job.Model {
       default:
         break;
     }
-    return u.work_efficiency(worker, this._site, resources_available(worker, this._site), 10000);
+    return u.taxi_efficiency(worker, this._site, Math.min(worker.available(), this._site.freeSpace()));
   }
 
   site(): RoomObject {

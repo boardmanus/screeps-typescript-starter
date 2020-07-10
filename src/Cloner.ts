@@ -2,8 +2,10 @@ import { Expert } from "./Expert";
 import * as Job from "Job";
 import { Work } from "./Work";
 import { Operation } from "./Operation";
-import { JobUnload } from "./JobUnload";
+import JobUnload from "JobUnload";
+import JobPickup from "JobPickup";
 import Executive from "Executive";
+import Boss from "Boss";
 import * as Business from "Business";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
@@ -202,19 +204,21 @@ export class Cloner implements Expert {
     return [WORK, MOVE, CARRY, MOVE]
   }
 
-  clone(ceos: Executive[], jobs: Job.Model[]): Work[] {
+  clone(ceos: Executive[], bosses: Boss[]): Work[] {
 
-    log.debug(`${this}: ${jobs.length} unworked jobs, ${this._numWorkers} workers...`)
-
-    const spawners = _.filter(get_spawners(this._room), (s: StructureSpawn) => {
-      return !s.spawning;
-    });
-
+    const spawners = _.filter(get_spawners(this._room), (s) => !s.spawning);
     if (spawners.length == 0) {
+      log.debug(`${this}: no spawners for cloning.`)
       return [];
     }
 
+    log.debug(`${this}: ${bosses.length} contract jobs, ${this._numWorkers} workers...`)
+
     let [availableEnergy, totalEnergy] = get_cloning_energy(this._room);
+    if (availableEnergy < 100) {
+      log.debug(`${this}: not energy (${availableEnergy}) for cloning.`);
+      return [];
+    }
 
     // Start specializing after links have been established.
     const ceosWithVacancies = _.sortBy(_.filter(ceos, (ceo) => !ceo.hasEmployee()), (ceo) => ceo.priority());
@@ -237,7 +241,24 @@ export class Cloner implements Expert {
       return [];
     }
 
-    const creepBody = u.generate_body(this.bodyTemplate(), Math.min(MAX_WORKER_ENERGY, availableEnergy));
+    // Find the most sort after contracts.
+    if (bosses.length == 0) {
+      log.debug(`${this}: no bosses, no cloney.`);
+      return [];
+    }
+
+    const TAXI_JOBS = [JobPickup.TYPE, JobUnload.TYPE];
+    const [taxiBosses, workerBosses] = _.partition(bosses, (b) => TAXI_JOBS.includes(b.job.type()));
+    const taxiCreeps = _.sum(taxiBosses, (b) => b.numWorkers());
+    const workerCreeps = _.sum(workerBosses, (b) => b.numWorkers());
+    log.debug(`${this}: ${taxiCreeps} taxis, ${workerCreeps} peons`);
+
+    const taxiRating = taxiBosses.length - taxiCreeps;
+    const workerRating = workerBosses.length - workerCreeps;
+    const bestRepresentativeJob = (taxiBosses.length > 0 && taxiRating > workerRating) ? taxiBosses[0].job : workerBosses[0].job;
+    log.debug(`${this}: taxiRating: ${taxiRating}, workerRating: ${workerRating} => bestJob: ${bestRepresentativeJob}`);
+
+    const creepBody = u.generate_body(this.bodyTemplate(bestRepresentativeJob), Math.min(MAX_WORKER_ENERGY, availableEnergy));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];
@@ -245,9 +266,7 @@ export class Cloner implements Expert {
 
     const cloneTime = u.time_to_spawn(creepBody);
     const replaceableWorkers: Creep[] = this._room.find(FIND_MY_CREEPS, {
-      filter: (c: Creep) => {
-        return !c.ticksToLive || c.ticksToLive <= cloneTime;
-      }
+      filter: (c) => !c.ticksToLive || c.ticksToLive <= cloneTime
     });
 
     if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {

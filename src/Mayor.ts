@@ -3,40 +3,16 @@ import { Caretaker } from "./Caretaker";
 import { Cloner } from "./Cloner";
 import * as Job from "Job";
 import { Work } from "./Work";
-import { JobHarvest } from "./JobHarvest";
-import { JobUpgrade } from "./JobUpgrade";
-import { JobPickup } from "./JobPickup";
-import { JobUnload } from "./JobUnload";
+import JobHarvest from "JobHarvest";
+import JobUpgrade from "JobUpgrade";
+import JobPickup from "JobPickup";
+import JobUnload from "JobUnload";
 import Boss from "./Boss";
 import Executive from "./Executive";
 import { Operation } from "./Operation";
 import u from "./Utility";
 import { log } from './ScrupsLogger';
 import BusinessEnergyMining from "BusinessMining";
-
-
-function worker_rating(worker: Creep, boss: Boss, minPriority: number): number {
-  //const suitability = boss.job.suitability(worker);
-  const jobSite = boss.job.site();
-  const lastJobSite = worker.getLastJobSite();
-  if (jobSite === lastJobSite) {
-    return 10000;
-  }
-  else if (lastJobSite &&
-    boss.job instanceof JobUnload &&
-    jobSite instanceof StructureContainer &&
-    lastJobSite instanceof StructureContainer) {
-    // Don't pickup/unload between containers.
-    return 10000;
-  }
-
-  //const closeness = boss.job.site().pos.getRangeTo(worker);
-  //return closeness;
-  const p = Math.max(minPriority, boss.priority());
-  const e = boss.job.efficiency(worker);
-
-  return -e * p;
-}
 
 function map_valid_bosses(memory: BossMemory[]): Boss[] {
   return u.map_valid(
@@ -53,7 +29,7 @@ function map_valid_executives(memory: ExecutiveMemory[]): Executive[] {
 function map_valid_to_links(linkers: (Source | StructureStorage | StructureSpawn)[], to: boolean): StructureLink[] {
   return _.filter(
     u.map_valid(linkers,
-      (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined | null => s._link),
+      (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined | null => (s._link instanceof StructureLink) ? s._link : undefined),
     (l: StructureLink) => (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100));
 }
 
@@ -104,6 +80,7 @@ export class Mayor {
   private _cloner: Cloner;
   private _executives: Executive[];
   private _bosses: Boss[];
+  private _redundantBosses: Boss[];
 
   constructor(room: Room) {
     this._room = room;
@@ -112,6 +89,7 @@ export class Mayor {
     this._cloner = new Cloner(room);
     this._executives = map_valid_executives(room.memory.executives);
     this._bosses = map_valid_bosses(room.memory.bosses);
+    this._redundantBosses = [];
   }
 
   id(): string {
@@ -129,8 +107,8 @@ export class Mayor {
     const allWork: Work[] = noWork.concat(
       this._executives,
       this._bosses,
-      this._cloner.clone(this._executives, []),
-      this._architect.design(),
+      this._cloner.clone(this._executives, this._bosses.concat(this._redundantBosses)),
+      this._architect.design(this._executives),
       this._caretaker.repair(),
       this.transferEnergy());
 
@@ -223,10 +201,15 @@ export class Mayor {
     log.info(`${this}: ${employers.length} employers`);
     log.info(`${this}: ${unemployed.length} unemployed workers`);
     log.info(`${this}: ${lazyWorkers.length} lazy workers`);
-    log.info(`${this}: ${this._bosses.length} bosses before survey`)
-    this._bosses = _.filter(allBosses, (boss: Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
-    log.info(`${this}: ${this._bosses.length} bosses after survey`)
-    log.debug(`${this}: ${this._bosses} bosses after survey`)
+    const [usefulBosses, redundantBosses] = _.partition(allBosses, (boss: Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
+    log.info(`${this}: ${usefulBosses.length} bosses, ${redundantBosses.length} redundant`);
+    this._bosses = usefulBosses;
+    this._redundantBosses = redundantBosses;
+
+    log.debug(`Top 10 bosses!`)
+    _.each(_.sortBy(_.take(this._bosses, 10), (b) => -b.priority()), (b) => log.debug(`${b}: p-${b.priority()}`));
+    log.debug(`Top 10 vacancies!`)
+    _.each(_.sortBy(_.take(this._redundantBosses, 10), (b) => -b.priority()), (b) => log.debug(`${b}: p-${b.priority()}`));
   }
 
   mineralJobs(): Job.Model[] {
@@ -263,6 +246,10 @@ export class Mayor {
       (s: StructureContainer): Job.Model => {
         return new JobPickup(s, 1);
       });
+
+    if (room.storage && room.storage.available()) {
+      takeJobs.push(new JobPickup(room.storage, 1));
+    }
 
     const linkers: (StructureSpawn | StructureStorage)[] = _.filter(room.find(FIND_MY_SPAWNS));
     if (room.storage) {
@@ -326,21 +313,24 @@ export class Mayor {
       unloadJobs.push(new JobUnload(room.storage, 1));
     }
 
+    /*
     const sourceUnloadJobs = u.map_valid(room.find(FIND_SOURCES), (s: Source): JobUnload[] => {
       const jobs: JobUnload[] = [];
       const storage = room.storage;
-      if (s._link) {
-        jobs.push(new JobUnload(s._link, 1));
+      const link = s._link as StructureLink;
+      if (link) {
+        jobs.push(new JobUnload(link, 1));
       }
 
-      if (s._container) {
-        jobs.push(new JobUnload(s._container, 1));
+      const container = s._container as StructureContainer;
+      if (container) {
+        jobs.push(new JobUnload(container, 1));
       }
 
       return jobs;
     });
-
-    const jobs: JobUnload[] = unloadJobs.concat(_.flatten(sourceUnloadJobs));
+    */
+    const jobs: JobUnload[] = unloadJobs;//.concat(_.flatten(sourceUnloadJobs));
     log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
   }
@@ -382,14 +372,39 @@ export class Mayor {
 
     log.info(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
     const [hiringSinks, lazyFull] = assign_workers(sinkJobs, fullWorkers);
-    log.info(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs`);
+    log.info(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs ${sourceJobs}`);
     const [hiringSources, lazyEmpty] = assign_workers(sourceJobs, emptyWorkers);
     log.info(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left - over jobs`);
     const [hiring, lazyMulti] = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
-    log.debug(`${this}: hiring [${hiring}]`);
     return lazyFull.concat(lazyEmpty, lazyMulti);
   }
 }
+
+
+function worker_rating(worker: Creep, boss: Boss, minPriority: number): number {
+  //const suitability = boss.job.suitability(worker);
+  const jobSite = boss.job.site();
+  const lastJobSite = worker.getLastJobSite();
+  if (jobSite === lastJobSite) {
+    return 0;
+  }
+  else if (lastJobSite &&
+    boss.job instanceof JobUnload &&
+    jobSite instanceof StructureContainer &&
+    lastJobSite instanceof StructureContainer) {
+    // Don't pickup/unload between containers.
+    return 0;
+  }
+
+  //const closeness = boss.job.site().pos.getRangeTo(worker);
+  //return closeness;
+  const p = Math.max(minPriority, boss.priority());
+  const e = boss.job.efficiency(worker);
+
+  // Bigger == better
+  return e * p;
+}
+
 
 type WorkerBossPairing = { rating: number, boss: Boss, worker: Creep };
 function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairing[] {
@@ -397,24 +412,32 @@ function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairin
   _.each(bosses, (b: Boss) => {
     _.each(workers, (w: Creep) => {
       const rating = worker_rating(w, b, 0);
-      if (rating < 0.0) {
+      if (rating > 0.0) {
         pairings.push({ rating: rating, boss: b, worker: w })
+      }
+      else {
+        log.debug(`WorkerRating for ${b}/${w} = ${rating}`)
       }
     });
   });
 
-  return _.sortBy(pairings, (wbp: WorkerBossPairing) => wbp.rating);
+  return _.sortBy(pairings, (wbp: WorkerBossPairing) => -wbp.rating);
 }
 
 function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {
   if (bosses.length == 0 || workers.length == 0) {
+    log.debug(`No bosses or workers!!!`)
     return [bosses, workers];
   }
 
   let pairings: WorkerBossPairing[] = get_worker_pairings(bosses, workers);
   if (pairings.length == 0) {
+    log.debug(`No pairings!!!`)
     return [bosses, workers];
   }
+
+  log.debug(`Worker-Boss Pairings:`)
+  _.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
 
   const assignedBosses: Boss[] = [];
   const assignedWorkers: Creep[] = [];

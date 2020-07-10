@@ -64,12 +64,12 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
         break;
       case OK:
         log.info(`${job}: ${worker} is harvesting at ${site}`);
-        if ((site._link || site._container) && (worker.freeSpace() < u.work_energy(worker, HARVEST_POWER))) {
-          if (site._link) {
-            unload_at_site(job, worker, site._link);
-          }
-          if (site._container) {
-            unload_at_site(job, worker, site._container);
+        if (site instanceof Source) {
+          const link = site.link();
+          const container = site.container();
+          if ((link || container) && (worker.freeSpace() < u.work_energy(worker, HARVEST_POWER))) {
+            if (link) unload_at_site(job, worker, link);
+            if (container) unload_at_site(job, worker, container);
           }
         }
         break;
@@ -156,7 +156,7 @@ function mineral_capacity(mineral: Mineral): number {
 }
 
 
-export class JobHarvest implements Job.Model {
+export default class JobHarvest implements Job.Model {
 
   static readonly TYPE: string = 'harvest';
 
@@ -170,6 +170,10 @@ export class JobHarvest implements Job.Model {
 
   id(): string {
     return `job-${JobHarvest.TYPE}-${this._site.id}`;
+  }
+
+  type(): string {
+    return JobHarvest.TYPE;
   }
 
   toString(): string {

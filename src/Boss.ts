@@ -61,6 +61,10 @@ export default class Boss implements Work {
     return this._workers.length > 0;
   }
 
+  workers(): Creep[] {
+    return this._workers;
+  }
+
   priority(): number {
     return this.job.priority(this._workers);
   }

@@ -19,14 +19,20 @@ interface Creep {
 }
 
 interface Source {
-  _container: StructureContainer | undefined;
+  _container: StructureContainer | ConstructionSite | undefined;
+  _link: StructureLink | ConstructionSite | undefined;
   _tower: StructureTower | undefined;
-  _link: StructureLink | undefined;
+
+  link(): StructureLink | undefined;
+  container(): StructureContainer | undefined;
 }
 
 interface Mineral {
   _container: StructureContainer | undefined;
   _link: StructureLink | undefined;
+
+  link(): StructureLink | undefined;
+  container(): StructureContainer | undefined;
 }
 
 interface StructureStorage {

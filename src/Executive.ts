@@ -136,7 +136,6 @@ export default class Executive implements Work {
   }
 
   work(): Operation[] {
-    this.business.survey();
     const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.work()));
     log.debug(`${this}: ${executiveOperations.length} operations`);
     return executiveOperations;

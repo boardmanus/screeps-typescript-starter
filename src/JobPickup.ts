@@ -60,7 +60,7 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
   }
 }
 
-export class JobPickup implements Job.Model {
+export default class JobPickup implements Job.Model {
 
   static readonly TYPE = 'pickup';
 
@@ -73,9 +73,12 @@ export class JobPickup implements Job.Model {
   }
 
   id(): string {
-    return `job-${JobPickup.TYPE}-${this._site.id}-${this._priority}`;
+    return `job-${JobPickup.TYPE}-${this._site.id}`;
   }
 
+  type(): string {
+    return JobPickup.TYPE;
+  }
 
   toString(): string {
     return this.id();
@@ -92,13 +95,17 @@ export class JobPickup implements Job.Model {
       return 0;
     }
 
+    if (u.find_nearby_attackers(this._site).length > 0) {
+      return 0;
+    }
+
     if (this._site instanceof StructureLink) {
       const distance = this._site.pos.getRangeTo(worker);
       if (distance < 5) {
         booster = 2;
       }
     }
-    return booster * u.work_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()), 10000);
+    return booster * u.taxi_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()));
   }
 
   site(): RoomObject {
