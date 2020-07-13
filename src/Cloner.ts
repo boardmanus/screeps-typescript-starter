@@ -3,12 +3,14 @@ import * as Job from "Job";
 import { Work } from "./Work";
 import { Operation } from "./Operation";
 import JobUnload from "JobUnload";
-import JobPickup from "JobPickup";
 import Executive from "Executive";
 import Boss from "Boss";
 import * as Business from "Business";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
+
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, WORK];
+const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, CARRY, MOVE, MOVE];
 
 
 type CloningStructure = StructureSpawn | StructureExtension;
@@ -82,7 +84,7 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
-const MAX_HEAVY_WORKERS = 5;
+const MAX_HEAVY_WORKERS = 7;
 const MAX_WORKERS = 8;
 const MAX_WORKER_ENERGY = 1500;
 
@@ -190,20 +192,6 @@ export class Cloner implements Expert {
     return r;
   }
 
-  private bodyTemplate(job?: Job.Model): BodyPartConstant[] {
-
-    if (job) {
-      return job.baseWorkerBody();
-    }
-
-    //if (this._room.getRoadsEstablished()) {
-    // Don't need the extra move
-    //  return [ WORK, MOVE, CARRY ];
-    //}
-
-    return [WORK, MOVE, CARRY, MOVE]
-  }
-
   clone(ceos: Executive[], bosses: Boss[]): Work[] {
 
     const spawners = _.filter(get_spawners(this._room), (s) => !s.spawning);
@@ -231,10 +219,10 @@ export class Cloner implements Expert {
       }
     }
 
-    if (this._numWorkers >= MAX_WORKERS
-      || (this._numWorkers >= MAX_HEAVY_WORKERS
-        && totalEnergy >= MAX_WORKER_ENERGY)
-      || (this._numWorkers > MIN_SAFE_WORKERS
+    const numEmployees = ceos.length - ceosWithVacancies.length;
+    const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS) + numEmployees;
+    if ((this._numWorkers >= maxWorkers)
+      || ((this._numWorkers > MIN_SAFE_WORKERS + numEmployees)
         && availableEnergy < MAX_WORKER_ENERGY
         && availableEnergy / totalEnergy < 0.9)) {
       log.debug(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy / totalEnergy}`)
@@ -246,19 +234,19 @@ export class Cloner implements Expert {
       log.debug(`${this}: no bosses, no cloney.`);
       return [];
     }
+    /*
+        const TAXI_JOBS = [JobPickup.TYPE, JobUnload.TYPE];
+        const [taxiBosses, workerBosses] = _.partition(bosses, (b) => TAXI_JOBS.includes(b.job.type()));
+        const taxiCreeps = _.sum(taxiBosses, (b) => b.numWorkers());
+        const workerCreeps = _.sum(workerBosses, (b) => b.numWorkers());
+        log.debug(`${this}: ${taxiCreeps} taxis, ${workerCreeps} peons`);
 
-    const TAXI_JOBS = [JobPickup.TYPE, JobUnload.TYPE];
-    const [taxiBosses, workerBosses] = _.partition(bosses, (b) => TAXI_JOBS.includes(b.job.type()));
-    const taxiCreeps = _.sum(taxiBosses, (b) => b.numWorkers());
-    const workerCreeps = _.sum(workerBosses, (b) => b.numWorkers());
-    log.debug(`${this}: ${taxiCreeps} taxis, ${workerCreeps} peons`);
-
-    const taxiRating = taxiBosses.length - taxiCreeps;
-    const workerRating = workerBosses.length - workerCreeps;
-    const bestRepresentativeJob = (taxiBosses.length > 0 && taxiRating > workerRating) ? taxiBosses[0].job : workerBosses[0].job;
-    log.debug(`${this}: taxiRating: ${taxiRating}, workerRating: ${workerRating} => bestJob: ${bestRepresentativeJob}`);
-
-    const creepBody = u.generate_body(this.bodyTemplate(bestRepresentativeJob), Math.min(MAX_WORKER_ENERGY, availableEnergy));
+        const taxiRating = taxiBosses.length - taxiCreeps;
+        const workerRating = workerBosses.length - workerCreeps;
+        const bestRepresentativeJob = (taxiBosses.length > 0 && taxiRating > workerRating) ? taxiBosses[0].job : workerBosses[0].job;
+        log.debug(`${this}: taxiRating: ${taxiRating}, workerRating: ${workerRating} => bestJob: ${bestRepresentativeJob}`);
+    */
+    const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, availableEnergy));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];
@@ -270,6 +258,7 @@ export class Cloner implements Expert {
     });
 
     if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
+      log.debug(`${this}: got enough workers (${this._numWorkers} - ${replaceableWorkers.length} >= ${this._maxWorkers}) - not cloning`);
       return [];
     }
 

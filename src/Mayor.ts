@@ -2,17 +2,19 @@ import { Architect } from "./Architect";
 import { Caretaker } from "./Caretaker";
 import { Cloner } from "./Cloner";
 import * as Job from "Job";
+import * as Business from "Business";
 import { Work } from "./Work";
 import JobHarvest from "JobHarvest";
-import JobUpgrade from "JobUpgrade";
 import JobPickup from "JobPickup";
 import JobUnload from "JobUnload";
-import Boss from "./Boss";
-import Executive from "./Executive";
-import { Operation } from "./Operation";
-import u from "./Utility";
-import { log } from './ScrupsLogger';
+import Boss from "Boss";
+import Executive from "Executive";
+import { Operation } from "Operation";
+import u from "Utility";
+import { log } from 'ScrupsLogger';
 import BusinessEnergyMining from "BusinessMining";
+import BusinessBanking from "BusinessBanking";
+import BusinessUpgrading from "BusinessUpgrading";
 
 function map_valid_bosses(memory: BossMemory[]): Boss[] {
   return u.map_valid(
@@ -29,7 +31,7 @@ function map_valid_executives(memory: ExecutiveMemory[]): Executive[] {
 function map_valid_to_links(linkers: (Source | StructureStorage | StructureSpawn)[], to: boolean): StructureLink[] {
   return _.filter(
     u.map_valid(linkers,
-      (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined | null => (s._link instanceof StructureLink) ? s._link : undefined),
+      (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined => (s._link instanceof StructureLink) ? s._link : undefined),
     (l: StructureLink) => (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100));
 }
 
@@ -157,9 +159,18 @@ export class Mayor {
     this._caretaker.survey();
     this._cloner.survey();
 
-    const miningBusinesses: BusinessEnergyMining[] =
+    const newBusinesses: Business.Model[] =
       _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source, 1));
-    const unmannedBusinesses = _.filter(miningBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
+
+    if (this._room.storage) {
+      newBusinesses.push(new BusinessBanking(this._room.storage));
+    }
+
+    if (this._room.controller?.my) {
+      newBusinesses.push(new BusinessUpgrading(this._room.controller));
+    }
+
+    const unmannedBusinesses = _.filter(newBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
     const newExecutives = _.map(unmannedBusinesses, (b) => new Executive(b));
     log.debug(`${this}: ${this._executives.length} executives after survey (${this._executives.length} old, ${newExecutives.length} new)`);
     this._executives.push(...newExecutives);
@@ -169,7 +180,6 @@ export class Mayor {
 
     const allJobs: Job.Model[] = new Array<Job.Model>().concat(
       _.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
-      this.upgradeJobs(),
       this.pickupJobs(),
       this.unloadJobs(),
       this.mineralJobs(),
@@ -206,10 +216,11 @@ export class Mayor {
     this._bosses = usefulBosses;
     this._redundantBosses = redundantBosses;
 
-    log.debug(`Top 10 bosses!`)
-    _.each(_.sortBy(_.take(this._bosses, 10), (b) => -b.priority()), (b) => log.debug(`${b}: p-${b.priority()}`));
-    log.debug(`Top 10 vacancies!`)
-    _.each(_.sortBy(_.take(this._redundantBosses, 10), (b) => -b.priority()), (b) => log.debug(`${b}: p-${b.priority()}`));
+    //log.debug(`Top 10 bosses!`)
+    //_.each(_.take(prioritize_bosses(this._bosses), 10), (b) => log.debug(`${b}: p-${b.priority()}, r-${worker_rating(b.workers()[0], b, 0)}`));
+    //log.debug(`Top 10 vacancies!`)
+    //const employed = _.flatten(_.map(this._bosses, (b) => b.workers()));
+    //_.each(_.take(prioritize_bosses(this._redundantBosses), 10), (b) => log.debug(`${b}: p-${b.priority()}, r-${_.map(employed, (w) => worker_rating(w, b, 0))}`));
   }
 
   mineralJobs(): Job.Model[] {
@@ -217,7 +228,7 @@ export class Mayor {
     const mineralJobs: Job.Model[] = _.map<Mineral, Job.Model>(
       this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
       (mineral: Mineral): Job.Model => {
-        return new JobHarvest(mineral, 10);
+        return new JobHarvest(mineral);
       });
 
     log.info(`${this} scheduling ${mineralJobs.length} mineral harvest jobs...`);
@@ -228,39 +239,19 @@ export class Mayor {
     const room = this._room;
 
     const scavengeJobs: Job.Model[] = _.map(
-      room.find(FIND_DROPPED_RESOURCES),
-      (r: Resource): Job.Model => {
-        return new JobPickup(r, 5);
-      });
+      room.find(FIND_DROPPED_RESOURCES), (r) => new JobPickup(r, 5));
 
-    //const tombstoneJobs : Job[] = _.map(
-    //  room.find(FIND_TOMBSTONES)
-    //)
-
-    const takeJobs: Job.Model[] = _.map(
-      room.find<StructureContainer>(FIND_STRUCTURES, {
-        filter: (s: AnyStructure) => {
-          return (s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE) && s.available() > 0;
-        }
-      }),
-      (s: StructureContainer): Job.Model => {
-        return new JobPickup(s, 1);
-      });
-
-    if (room.storage && room.storage.available()) {
-      takeJobs.push(new JobPickup(room.storage, 1));
-    }
+    const tombstoneJobs: Job.Model[] = _.map(
+      room.find(FIND_TOMBSTONES), (t) => new JobPickup(t, 5));
 
     const linkers: (StructureSpawn | StructureStorage)[] = _.filter(room.find(FIND_MY_SPAWNS));
-    if (room.storage) {
-      linkers.push(room.storage);
+    const storage = room.storage;
+    if (storage) {
+      linkers.push(storage);
     }
 
-    const links: StructureLink[] = u.map_valid(
-      linkers,
-      (s: StructureSpawn | StructureStorage) => { return s._link; });
-
-    const linkJobs = u.map_valid(links, (link: StructureLink) => {
+    const links = u.map_valid(linkers, (s) => (s._link && s._link instanceof StructureLink) ? s._link : undefined);
+    const linkJobs = u.map_valid(links, (link) => {
       const energy = link.available();
       if (energy > 100) {
         const space = link.freeSpace();
@@ -270,24 +261,17 @@ export class Mayor {
               : (space < 600) ? 3
                 : 2);
 
+        log.error(`${this}: creating ${link} pickup job: energy=${energy}, p=${p}, space=${space}`)
         return new JobPickup(link, p);
       }
 
       return null;
     });
+    log.error(`${this}: ${linkJobs.length} link pickupjobs`)
 
-    const jobs = scavengeJobs.concat(takeJobs, linkJobs);
+    const jobs = scavengeJobs.concat(linkJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
     return jobs;
-  }
-
-  upgradeJobs(): Job.Model[] {
-    const controller = this._room.controller;
-    if (!controller) {
-      return [];
-    }
-
-    return [new JobUpgrade(controller)];
   }
 
   unloadJobs(): Job.Model[] {
@@ -308,29 +292,7 @@ export class Mayor {
       }
       return new JobUnload(s, p);
     });
-
-    if (room.storage && room.storage.freeSpace() > 0) {
-      unloadJobs.push(new JobUnload(room.storage, 1));
-    }
-
-    /*
-    const sourceUnloadJobs = u.map_valid(room.find(FIND_SOURCES), (s: Source): JobUnload[] => {
-      const jobs: JobUnload[] = [];
-      const storage = room.storage;
-      const link = s._link as StructureLink;
-      if (link) {
-        jobs.push(new JobUnload(link, 1));
-      }
-
-      const container = s._container as StructureContainer;
-      if (container) {
-        jobs.push(new JobUnload(container, 1));
-      }
-
-      return jobs;
-    });
-    */
-    const jobs: JobUnload[] = unloadJobs;//.concat(_.flatten(sourceUnloadJobs));
+    const jobs: JobUnload[] = unloadJobs;
     log.info(`${this} scheduling ${jobs.length} unload jobs...`);
     return jobs;
   }
@@ -355,10 +317,6 @@ export class Mayor {
     log.info(`${this}: saved.`)
   }
 
-  prioritizeBosses(bosses: Boss[]): Boss[] {
-    return _.sortBy(bosses, (boss: Boss): number => { return -boss.priority(); });
-  }
-
   assignWorkers(bosses: Boss[], availableWorkers: Creep[]): Creep[] {
 
     if (bosses.length == 0 || availableWorkers.length == 0) {
@@ -380,6 +338,9 @@ export class Mayor {
   }
 }
 
+function prioritize_bosses(bosses: Boss[]): Boss[] {
+  return _.sortBy(bosses, (boss: Boss): number => { return -boss.priority(); });
+}
 
 function worker_rating(worker: Creep, boss: Boss, minPriority: number): number {
   //const suitability = boss.job.suitability(worker);
@@ -415,9 +376,6 @@ function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairin
       if (rating > 0.0) {
         pairings.push({ rating: rating, boss: b, worker: w })
       }
-      else {
-        log.debug(`WorkerRating for ${b}/${w} = ${rating}`)
-      }
     });
   });
 
@@ -436,8 +394,8 @@ function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]
     return [bosses, workers];
   }
 
-  log.debug(`Worker-Boss Pairings:`)
-  _.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
+  //log.debug(`Worker-Boss Pairings:`)
+  //_.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
 
   const assignedBosses: Boss[] = [];
   const assignedWorkers: Creep[] = [];
@@ -450,6 +408,8 @@ function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]
     bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
     bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
     pairings = _.filter(pairings, (wbp: WorkerBossPairing) => { return wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker; });
+    log.debug(`Refined Worker-Boss Pairings:`)
+    _.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
   }
   while (pairings.length);
 

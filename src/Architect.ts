@@ -274,22 +274,6 @@ function find_site<S extends Structure>(obj: RoomObject, type: StructureConstant
   return site;
 }
 
-function empty_surrounding_positions(pos: RoomPosition): RoomPosition[] {
-  const surroundingPositions = pos.surroundingPositions(1, (p: RoomPosition): boolean => {
-    const terrain = p.look();
-    for (const t of terrain) {
-      if (t.type == LOOK_CONSTRUCTION_SITES ||
-        (t.type == LOOK_STRUCTURES && t.structure && t.structure.structureType != STRUCTURE_ROAD) ||
-        (t.type == LOOK_TERRAIN && t.terrain == 'wall')) {
-        return false;
-      }
-    }
-    return true;
-  });
-
-  return surroundingPositions;
-}
-
 function possible_container_sites(source: RoomObject): RoomPosition[] {
   let haveContainer: boolean = false;
   const viableSites = source.pos.surroundingPositions(1, (site: RoomPosition): boolean => {
@@ -328,7 +312,7 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
   log.info(`found ${viableSites.length} viable container sites ${viableSites}`);
   const room = source.room;
   const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
-    const emptyPositions = empty_surrounding_positions(site);
+    const emptyPositions = u.find_empty_surrounding_positions(site);
     let val = -emptyPositions.length;
     if (room && room.storage) {
       val += 1 / site.getRangeTo(room.storage);
@@ -431,7 +415,7 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
 
   log.info(`found ${viableSites.length} viable link sites for ${linkNeighbour}`);
   const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
-    const emptyPositions = empty_surrounding_positions(site);
+    const emptyPositions = u.find_empty_surrounding_positions(site);
     let val = -emptyPositions.length;
     if (room.storage) {
       val += 1 / site.getRangeTo(room.storage);
@@ -541,7 +525,7 @@ export class BuildingWork implements Work {
   }
 
   id() {
-    return `work-build-${this.type}-${this.site.x}-${this.site.y}`;
+    return `work-build-${this.type}-${this.site?.x}-${this.site?.y}`;
   }
 
   toString(): string {
@@ -554,6 +538,7 @@ export class BuildingWork implements Work {
 
   work(): Operation[] {
     return [() => {
+      log.error(`${this}: site=${this.site}`)
       const res = this.room.createConstructionSite(this.site.x, this.site.y, this.type);
       switch (res) {
         case OK:
@@ -743,49 +728,6 @@ export class Architect implements Expert {
     });
   }
 
-  designLinks(): Work[] {
-    const room = this._room;
-    const controller = room.controller;
-    if (!controller) return [];
-
-    const numLinks = u.find_num_building_sites(room, STRUCTURE_LINK);
-    const allowedNumLinks = CONTROLLER_STRUCTURES.link[controller.level];
-    log.info(`${this}: current num links ${numLinks} - allowed ${allowedNumLinks}`)
-
-    if (numLinks >= allowedNumLinks) {
-      log.info(`${this}: already have all the required links (${numLinks}).`)
-      return [];
-    }
-
-    const storage: Structure | undefined = room.storage;
-    if (!storage) {
-      // Don't build links if a storage site isn't available
-      return [];
-    }
-
-    // Get all the containers
-    const containers: Structure[] = _.sortBy(u.map_valid(
-      room.find(FIND_SOURCES, { filter: (s: Source) => { return !s.link(); } }),
-      (s: Source): Structure | undefined => { return s.container(); }),
-      (s: Structure) => { return -s.pos.getRangeTo(storage); });
-
-    const spawns: Structure[] = room.find(FIND_MY_SPAWNS, { filter: (s: StructureSpawn) => { return !s._link; } });
-
-    const linkNeighbours = [storage].concat(containers, spawns);
-
-    const linkPositions = _.take(_.flatten(_.map(
-      linkNeighbours,
-      (s: Structure): RoomPosition[] => {
-        return possible_link_sites(s);
-      })),
-      allowedNumLinks - numLinks);
-
-    return _.map(linkPositions, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new link build work at ${pos} ...`);
-      return new BuildingWork(room, pos, STRUCTURE_LINK);
-    });
-  }
-
   designExtractors(): Work[] {
     const room = this._room;
     const controller = room.controller;
@@ -842,9 +784,8 @@ export class Architect implements Expert {
     const storageWorks: Work[] = this.designStorage();
     const roadWorks: Work[] = this.designRoads();
     const towerWorks: Work[] = this.designTowers();
-    const linkWorks: Work[] = this.designLinks();
     const extractorWorks: Work[] = this.designExtractors();
-    return extensionWorks.concat(businessWorks, containerWorks, storageWorks, roadWorks, towerWorks, linkWorks, extractorWorks);
+    return extensionWorks.concat(businessWorks, containerWorks, storageWorks, roadWorks, towerWorks, extractorWorks);
   }
 
   schedule(): Job.Model[] {
@@ -870,54 +811,10 @@ export class Architect implements Expert {
     return r;
   }
 
-  loadSources(room: Room): void {
-    const sources = room.find(FIND_SOURCES);
-    const sourceMem = room.memory.sources;
-    if (!sources || !sourceMem) {
-      return;
-    }
-
-    _.each(sourceMem, (sm: SourceMemory) => {
-      if (!sm.id) {
-        return;
-      }
-
-      const source: Source | null = Game.getObjectById<Source>(sm.id);
-      if (!source) {
-        return;
-      }
-
-      if (sm.container) {
-        const container = Game.getObjectById<StructureContainer>(sm.container);
-        if (container) {
-          source._container = container;
-        }
-      }
-
-      if (sm.link) {
-        const link = Game.getObjectById<StructureLink>(sm.link);
-        if (link) {
-          source._link = link;
-        }
-      }
-
-      if (sm.tower) {
-        const tower = Game.getObjectById<StructureTower>(sm.tower);
-        if (tower) {
-          source._tower = tower;
-        }
-        else {
-          source._tower = find_site(source, STRUCTURE_TOWER, 5);
-          log.warning(`${this}: found ${source} tower => ${source._tower}`);
-        }
-      }
-    });
-  }
-
   loadStorage(room: Room): void {
     const storage = room.storage;
     const storageMem = room.memory.storage;
-    if (!storage || !storageMem) {
+    if (!storage) {
       return;
     }
 
@@ -926,48 +823,13 @@ export class Architect implements Expert {
       if (link) {
         storage._link = link;
       }
-      else {
-        storage._link = find_site(storage, STRUCTURE_LINK, 1);
-        log.warning(`${this}: found ${storage} link => ${storage._link}`);
-      }
     }
   }
 
-  loadSpawns(room: Room): void {
-    const spawns = room.find(FIND_MY_SPAWNS);
-    const spawnMem = room.memory.spawns;
-    if (!spawns || !spawnMem) {
-      return;
-    }
-
-    _.each(spawnMem, (sm: SpawnMemory) => {
-      if (!sm.id) {
-        return;
-      }
-
-      const spawn: StructureSpawn | null = Game.getObjectById<StructureSpawn>(sm.id);
-      if (!spawn) {
-        return;
-      }
-
-      if (sm.link) {
-        const link = Game.getObjectById<StructureLink>(sm.link);
-        if (link) {
-          spawn._link = link;
-        }
-        else {
-          spawn._link = find_site(spawn, STRUCTURE_LINK, 1);
-          log.warning(`${this}: found ${spawn} link => ${spawn._link}`);
-        }
-      }
-    });
-  }
 
   load(): void {
     const room = this._room;
-    this.loadSources(room);
     this.loadStorage(room);
-    this.loadSpawns(room);
   }
 
   save(): void {
@@ -979,7 +841,6 @@ export class Architect implements Expert {
         const sm: SourceMemory = {
           id: s.id,
           container: s._container ? s._container.id : undefined,
-          tower: s._tower ? s._tower.id : undefined,
           link: s._link ? s._link.id : undefined
         };
         return sm;
@@ -993,15 +854,5 @@ export class Architect implements Expert {
           link: s._link ? s._link.id : undefined
         };
     }
-
-    room.memory.spawns = _.map(
-      room.find(FIND_MY_SPAWNS),
-      (s: StructureSpawn): SpawnMemory => {
-        const sm: SpawnMemory = {
-          id: s.id,
-          link: s._link ? s._link.id : undefined
-        };
-        return sm;
-      });
   }
 }

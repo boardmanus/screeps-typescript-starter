@@ -47,15 +47,16 @@ namespace u {
     return _.sum(parts, (c: BodyPartConstant): number => { return BODYPART_COST[c]; });
   }
 
-  export function generate_body(bodyExtension: BodyPartConstant[], funds: number): BodyPartConstant[] {
+  export function generate_body(bodyBase: BodyPartConstant[], bodyTemplate: BodyPartConstant[], funds: number): BodyPartConstant[] {
 
-    const body: BodyPartConstant[] = [];
-    const bodyTemplate: BodyPartConstant[] = MIN_BODY.concat(bodyExtension);
-    if (funds < MIN_BODY_COST) {
-      log.debug(`generate_body: funds=${funds} are less than minBody=${MIN_BODY}=${MIN_BODY_COST}`)
-      return body;
+    const body: BodyPartConstant[] = [...bodyBase];
+    const minCost = body_cost(body);
+    if (funds < minCost) {
+      log.debug(`generate_body: funds=${funds} are less than minBody=${bodyTemplate}=${minCost}`)
+      return [];
     }
 
+    funds -= minCost;
     let outOfFunds = false;
     do {
       for (const b of bodyTemplate) {
@@ -89,6 +90,22 @@ namespace u {
     });
   }
 
+  export function find_empty_surrounding_positions(pos: RoomPosition): RoomPosition[] {
+    const surroundingPositions = pos.surroundingPositions(1, (p: RoomPosition): boolean => {
+      const terrain = p.look();
+      for (const t of terrain) {
+        if (t.type == LOOK_CONSTRUCTION_SITES ||
+          (t.type == LOOK_STRUCTURES && t.structure && t.structure.structureType != STRUCTURE_ROAD) ||
+          (t.type == LOOK_TERRAIN && t.terrain == 'wall')) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    return surroundingPositions;
+  }
+
   export function find_construction_sites(room: Room, type: BuildableStructureConstant): ConstructionSite[] {
     return room.find(FIND_CONSTRUCTION_SITES, { filter: (s) => (s.structureType === type) });
   }
@@ -115,7 +132,7 @@ namespace u {
     }
 
     const structures = pos.lookFor(LOOK_STRUCTURES);
-    if (_.find(structures, (s: Structure) => { return s.structureType == STRUCTURE_ROAD; })) {
+    if (_.find(structures, (s) => s.structureType == STRUCTURE_ROAD)) {
       return 1;
     }
 
@@ -128,14 +145,14 @@ namespace u {
     }
   }
 
-  export type Site = Creep | Structure | Resource | Source | Mineral | ConstructionSite;
+  export type Site = Creep | Structure | Resource | Tombstone | Source | Mineral | ConstructionSite;
 
   export function movement_time(weight: number, moveParts: number, path: RoomPosition[]) {
     // time waiting for fatigue
     const t_f = _.sum(path, (p: RoomPosition): number => {
       const t = terrain_cost(p);
-      const f = 2 * (weight * t - moveParts);
-      return (f > 0) ? Math.ceil(weight * t / moveParts) : 0;
+      const f = weight * t;
+      return (f > 0) ? Math.ceil(f / (2 * moveParts)) : 0;
     });
 
     // total time is waiting time + traversal time
@@ -150,7 +167,7 @@ namespace u {
       },
       [0, 0]);
 
-    const weight = worker.body.length - moveParts - carryParts * (worker.freeSpace() / worker.carryCapacity);
+    const weight = worker.body.length - moveParts - carryParts * (worker.freeSpace() / worker.capacity());
 
     const path = get_path(worker, site);
     if (path.length == 0) {
@@ -162,7 +179,7 @@ namespace u {
 
   const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
   export function get_path(from: Site, to: Site): RoomPosition[] {
-    return _pathCache.getValue(`${from.id} - ${to.id}`, () => {
+    return _pathCache.getValue(`${from.pos} - ${to.pos}`, () => {
       const room = from.room;
       if (!room || from.pos.inRangeTo(to, 1)) {
         return [];
@@ -193,13 +210,12 @@ namespace u {
   }
 
   export function work_efficiency(worker: Creep, site: Site, energy: number, maxEnergyPerPart: number): number {
-    const numWorkerParts = _.sum(worker.body, (b: BodyPartDefinition): number => { return (b.type == WORK) ? 1 : 0; });
+    const numWorkerParts = _.sum(worker.body, (b) => (b.type == WORK) ? 1 : 0);
     if (numWorkerParts == 0) {
       return 0;
     }
 
-    const energyPerPart = Math.max(energy / numWorkerParts, maxEnergyPerPart);
-    const workEnergyPerTick = numWorkerParts * energyPerPart;
+    const workEnergyPerTick = numWorkerParts * maxEnergyPerPart;
     const timeToWork = Math.ceil(energy / workEnergyPerTick);
     const timeToMove = Math.ceil(u.creep_movement_time(worker, site));
 

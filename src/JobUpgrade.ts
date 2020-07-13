@@ -50,9 +50,10 @@ export default class JobUpgrade implements Job.Model {
   readonly _site: StructureController;
   readonly _priority: number;
 
-  constructor(site: StructureController, priority?: number) {
+  constructor(site: StructureController) {
     this._site = site;
-    this._priority = priority ?? PRIORITY_BY_LEVEL[site.room.controller?.level ?? 0];
+    const rcl = site.room.controller?.level ?? 0;
+    this._priority = PRIORITY_BY_LEVEL[rcl];
   }
 
   id(): string {
@@ -86,8 +87,11 @@ export default class JobUpgrade implements Job.Model {
     else {
       priority = this._priority;
     }
-
-    return this._priority / (workers.length + 1);
+    if (priority == undefined || priority == null) {
+      log.error(`${this}: f'd up priority!`)
+    }
+    const epriority = priority / (workers.length + 1);
+    return epriority;
   }
 
   efficiency(worker: Creep): number {
@@ -104,14 +108,14 @@ export default class JobUpgrade implements Job.Model {
 
   completion(worker?: Creep): number {
     if (worker) {
-      return 1.0 - worker.available() / worker.carryCapacity;
+      return 1.0 - worker.available() / worker.capacity();
     }
 
     return 0.0;
   }
 
-  satisfiesPrerequisite(_: Job.Prerequisite): boolean {
-    return false;
+  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
+    return prerequisite == Job.Prerequisite.DELIVER_ENERGY;
   }
 
   prerequisite(worker: Creep): Job.Prerequisite {
@@ -122,7 +126,7 @@ export default class JobUpgrade implements Job.Model {
   }
 
   baseWorkerBody(): BodyPartConstant[] {
-    return [WORK, CARRY, WORK, CARRY];
+    return [WORK, CARRY, MOVE];
   }
 
   work(worker: Creep): Operation[] {
@@ -136,5 +140,5 @@ Job.factory.addBuilder(JobUpgrade.TYPE, (id: string): Job.Model | undefined => {
   const site = <StructureController>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  return new JobUpgrade(site, priority);
+  return new JobUpgrade(site);
 });

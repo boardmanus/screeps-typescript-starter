@@ -10,7 +10,6 @@ interface CreepMemory {
 interface SourceMemory {
   id: string | undefined;
   container: string | undefined;
-  tower: string | undefined;
   link: string | undefined;
 }
 
@@ -73,5 +72,5 @@ interface Memory {
 
 
 type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
-type PickupSite = Resource | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
+type PickupSite = Resource | Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 

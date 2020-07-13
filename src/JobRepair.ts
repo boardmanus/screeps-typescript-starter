@@ -65,6 +65,10 @@ export default class JobRepair implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
+    if (this._site.hits == this._site.hitsMax) {
+      return 0.0;
+    }
+
     return u.work_efficiency(worker, this._site, worker.available(), REPAIR_POWER);
   }
 
@@ -78,16 +82,17 @@ export default class JobRepair implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    const completion = this._site.hits / this._site.hitsMax;
-    if (!worker || completion == 1.0) {
-      return completion;
+    const c = this._site.hits / this._site.hitsMax;
+    log.error(`${this}: worker=${worker}, completion=${c}`)
+    if (!worker || c >= 0.99) {
+      return c;
     }
 
-    return 1.0 - worker.available() / worker.carryCapacity;
+    return 1.0 - worker.available() / worker.capacity();
   }
 
   baseWorkerBody(): BodyPartConstant[] {
-    return [MOVE, WORK, CARRY];
+    return [WORK, MOVE, CARRY, MOVE];
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
@@ -117,5 +122,5 @@ Job.factory.addBuilder(JobRepair.TYPE, (id: string): Job.Model | undefined => {
   const site = <Structure>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  return new JobRepair(site, priority);
+  return new JobRepair(site);
 });

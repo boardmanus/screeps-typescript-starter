@@ -32,6 +32,10 @@ Resource.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return (this.resourceType == resource) ? this.amount : 0;
 }
 
+Tombstone.prototype.available = function (resource = RESOURCE_ENERGY): number {
+  return this.store[resource] ?? 0;
+}
+
 Source.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return (resource == RESOURCE_ENERGY) ? this.energy : 0;
 }
@@ -48,6 +52,9 @@ Mineral.prototype.available = function (resource?: ResourceConstant): number {
   return (resource == this.mineralType) ? this.mineralAmount : 0;
 }
 
+StructureController.prototype.container = function (): StructureContainer | undefined {
+  return (this._container instanceof StructureContainer) ? this._container : undefined;
+}
 
 StructureExtension.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return this.store[resource] ?? 0;
@@ -97,6 +104,9 @@ StructureStorage.prototype.freeSpace = function (__?: ResourceConstant): number 
 }
 StructureStorage.prototype.capacity = function (): number {
   return this.store.getCapacity();
+}
+StructureStorage.prototype.link = function (): StructureLink | undefined {
+  return (this._link instanceof StructureLink) ? this._link : undefined;
 }
 
 StructureTower.prototype.available = function (resource = RESOURCE_ENERGY): number {

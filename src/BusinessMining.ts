@@ -9,6 +9,7 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 import { object, min } from 'lodash';
+import JobDrop from 'JobDrop';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
@@ -81,16 +82,8 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
           }
           return false;
         case LOOK_STRUCTURES:
-          const structure = t.structure;
-          if (!structure) {
-            return false;
-          }
-          if (structure.structureType == STRUCTURE_CONTAINER) {
+          if (t.structure && t.structure.structureType == STRUCTURE_CONTAINER) {
             haveContainer = true;
-            return false;
-          }
-          else if (structure.structureType == STRUCTURE_ROAD) {
-            return true;
           }
           return false;
         case LOOK_TERRAIN:
@@ -109,7 +102,78 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
     return [];
   }
 
-  return viableSites;
+  log.info(`found ${viableSites.length} viable container sites ${viableSites}`);
+  const room = source.room;
+  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
+    const emptyPositions = u.find_empty_surrounding_positions(site);
+    let val = -emptyPositions.length;
+    if (room && room.storage) {
+      val += 1 / site.getRangeTo(room.storage);
+    }
+    return val;
+  });
+
+  return _.take(sortedSites, 1);
+}
+
+function best_container_site(source: RoomObject): RoomPosition {
+  return possible_container_sites(source)[0];
+}
+
+function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
+  let haveLink: boolean = false;
+  const room = linkNeighbour.room;
+  if (!room) {
+    return [];
+  }
+  const viableSites = linkNeighbour.pos.surroundingPositions(1, (site: RoomPosition): boolean => {
+    if (haveLink) {
+      return false;
+    }
+    const terrain = site.look();
+    for (const t of terrain) {
+      switch (t.type) {
+        case LOOK_CONSTRUCTION_SITES:
+          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_LINK) {
+            haveLink = true;
+          }
+          return false;
+        case LOOK_STRUCTURES:
+          if (t.structure && t.structure.structureType == STRUCTURE_LINK) {
+            haveLink = true;
+          }
+          return false;
+        case LOOK_TERRAIN:
+          if (t.terrain == 'wall') {
+            return false;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+    return true;
+  });
+
+  if (haveLink) {
+    return [];
+  }
+
+  log.info(`found ${viableSites.length} viable link sites for ${linkNeighbour}`);
+  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
+    const emptyPositions = u.find_empty_surrounding_positions(site);
+    let val = -emptyPositions.length;
+    if (room.storage) {
+      val += 1 / site.getRangeTo(room.storage);
+    }
+    return val;
+  });
+
+  return _.take(sortedSites, 1);
+}
+
+function best_link_pos(source: Source) {
+  return possible_link_sites(source)[0];
 }
 
 function pickup_priority(container: StructureContainer): number {
@@ -118,24 +182,27 @@ function pickup_priority(container: StructureContainer): number {
 }
 
 function container_building_work(source: Source): BuildingWork {
-  return new BuildingWork(source.room, source.pos, STRUCTURE_CONTAINER)
+  return new BuildingWork(source.room, best_container_site(source), STRUCTURE_CONTAINER)
 }
 
 function link_building_work(source: Source): BuildingWork {
-  return new BuildingWork(source.room, source.pos, STRUCTURE_LINK)
+  return new BuildingWork(source.room, best_link_pos(source), STRUCTURE_LINK)
 }
 
 function update_mine(mine: Source): void {
   log.debug(`update_mine(${mine}): c=${mine._container}, l=${mine._link}`)
   if (!mine._container || !mine._link) {
-    const sites = find_mine_structures(mine);
+    const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
+    sites.push(...find_mine_construction(mine));
     for (const site of sites) {
-      if (!mine._link && (site instanceof StructureLink)) {
+      if (!mine._link && site.structureType === STRUCTURE_LINK) {
         mine._link = site;
-        mine._link._isSink = false;
+        if (mine._link instanceof StructureLink) {
+          mine._link._isSink = false;
+        }
         log.info(`${mine}: updated link to ${site}`);
       }
-      else if (!mine._container && (site instanceof StructureContainer)) {
+      else if (!mine._container && (site.structureType === STRUCTURE_CONTAINER)) {
         mine._container = site;
         log.info(`${mine}: updated container to ${site}`);
       }
@@ -211,13 +278,14 @@ export default class BusinessEnergyMining implements Business.Model {
 
     const link = mine.link();
     if (link) {
-      jobs.push(new JobUnload(link, this._priority - 0.1));
+      jobs.push(new JobUnload(link, this._priority));
     }
 
     const container = mine.container();
     if (container) {
-      jobs.push(new JobRepair(container, this._priority - 0.2));
-      jobs.push(new JobUnload(container, this._priority - 0.3));
+      jobs.push(new JobRepair(container, this._priority));
+      jobs.push(new JobUnload(container, this._priority - 2));
+      jobs.push(new JobDrop(container, this._priority - 3));
     }
 
     // Get employees to build their own structures

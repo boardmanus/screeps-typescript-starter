@@ -37,10 +37,10 @@ export default class JobBuild implements Job.Model {
   readonly _site: ConstructionSite;
   readonly _priority: number;
 
-  constructor(site: ConstructionSite, priority?: number) {
+  constructor(site: ConstructionSite, priority: number = 5) {
 
     this._site = site;
-    this._priority = (priority !== undefined) ? priority : 10;
+    this._priority = priority;
   }
 
   id(): string {
@@ -61,7 +61,8 @@ export default class JobBuild implements Job.Model {
 
   priority(workers?: Creep[]): number {
     if (!workers) return this._priority;
-    return this._priority / (workers.length + 1);
+    const priority = this._priority / (workers.length + 1);
+    return priority;
   }
 
   isSatisfied(workers: Creep[]): boolean {
@@ -114,5 +115,5 @@ Job.factory.addBuilder(JobBuild.TYPE, (id: string): Job.Model | undefined => {
   const site = <ConstructionSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  return new JobBuild(site, priority);
+  return new JobBuild(site);
 });

@@ -12,7 +12,6 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
       resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
     }
 
-    log.debug(`${job}: ${worker} trying to transfer ${worker.store[resource]} of ${resource} to ${site}`)
     let res: number = worker.transfer(site, resource);
     switch (res) {
       case OK:
@@ -25,7 +24,7 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
           log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to unload site ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       default:
@@ -80,20 +79,16 @@ export default class JobUnload implements Job.Model {
       return 0;
     }
 
-    switch (this._site.structureType) {
-      case STRUCTURE_LINK:
-      case STRUCTURE_CONTAINER:
-        {
-          const distance = this._site.pos.getRangeTo(worker);
-          if (distance > 5) {
-            return 0;
-          }
-          break;
-        }
-      default:
-        break;
+    let e = u.taxi_efficiency(worker, this._site, Math.min(worker.available(), this._site.freeSpace()));
+    if (this._site instanceof StructureStorage) {
+      const optimumRatio = worker.freeSpace() / worker.capacity();
+      e *= optimumRatio;
+      if (this._site.pos.getRangeTo(worker) < 5) {
+        e /= 5;
+      }
     }
-    return u.taxi_efficiency(worker, this._site, Math.min(worker.available(), this._site.freeSpace()));
+
+    return e;
   }
 
   site(): RoomObject {
@@ -148,5 +143,5 @@ Job.factory.addBuilder(JobUnload.TYPE, (id: string): Job.Model | undefined => {
   const site = <UnloadSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  return new JobUnload(site, priority);
+  return new JobUnload(site);
 });

@@ -4,7 +4,7 @@ import u from "./Utility"
 import { log } from './ScrupsLogger'
 
 
-function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure): Operation {
+function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure | Tombstone): Operation {
   return () => {
     worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
     let res: number = worker.withdraw(site, RESOURCE_ENERGY);
@@ -99,13 +99,7 @@ export default class JobPickup implements Job.Model {
       return 0;
     }
 
-    if (this._site instanceof StructureLink) {
-      const distance = this._site.pos.getRangeTo(worker);
-      if (distance < 5) {
-        booster = 2;
-      }
-    }
-    return booster * u.taxi_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()));
+    return u.taxi_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()));
   }
 
   site(): RoomObject {
@@ -119,11 +113,16 @@ export default class JobPickup implements Job.Model {
 
   completion(worker?: Creep): number {
 
+    const available = this._site.available();
+    if (available == 0) {
+      return 1.0;
+    }
+
     if (worker) {
       return 1.0 - worker.freeSpace() / worker.capacity();
     }
 
-    return this._site.available() > 0 ? 0.0 : 1.0;
+    return 0.0;
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -162,5 +161,5 @@ Job.factory.addBuilder(JobPickup.TYPE, (id: string): Job.Model | undefined => {
   const site = <PickupSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  return new JobPickup(site, priority);
+  return new JobPickup(site);
 });

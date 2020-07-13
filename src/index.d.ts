@@ -21,7 +21,6 @@ interface Creep {
 interface Source {
   _container: StructureContainer | ConstructionSite | undefined;
   _link: StructureLink | ConstructionSite | undefined;
-  _tower: StructureTower | undefined;
 
   link(): StructureLink | undefined;
   container(): StructureContainer | undefined;
@@ -36,7 +35,13 @@ interface Mineral {
 }
 
 interface StructureStorage {
-  _link: StructureLink | undefined;
+  _link: StructureLink | ConstructionSite | undefined;
+  link(): StructureLink | undefined;
+}
+
+interface StructureController {
+  _container: StructureContainer | ConstructionSite | undefined;
+  container(): StructureContainer | undefined;
 }
 
 interface StructureSpawn {

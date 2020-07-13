@@ -19,17 +19,29 @@ function map_valid_resumes(resumes: string[]): Worker[] {
 function find_best_job(creep: Creep, jobs: Job.Model[]) {
 
   const needsEnergy = (creep.available() < creep.capacity() / 2.0);
-  const jobPrerequisite = needsEnergy ? Job.Prerequisite.COLLECT_ENERGY : Job.Prerequisite.DELIVER_ENERGY;
+  let jobPrerequisite: Job.Prerequisite;
+  if (creep.available() == 0) {
+    jobPrerequisite = Job.Prerequisite.COLLECT_ENERGY;
+  }
+  else if (creep.freeSpace() == 0) {
+    jobPrerequisite = Job.Prerequisite.DELIVER_ENERGY;
+  }
+  else {
+    jobPrerequisite = Job.Prerequisite.NONE;
+  }
 
-  const viableJobs = _.sortBy(_.filter(jobs,
-    (job) => job.satisfiesPrerequisite(jobPrerequisite)),
-    (job) => -job.priority([creep]) * job.efficiency(creep));
+  const viableJobs = (jobPrerequisite == Job.Prerequisite.NONE)
+    ? jobs
+    : _.filter(jobs, (job) => job.satisfiesPrerequisite(jobPrerequisite));
 
-  if (viableJobs.length == 0) {
+  const orderedJobs = _.sortBy(viableJobs, (job) => -job.priority([creep]) * job.efficiency(creep));
+  _.each(orderedJobs, (j) => log.error(`${creep}: ${j.efficiency(creep)} e/s for ${j}`))
+
+  if (orderedJobs.length == 0) {
     return undefined;
   }
 
-  return viableJobs[0];
+  return orderedJobs[0];
 }
 
 
@@ -112,13 +124,6 @@ export default class Executive implements Work {
     this.business.survey();
 
     const jobs = this.business.permanentJobs();
-
-    for (const worker of this._employees) {
-      const workerJob = worker.job();
-      if (workerJob && !_.find(jobs, (job) => job.id() == workerJob.id())) {
-        log.warning(`${this}: ${worker} not working sanctioned job! (working ${workerJob})`);
-      }
-    }
 
     const lazyWorkers = _.filter(this._employees, (worker) => !worker.hasJob());
     if (lazyWorkers.length == 0) {

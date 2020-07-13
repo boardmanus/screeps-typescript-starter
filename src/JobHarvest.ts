@@ -64,14 +64,6 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
         break;
       case OK:
         log.info(`${job}: ${worker} is harvesting at ${site}`);
-        if (site instanceof Source) {
-          const link = site.link();
-          const container = site.container();
-          if ((link || container) && (worker.freeSpace() < u.work_energy(worker, HARVEST_POWER))) {
-            if (link) unload_at_site(job, worker, link);
-            if (container) unload_at_site(job, worker, container);
-          }
-        }
         break;
     }
   }
@@ -163,9 +155,9 @@ export default class JobHarvest implements Job.Model {
   readonly _site: HarvestSite;
   readonly _priority: number;
 
-  constructor(site: HarvestSite, priority?: number) {
+  constructor(site: HarvestSite, priority: number = 5) {
     this._site = site;
-    this._priority = (priority !== undefined) ? priority : 5;
+    this._priority = priority;
   }
 
   id(): string {
@@ -182,7 +174,7 @@ export default class JobHarvest implements Job.Model {
 
   priority(workers?: Creep[]): number {
     if (!workers) return this._priority;
-    return this._priority * 2 / (workers.length + 1);
+    return this._priority / (workers.length + 1);
   }
 
   site(): RoomObject {
@@ -190,7 +182,7 @@ export default class JobHarvest implements Job.Model {
   }
 
   baseWorkerBody(): BodyPartConstant[] {
-    return [WORK, CARRY, WORK, CARRY];
+    return [WORK, CARRY, MOVE, MOVE];
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
@@ -257,5 +249,5 @@ Job.factory.addBuilder(JobHarvest.TYPE, (id: string): Job.Model | undefined => {
   const site: HarvestSite = <HarvestSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
   const priority = Number(frags[3]);
-  return new JobHarvest(site, priority);
+  return new JobHarvest(site);
 });
