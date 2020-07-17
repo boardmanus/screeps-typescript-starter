@@ -195,6 +195,10 @@ export default class JobHarvest implements Job.Model {
 
 
   efficiency(worker: Creep): number {
+    if (worker.freeSpace() == 0 || this._site.available() == 0) {
+      return 0.0;
+    }
+
     return u.work_efficiency(worker, this._site, worker.freeSpace(), HARVEST_POWER);
   }
 

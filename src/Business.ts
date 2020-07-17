@@ -4,7 +4,6 @@ import Factory from 'Factory';
 
 export interface Model {
   id(): string;
-  site(): RoomObject;
   priority(): number;
   survey(): void;
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];

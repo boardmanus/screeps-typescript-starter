@@ -36,9 +36,9 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
 
 function resources_available(worker: Creep, site: UnloadSite): number {
   switch (site.structureType) {
-    case STRUCTURE_STORAGE: {
+    case STRUCTURE_STORAGE:
+    case STRUCTURE_TERMINAL:
       return worker.carry.getUsedCapacity();
-    }
     default: {
       return worker.available(RESOURCE_ENERGY);
     }
@@ -106,6 +106,10 @@ export default class JobUnload implements Job.Model {
       if (this._site.freeSpace() <= TOWER_ENERGY_COST) {
         return 1.0;
       }
+    }
+
+    if (this._site.freeSpace() == 0) {
+      return 1.0;
     }
 
     if (worker && (resources_available(worker, this._site) == 0)) {

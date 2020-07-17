@@ -230,15 +230,7 @@ export class Caretaker implements Expert {
   schedule(): Job.Model[] {
 
     const room = this._room;
-
-    const allSites = room.find(FIND_STRUCTURES, { filter: worker_repair_filter });
-    const repairSites: Structure[] = _.take(_.sortBy(allSites, (s: Structure) => { return -repair_priority(s); }), 10);
-    const repairJobs: JobRepair[] = _.map(repairSites, (site: Structure): JobRepair => {
-      return new JobRepair(site, repair_priority(site));
-    })
-
-    log.debug(`${this} scheduling ${repairJobs.length} repair jobs...`);
-    return repairJobs;
+    return [];
   }
 
   report(): string[] {

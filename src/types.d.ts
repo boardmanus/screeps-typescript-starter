@@ -1,10 +1,8 @@
 // memory extension samples
 interface CreepMemory {
-  _move: {};
-  //job: string | undefined;
-  //employed: boolean | undefined;
-  //homeTown: string;
+  _move: { path: string };
   lastPosition: RoomPosition | undefined;
+  stuckCount: number | undefined;
 }
 
 interface SourceMemory {
@@ -71,6 +69,6 @@ interface Memory {
 }
 
 
-type UnloadSite = StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
+type UnloadSite = StructureTerminal | StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
 type PickupSite = Resource | Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 

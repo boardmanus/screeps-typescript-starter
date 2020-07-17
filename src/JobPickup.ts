@@ -12,7 +12,7 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure | Tom
       default:
         log.error(`${job}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
         break;
-      case ERR_NOT_IN_RANGE: {
+      case ERR_NOT_IN_RANGE:
         res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
         if (res == OK) {
           log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
@@ -20,7 +20,6 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure | Tom
         else {
           log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
-      }
         break;
       case OK:
         // Finished job.

@@ -14,7 +14,9 @@ import u from "Utility";
 import { log } from 'ScrupsLogger';
 import BusinessEnergyMining from "BusinessMining";
 import BusinessBanking from "BusinessBanking";
+import BusinessConstruction from "BusinessConstruction";
 import BusinessUpgrading from "BusinessUpgrading";
+import BusinessCloning from "BusinessCloning";
 
 function map_valid_bosses(memory: BossMemory[]): Boss[] {
   return u.map_valid(
@@ -83,6 +85,7 @@ export class Mayor {
   private _executives: Executive[];
   private _bosses: Boss[];
   private _redundantBosses: Boss[];
+  private _lazyWorkers: Creep[];
 
   constructor(room: Room) {
     this._room = room;
@@ -92,6 +95,7 @@ export class Mayor {
     this._executives = map_valid_executives(room.memory.executives);
     this._bosses = map_valid_bosses(room.memory.bosses);
     this._redundantBosses = [];
+    this._lazyWorkers = [];
   }
 
   id(): string {
@@ -109,7 +113,7 @@ export class Mayor {
     const allWork: Work[] = noWork.concat(
       this._executives,
       this._bosses,
-      this._cloner.clone(this._executives, this._bosses.concat(this._redundantBosses)),
+      this._cloner.clone(this._executives, this._bosses.concat(this._redundantBosses), this._lazyWorkers),
       this._architect.design(this._executives),
       this._caretaker.repair(),
       this.transferEnergy());
@@ -162,12 +166,15 @@ export class Mayor {
     const newBusinesses: Business.Model[] =
       _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source, 1));
 
+    newBusinesses.push(new BusinessCloning(this._room));
+
     if (this._room.storage) {
       newBusinesses.push(new BusinessBanking(this._room.storage));
     }
 
     if (this._room.controller?.my) {
       newBusinesses.push(new BusinessUpgrading(this._room.controller));
+      newBusinesses.push(new BusinessConstruction(this._room.controller));
     }
 
     const unmannedBusinesses = _.filter(newBusinesses, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
@@ -214,6 +221,7 @@ export class Mayor {
     const [usefulBosses, redundantBosses] = _.partition(allBosses, (boss: Boss) => { return boss.hasWorkers() && !boss.jobComplete(); });
     log.info(`${this}: ${usefulBosses.length} bosses, ${redundantBosses.length} redundant`);
     this._bosses = usefulBosses;
+    this._lazyWorkers = lazyWorkers;
     this._redundantBosses = redundantBosses;
 
     //log.debug(`Top 10 bosses!`)
@@ -242,7 +250,8 @@ export class Mayor {
       room.find(FIND_DROPPED_RESOURCES), (r) => new JobPickup(r, 5));
 
     const tombstoneJobs: Job.Model[] = _.map(
-      room.find(FIND_TOMBSTONES), (t) => new JobPickup(t, 5));
+      room.find(FIND_TOMBSTONES, { filter: (t) => t.capacity() - t.freeSpace() > 0 }),
+      (t) => new JobPickup(t, 5));
 
     const linkers: (StructureSpawn | StructureStorage)[] = _.filter(room.find(FIND_MY_SPAWNS));
     const storage = room.storage;
@@ -269,7 +278,7 @@ export class Mayor {
     });
     log.error(`${this}: ${linkJobs.length} link pickupjobs`)
 
-    const jobs = scavengeJobs.concat(linkJobs);
+    const jobs = scavengeJobs.concat(linkJobs, tombstoneJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
     return jobs;
   }

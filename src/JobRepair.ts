@@ -65,7 +65,8 @@ export default class JobRepair implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (this._site.hits == this._site.hitsMax) {
+
+    if (this._site.hits >= this._site.hitsMax) {
       return 0.0;
     }
 
@@ -82,6 +83,9 @@ export default class JobRepair implements Job.Model {
   }
 
   completion(worker?: Creep): number {
+    if (this._site.hitsMax == 0) {
+      return 1.0;
+    }
     const c = this._site.hits / this._site.hitsMax;
     log.error(`${this}: worker=${worker}, completion=${c}`)
     if (!worker || c >= 0.99) {

@@ -1,4 +1,5 @@
-
+import { log } from 'ScrupsLogger'
+import u from 'Utility';
 
 RoomPosition.prototype.surroundingPositions = function (radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[] {
   const minx = Math.max(0, this.x - radius);
@@ -142,42 +143,37 @@ Creep.prototype.getLastJobSite = function (): RoomObject {
 }
 Creep.prototype.jobMoveTo = function (pos: RoomPosition | RoomObject, range: number, style: LineStyle): number {
 
-  const lastPosition = this.memory.lastPosition;
-  const stuck = (
-    lastPosition
-    && lastPosition.x == this.pos.x
-    && lastPosition.y == this.pos.y
-    && lastPosition.roomName == this.pos.roomName);
-
-  if (!stuck) {
-
-    const res = this.moveTo(pos, { ignoreCreeps: true, range: range, reusePath: 20, visualizePathStyle: style });
-    if (res == OK) {
-      this.memory.lastPosition = this.pos;
-      return res;
-    }
-
-    if (res != ERR_NO_PATH) {
-      this.memory.lastPosition = undefined;
-      return res;
-    }
-
-    console.log(`${this}: failed moving to ${pos} - reevaluating path`);
-  }
-  else {
-    console.log(`${this}: stuck - reevaluating path`);
+  if (this.fatigue) {
+    log.warning(`${this}: failed moving to ${pos} (tired)`);
+    return ERR_TIRED;
   }
 
-  // Clear out the old move
-  delete this.memory._move;
+  if (this.spawning) {
+    log.warning(`${this}: failed moving to ${pos} (still spawning)`);
+    return ERR_BUSY;
+  }
 
-  // Re-evaluate the path, ensuring creeps aren't ignored this time.
-  const res = this.moveTo(pos, { ignoreCreeps: false, range: range, reusePath: 20, visualizePathStyle: style });
-  if (res != OK) {
-    this.memory.lastPosition = undefined;
+  const lastPos = this.memory.lastPosition ?? this.pos;
+  const stuck = this.pos.inRangeTo(lastPos, 0);
+  const stuckCount = stuck ? (this.memory.stuckCount ?? 0) + 1 : 0;
+
+  this.memory.lastPosition = this.pos;
+  this.memory.stuckCount = stuckCount;
+
+  if (stuckCount < 2) {
+    const pathLength = this.memory._move?.path.length ?? 10;
+    const ignoreCreeps = (pathLength > 5);
+    const reusePath = (stuckCount && !ignoreCreeps) ? 5 : 20;
+    log.debug(`${this}: moveTo{ignoreCreeps=${ignoreCreeps}, reusePath=${reusePath}, pathLength=${pathLength}}`)
+    const res = this.moveTo(pos, { ignoreCreeps: ignoreCreeps, range: range, reusePath: reusePath, visualizePathStyle: style });
     return res;
   }
 
-  this.memory.lastPosition = this.pos;
+  log.warning(`${this}: stuck-${stuckCount} at ${pos}`);
+
+  // Re-evaluate the path, ensuring creeps aren't ignored this time.
+  const reusePath = (stuckCount > 5) ? 0 : 5 - stuckCount;
+  const res = this.moveTo(pos, { ignoreCreeps: false, range: range, reusePath: reusePath, visualizePathStyle: style });
+
   return res;
 }

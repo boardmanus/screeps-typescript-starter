@@ -143,10 +143,6 @@ export default class BusinessUpgrading implements Business.Model {
     return this.id();
   }
 
-  site(): RoomObject {
-    return this._controller;
-  }
-
   priority(): number {
     return this._priority;
   }
@@ -196,6 +192,8 @@ export default class BusinessUpgrading implements Business.Model {
     }
 
     let jobs: Job.Model[] = [];
+    jobs.push(new JobUpgrade(controller));
+
 
     const container = controller.container();
     if (container && container.freeSpace() > 0) {

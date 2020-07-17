@@ -12,15 +12,14 @@ import { log } from './ScrupsLogger'
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, CARRY, MOVE, MOVE];
 
+function is_cloning_structure(s: Structure): boolean {
+  return s.isActive && (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN);
+}
 
 type CloningStructure = StructureSpawn | StructureExtension;
 
 function get_cloning_energy_sites(room: Room): Structure[] {
-  return room.find<Structure>(FIND_MY_STRUCTURES, {
-    filter: (s: Structure) => {
-      return (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN);
-    }
-  });
+  return room.find<Structure>(FIND_MY_STRUCTURES, { filter: is_cloning_structure });
 }
 
 function max_workers_allowed(_room: Room): number {
@@ -48,14 +47,7 @@ function get_spawners(room: Room): StructureSpawn[] {
 
 function get_spawners_and_extensions(room: Room): CloningStructure[] {
   return room.find<CloningStructure>(FIND_MY_STRUCTURES, {
-    filter: (s: Structure) => {
-      if (s.structureType != STRUCTURE_SPAWN && s.structureType != STRUCTURE_EXTENSION) {
-        return false;
-      }
-
-      const cs: CloningStructure = <CloningStructure>s;
-      return cs.available() < cs.energyCapacity;
-    }
+    filter: (s) => is_cloning_structure(s) && (s.available() < s.capacity())
   });
 }
 
@@ -181,8 +173,9 @@ export class Cloner implements Expert {
     return _.map(
       sne,
       (site: CloningStructure): Job.Model => {
+        const basePriority = (site instanceof StructureExtension) ? 4 : 3;
         const workerHealthRatio = (this._numWorkers - nearlyDeadWorkers) / this._maxWorkers;
-        return new JobUnload(site, 4 + (1.0 - workerHealthRatio) * PRIORITY_MULTIPLIER_BY_LEVEL[site.room.controller?.level ?? 0]);
+        return new JobUnload(site, basePriority + (1.0 - workerHealthRatio) * PRIORITY_MULTIPLIER_BY_LEVEL[site.room.controller?.level ?? 0]);
       });
   }
 
@@ -192,7 +185,7 @@ export class Cloner implements Expert {
     return r;
   }
 
-  clone(ceos: Executive[], bosses: Boss[]): Work[] {
+  clone(ceos: Executive[], bosses: Boss[], lazyWorkers: Creep[]): Work[] {
 
     const spawners = _.filter(get_spawners(this._room), (s) => !s.spawning);
     if (spawners.length == 0) {
@@ -217,6 +210,11 @@ export class Cloner implements Expert {
       if (employeeBody.length > 0) {
         return [new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, ceo)];
       }
+    }
+
+    if (lazyWorkers.length > 0) {
+      log.debug(`${this}: not cloning => ${lazyWorkers.length} lazy workers present`);
+      return [];
     }
 
     const numEmployees = ceos.length - ceosWithVacancies.length;

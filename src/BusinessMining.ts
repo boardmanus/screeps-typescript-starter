@@ -117,7 +117,9 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
 }
 
 function best_container_site(source: RoomObject): RoomPosition {
-  return possible_container_sites(source)[0];
+  const sites = possible_container_sites(source);
+  log.debug(`${source}: possible_container_sites ${sites}`)
+  return sites[0];
 }
 
 function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
@@ -181,8 +183,13 @@ function pickup_priority(container: StructureContainer): number {
   return fullness * 9;
 }
 
-function container_building_work(source: Source): BuildingWork {
-  return new BuildingWork(source.room, best_container_site(source), STRUCTURE_CONTAINER)
+function container_building_work(source: Source): BuildingWork | undefined {
+  const bestSite = best_container_site(source)
+  log.debug(`${source}: best_container_site=${bestSite}`)
+  if (!bestSite) {
+    return undefined;
+  }
+  return new BuildingWork(source.room, bestSite, STRUCTURE_CONTAINER)
 }
 
 function link_building_work(source: Source): BuildingWork {
@@ -228,10 +235,6 @@ export default class BusinessEnergyMining implements Business.Model {
 
   toString(): string {
     return this.id();
-  }
-
-  site(): RoomObject {
-    return this._mine;
   }
 
   priority(): number {
@@ -327,7 +330,10 @@ export default class BusinessEnergyMining implements Business.Model {
     const work: BuildingWork[] = [];
 
     if (!mine._container && can_build_container(mine)) {
-      work.push(container_building_work(mine));
+      const buildingWork = container_building_work(mine);
+      if (buildingWork) {
+        work.push(buildingWork);
+      }
     }
 
     if (!mine._link && can_build_link(mine)) {

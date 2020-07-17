@@ -197,37 +197,6 @@ function possible_road_sites(room: Room, numAllowed: number): RoomPosition[] {
   return towerRoutes;
 }
 
-function possible_extension_sites(spawn: StructureSpawn, numExtensions: number): RoomPosition[] {
-  let radius = 1;
-  let sites: RoomPosition[] = [];
-  while (sites.length < numExtensions && radius++ < 5) {
-    const viableSites = spawn.pos.surroundingPositions(radius, (site: RoomPosition) => {
-      if ((site.x % 2) != (site.y % 2)) {
-        return false;
-      }
-
-      const terrain = site.look();
-      return _.reduce(terrain, (a: boolean, t: LookAtResult): boolean => {
-        switch (t.type) {
-          case LOOK_CONSTRUCTION_SITES:
-          case LOOK_STRUCTURES:
-            return false;
-          case LOOK_TERRAIN:
-            if (t.terrain === 'wall') return false;
-            break;
-          default:
-            break;
-        }
-        return a;
-      },
-        true);
-    });
-    sites = sites.concat(viableSites);
-  }
-  log.info(`found ${sites.length} viable extensions sites ${sites}`);
-  return sites;
-}
-
 function possible_lab_sites(spawn: StructureSpawn, numExtensions: number): RoomPosition[] {
   let radius = 1;
   let sites: RoomPosition[] = [];
@@ -553,8 +522,8 @@ export class BuildingWork implements Work {
 }
 
 const PRIORITY_BY_LEVEL: number[] = [
-  0,
-  0,
+  1,
+  1,
   1,
   2,
   5,
@@ -592,41 +561,6 @@ export class Architect implements Expert {
 
   }
 
-  designExtensions(): Work[] {
-    const room = this._room;
-    const controller = room.controller;
-    if (!controller) return [];
-
-    const numExtensions = u.find_num_building_sites(room, STRUCTURE_EXTENSION);
-
-    const allowedNumExtensions = CONTROLLER_STRUCTURES.extension[controller.level];
-    log.info(`${this}: current num extensions ${numExtensions} - allowed ${allowedNumExtensions}`)
-
-    if (numExtensions == allowedNumExtensions) {
-      log.info(`${this}: already have all the required extensions (${numExtensions}).`)
-      return [];
-    }
-
-    if (numExtensions > allowedNumExtensions) {
-      log.error(`${this}: have more extensions than allowed??? (${numExtensions} > ${allowedNumExtensions}`);
-      return [];
-    }
-
-    const desiredNumExtensions = allowedNumExtensions - numExtensions;
-
-    const extensionPos: RoomPosition[] = _.take(_.flatten(_.map(
-      room.find(FIND_MY_SPAWNS),
-      (spawn: StructureSpawn): RoomPosition[] => {
-        return possible_extension_sites(spawn, desiredNumExtensions);
-      })),
-      desiredNumExtensions);
-
-    return _.map(extensionPos, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new building work ${room} ... ${pos}`)
-      return new BuildingWork(room, pos, STRUCTURE_EXTENSION);
-    });
-  }
-
   designContainers(): Work[] {
     const room = this._room;
     const controller = room.controller;
@@ -647,17 +581,7 @@ export class Architect implements Expert {
       return [];
     }
 
-    const minerals: RoomObject[] = room.find(FIND_MY_STRUCTURES, { filter: (s: Structure) => { return s.structureType == STRUCTURE_EXTRACTOR; } });
-    const containerPos: RoomPosition[] = _.flatten(_.map(
-      minerals,
-      (source: RoomObject): RoomPosition[] => {
-        return possible_container_sites(source);
-      }));
-
-    return _.map(containerPos, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new container build work ${room} ... ${pos}`)
-      return new BuildingWork(room, pos, STRUCTURE_CONTAINER);
-    });
+    return [];
   }
 
   designStorage(): Work[] {
@@ -779,30 +703,16 @@ export class Architect implements Expert {
 
   design(ceos: Executive[]): Work[] {
     const businessWorks: Work[] = _.flatten(_.map(ceos, (ceo) => ceo.business.buildings()));
-    const extensionWorks: Work[] = this.designExtensions();
     const containerWorks: Work[] = this.designContainers();
     const storageWorks: Work[] = this.designStorage();
     const roadWorks: Work[] = this.designRoads();
     const towerWorks: Work[] = this.designTowers();
     const extractorWorks: Work[] = this.designExtractors();
-    return extensionWorks.concat(businessWorks, containerWorks, storageWorks, roadWorks, towerWorks, extractorWorks);
+    return businessWorks.concat(containerWorks, storageWorks, roadWorks, towerWorks, extractorWorks);
   }
 
   schedule(): Job.Model[] {
-
-    const room = this._room;
-
-    const constructionSites: ConstructionSite[] = room.find(FIND_MY_CONSTRUCTION_SITES);
-    const constructionJobs = _.map(constructionSites, (site: ConstructionSite): Job.Model => {
-      let priority = PRIORITY_BY_LEVEL[site.room?.controller?.level ?? 0];
-      if (site.structureType == STRUCTURE_EXTENSION) {
-        priority = 6;
-      }
-      return new JobBuild(site, priority);
-    });
-
-    log.debug(`${this} scheduling ${constructionJobs.length}...`);
-    return constructionJobs;
+    return [];
   }
 
   report(): string[] {

@@ -123,10 +123,6 @@ export default class BusinessBanking implements Business.Model {
     return this.id();
   }
 
-  site(): RoomObject {
-    return this._vault;
-  }
-
   priority(): number {
     return this._priority;
   }
