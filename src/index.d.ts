@@ -5,6 +5,7 @@ interface RoomPosition {
 interface RoomObject {
   available(resource?: ResourceConstant): number;
   freeSpace(resource?: ResourceConstant): number;
+  holding(): number;
   capacity(): number;
 }
 

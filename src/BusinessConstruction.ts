@@ -23,11 +23,27 @@ export function construction_priority(site: ConstructionSite): number {
   return 1;
 }
 
+function road_repair_priority(road: StructureRoad, damageRatio: number): number {
+  const decayAmount = ROAD_DECAY_AMOUNT * 5;
+  if ((road.ticksToDecay < ROAD_DECAY_TIME) && (road.hits < decayAmount)) {
+    return 5;
+  }
+  return 2 * damageRatio;
+}
+
+function rampart_repair_priority(rampart: StructureRampart, damageRatio: number): number {
+  if ((rampart.ticksToDecay < RAMPART_DECAY_TIME / 3)
+    && (rampart.hits < 2 * RAMPART_DECAY_AMOUNT)) {
+    return 5;
+  }
+  return 1 * Math.pow(damageRatio, 10)
+}
+
 function repair_priority(site: Structure): number {
   const damageRatio = (1.0 - site.hits / site.hitsMax);
   switch (site.structureType) {
-    case STRUCTURE_ROAD: return 2 * damageRatio;
-    case STRUCTURE_RAMPART: return 1 * Math.pow(damageRatio, 10);
+    case STRUCTURE_ROAD: return road_repair_priority(<StructureRoad>site, damageRatio);
+    case STRUCTURE_RAMPART: return rampart_repair_priority(<StructureRampart>site, damageRatio);
     case STRUCTURE_WALL: return 1 * Math.pow(damageRatio, 20);
     default: return 8 * damageRatio;
   }
@@ -142,6 +158,5 @@ Business.factory.addBuilder(BusinessConstruction.TYPE, (id: string): Business.Mo
   if (!controller) {
     return undefined;
   }
-  const priority = Number(frags[3]);
-  return new BusinessConstruction(controller, priority);
+  return new BusinessConstruction(controller);
 });

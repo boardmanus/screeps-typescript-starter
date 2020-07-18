@@ -194,8 +194,7 @@ Business.factory.addBuilder(BusinessBanking.TYPE, (id: string): Business.Model |
   if (!vault) {
     return undefined;
   }
-  const priority = Number(frags[3]);
-  return new BusinessBanking(vault, priority);
+  return new BusinessBanking(vault);
 });
 
 

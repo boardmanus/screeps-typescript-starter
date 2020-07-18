@@ -107,7 +107,6 @@ function container_building_work(controller: StructureController): BuildingWork 
 }
 
 function update_controller(controller: StructureController): void {
-  log.debug(`update_controller(${controller}): c=${controller._container}`)
   if (!controller._container) {
     const sites = find_controller_structures(controller);
     for (const site of sites) {
@@ -116,7 +115,6 @@ function update_controller(controller: StructureController): void {
       for (const site of sites) {
         if (!controller._container && (site.structureType === STRUCTURE_CONTAINER)) {
           controller._container = site;
-          log.info(`${controller}: updated container to ${site}`);
         }
       }
     }
@@ -226,6 +224,5 @@ Business.factory.addBuilder(BusinessUpgrading.TYPE, (id: string): Business.Model
   if (!controller) {
     return undefined;
   }
-  const priority = Number(frags[3]);
-  return new BusinessUpgrading(controller, priority);
+  return new BusinessUpgrading(controller);
 });

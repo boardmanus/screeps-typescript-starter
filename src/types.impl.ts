@@ -25,6 +25,9 @@ RoomObject.prototype.available = function (_?: ResourceConstant): number {
 RoomObject.prototype.freeSpace = function (_?: ResourceConstant): number {
   return 0;
 }
+RoomObject.prototype.holding = function (): number {
+  return this.capacity() - this.freeSpace();
+}
 RoomObject.prototype.capacity = function (): number {
   return 0;
 }
@@ -164,14 +167,12 @@ Creep.prototype.jobMoveTo = function (pos: RoomPosition | RoomObject, range: num
     const pathLength = this.memory._move?.path.length ?? 10;
     const ignoreCreeps = (pathLength > 5);
     const reusePath = (stuckCount && !ignoreCreeps) ? 5 : 20;
-    log.debug(`${this}: moveTo{ignoreCreeps=${ignoreCreeps}, reusePath=${reusePath}, pathLength=${pathLength}}`)
     const res = this.moveTo(pos, { ignoreCreeps: ignoreCreeps, range: range, reusePath: reusePath, visualizePathStyle: style });
     return res;
   }
 
-  log.warning(`${this}: stuck-${stuckCount} at ${pos}`);
-
   // Re-evaluate the path, ensuring creeps aren't ignored this time.
+  log.warning(`${this}: stuck-${stuckCount} at ${pos}`);
   const reusePath = (stuckCount > 5) ? 0 : 5 - stuckCount;
   const res = this.moveTo(pos, { ignoreCreeps: false, range: range, reusePath: reusePath, visualizePathStyle: style });
 

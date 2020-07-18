@@ -81,7 +81,7 @@ export default class JobUnload implements Job.Model {
 
     let e = u.taxi_efficiency(worker, this._site, Math.min(worker.available(), this._site.freeSpace()));
     if (this._site instanceof StructureStorage) {
-      const optimumRatio = worker.freeSpace() / worker.capacity();
+      const optimumRatio = worker.holding() / worker.capacity();
       e *= optimumRatio;
       if (this._site.pos.getRangeTo(worker) < 5) {
         e /= 5;
@@ -116,7 +116,6 @@ export default class JobUnload implements Job.Model {
       return 1.0;
     }
 
-    log.debug(`${this}: not completed (1.0 - ${this._site.freeSpace()} / ${this._site.capacity()})`)
     return 1.0 - this._site.freeSpace() / this._site.capacity();
   }
 

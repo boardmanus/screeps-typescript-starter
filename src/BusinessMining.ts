@@ -197,7 +197,6 @@ function link_building_work(source: Source): BuildingWork {
 }
 
 function update_mine(mine: Source): void {
-  log.debug(`update_mine(${mine}): c=${mine._container}, l=${mine._link}`)
   if (!mine._container || !mine._link) {
     const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
     sites.push(...find_mine_construction(mine));
@@ -207,11 +206,9 @@ function update_mine(mine: Source): void {
         if (mine._link instanceof StructureLink) {
           mine._link._isSink = false;
         }
-        log.info(`${mine}: updated link to ${site}`);
       }
       else if (!mine._container && (site.structureType === STRUCTURE_CONTAINER)) {
         mine._container = site;
-        log.info(`${mine}: updated container to ${site}`);
       }
     }
   }
@@ -353,8 +350,7 @@ Business.factory.addBuilder(BusinessEnergyMining.TYPE, (id: string): Business.Mo
   if (!mine) {
     return undefined;
   }
-  const priority = Number(frags[3]);
-  return new BusinessEnergyMining(mine, priority);
+  return new BusinessEnergyMining(mine);
 });
 
 

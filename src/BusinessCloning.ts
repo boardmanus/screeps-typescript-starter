@@ -149,6 +149,5 @@ Business.factory.addBuilder(BusinessCloning.TYPE, (id: string): Business.Model |
   if (!room) {
     return undefined;
   }
-  const priority = Number(frags[3]);
-  return new BusinessCloning(room, priority);
+  return new BusinessCloning(room);
 });

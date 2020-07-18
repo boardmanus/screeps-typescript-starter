@@ -21,14 +21,42 @@ function repair_power(tower: StructureTower, site: Structure): number {
   return 150 + (TOWER_POWER_REPAIR - 150) * (20 - d) / (20 - 5)
 }
 
+function damage_ratio(site: Structure): number {
+  return (1.0 - site.hits / site.hitsMax);
+}
+
+function wall_damage_ratio(wall: Structure): number {
+  const rcl = wall.room.controller?.level ?? 1;
+  return 1.0 - wall.hits / RAMPART_HITS_MAX[rcl];
+}
+
+function road_repair_priority(road: StructureRoad): number {
+  const decayAmount = ROAD_DECAY_AMOUNT * 5;
+  if ((road.ticksToDecay < ROAD_DECAY_TIME) && (road.hits < decayAmount)) {
+    return 8;
+  }
+  return 2 * damage_ratio(road);
+}
+
+function rampart_repair_priority(rampart: StructureRampart): number {
+  if ((rampart.ticksToDecay < RAMPART_DECAY_TIME / 3)
+    && (rampart.hits < 2 * RAMPART_DECAY_AMOUNT)) {
+    return 9;
+  }
+  const damageRatio = damage_ratio(rampart);
+  return 1 * Math.pow(damageRatio, 10)
+}
+
+function wall_repair_priority(wall: StructureWall): number {
+  return 1 * Math.pow(wall_damage_ratio(wall), 10);
+}
 
 function repair_priority(site: Structure): number {
-  const damageRatio = (1.0 - site.hits / site.hitsMax);
   switch (site.structureType) {
-    case STRUCTURE_ROAD: return 2 * damageRatio;
-    case STRUCTURE_RAMPART: return 1 * Math.pow(damageRatio, 10);
-    case STRUCTURE_WALL: return 1 * Math.pow(damageRatio, 20);
-    default: return 8 * damageRatio;
+    case STRUCTURE_ROAD: return road_repair_priority(<StructureRoad>site);
+    case STRUCTURE_RAMPART: return rampart_repair_priority(<StructureRampart>site);
+    case STRUCTURE_WALL: return wall_repair_priority(<StructureWall>site);
+    default: return 8 * damage_ratio(site);
   }
 }
 
@@ -38,38 +66,17 @@ function tower_repair_filter(tower: StructureTower[], site: Structure): boolean 
     return false;
   }
 
-  const healthRatio = site.hits / site.hitsMax;
   switch (site.structureType) {
     case STRUCTURE_WALL:
-      return site.hits / 3000000 < 0.2;
+      return wall_damage_ratio(site) > 0.92;
     case STRUCTURE_RAMPART:
-      return healthRatio < 0.08;
+      return damage_ratio(site) > 0.92;
     default:
       break;
   }
 
   const power: number = _.max(_.map(tower, (t: StructureTower): number => { return repair_power(t, site); }));
   return site.hitsMax - site.hits > power;
-}
-
-function worker_repair_filter(site: Structure): boolean {
-  if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
-    return false;
-  }
-
-  const healthRatio = site.hits / site.hitsMax;
-  switch (site.structureType) {
-    case STRUCTURE_WALL:
-      return site.hits / 3000000 < 0.2;
-    case STRUCTURE_RAMPART:
-      return healthRatio < 0.2;
-    case STRUCTURE_ROAD:
-      return healthRatio < 0.5;
-    default:
-      break;
-  }
-
-  return healthRatio < 0.7;
 }
 
 class TowerRepairWork implements Work {
@@ -193,7 +200,7 @@ export class Caretaker implements Expert {
         const t = this._towers[i];
         if (t.available() < TOWER_ENERGY_COST) continue;
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-        log.debug(`INFO: ${this}: creating new tower defense work ${t} => ${f} ...`);
+        log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
         if (f) {
           work.push(new TowerDefenseWork(t, f));
         }
@@ -216,12 +223,14 @@ export class Caretaker implements Expert {
       const t = this._towers[i];
       if (t.available() < TOWER_CAPACITY / 3) continue;
 
-      const s = _.sortBy(repairSites, (s: Structure) => {
+      const sortedSites = _.sortBy(repairSites, (s: Structure) => {
         return -repair_priority(s) * repair_power(t, s);
-      })[0];
+      });
 
-      log.debug(`INFO: ${this}: creating new tower repair work ${t} => ${s} ...`)
-      work.push(new TowerRepairWork(t, s));
+      log.debug(`Top 5 Tower Repair Sites:`)
+      _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${repair_power(t, s)}`))
+      log.info(`${this}: creating new tower repair work ${t} => ${sortedSites[0]} ...`)
+      work.push(new TowerRepairWork(t, sortedSites[0]));
     }
 
     return work;

@@ -60,7 +60,9 @@ export default class JobRepair implements Job.Model {
   }
 
   priority(workers?: Creep[]): number {
-    if (!workers) return this._priority;
+    if (!workers) {
+      return this._priority;
+    }
     return this._priority / (workers.length + 1);
   }
 
@@ -86,8 +88,8 @@ export default class JobRepair implements Job.Model {
     if (this._site.hitsMax == 0) {
       return 1.0;
     }
+
     const c = this._site.hits / this._site.hitsMax;
-    log.error(`${this}: worker=${worker}, completion=${c}`)
     if (!worker || c >= 0.99) {
       return c;
     }

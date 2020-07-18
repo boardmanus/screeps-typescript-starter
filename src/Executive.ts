@@ -35,7 +35,7 @@ function find_best_job(creep: Creep, jobs: Job.Model[]) {
     : _.filter(jobs, (job) => job.satisfiesPrerequisite(jobPrerequisite));
 
   const orderedJobs = _.sortBy(viableJobs, (job) => -job.priority([creep]) * job.efficiency(creep));
-  _.each(orderedJobs, (j) => log.error(`${creep}: ${j.efficiency(creep)} e/s for ${j}`))
+  _.each(orderedJobs, (j) => log.error(`${creep}: ${j.priority([creep])}*${j.efficiency(creep)} e/s for ${j}`))
 
   if (orderedJobs.length == 0) {
     return undefined;

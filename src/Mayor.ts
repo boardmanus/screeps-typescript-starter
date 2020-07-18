@@ -164,7 +164,7 @@ export class Mayor {
     this._cloner.survey();
 
     const newBusinesses: Business.Model[] =
-      _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source, 1));
+      _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source));
 
     newBusinesses.push(new BusinessCloning(this._room));
 
@@ -202,7 +202,6 @@ export class Mayor {
         (boss) => boss.job.id() != job.id()));
 
     const newBosses = _.map(newJobs, (job) => new Boss(job));
-    log.debug(`${this}: old jobs [${oldJobs}]`);
     log.info(`${this}: ${this._bosses.length} old bosses, and ${newBosses.length} new `);
 
     if (Game.time % 1) {
@@ -270,13 +269,11 @@ export class Mayor {
               : (space < 600) ? 3
                 : 2);
 
-        log.error(`${this}: creating ${link} pickup job: energy=${energy}, p=${p}, space=${space}`)
         return new JobPickup(link, p);
       }
 
       return null;
     });
-    log.error(`${this}: ${linkJobs.length} link pickupjobs`)
 
     const jobs = scavengeJobs.concat(linkJobs, tombstoneJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
