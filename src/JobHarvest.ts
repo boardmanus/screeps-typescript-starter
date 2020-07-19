@@ -231,9 +231,13 @@ export default class JobHarvest implements Job.Model {
       ? 1.0 - this._site.energy / this._site.energyCapacity
       : 1.0 - this._site.mineralAmount / mineral_capacity(this._site);
 
-    return worker
-      ? Math.max(emptiness, worker.carry.getUsedCapacity() / worker.carryCapacity)
-      : emptiness;
+    if (worker) {
+      const maxHolding = worker.capacity() - u.work_energy(worker, 2);
+      const fullness = worker.holding() / maxHolding;
+      return Math.min(1.0, Math.max(emptiness, fullness));
+    }
+
+    return emptiness;
   }
 
   work(worker: Creep): Operation[] {

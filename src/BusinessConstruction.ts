@@ -6,8 +6,8 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, WORK];
-const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, MOVE, CARRY, WORK, MOVE, WORK, MOVE];
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK];
+const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, MOVE, CARRY];
 const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
 const MAX_BUILD_JOBS = 5;
@@ -141,8 +141,6 @@ export default class BusinessConstruction implements Business.Model {
     const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
       (site) => new JobRepair(site, repair_priority(site))),
       (job) => -job.priority()), MAX_REPAIR_JOBS);
-
-    log.debug(`${this}: contracts ${constructionJobs.length} construct, ${repairJobs.length} repair`);
 
     return [...constructionJobs, ...repairJobs];
   }

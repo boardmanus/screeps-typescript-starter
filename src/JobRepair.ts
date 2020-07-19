@@ -85,16 +85,16 @@ export default class JobRepair implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    if (this._site.hitsMax == 0) {
+    if (this._site.hits >= this._site.hitsMax) {
       return 1.0;
     }
 
     const c = this._site.hits / this._site.hitsMax;
-    if (!worker || c >= 0.99) {
+    if (!worker) {
       return c;
     }
 
-    return 1.0 - worker.available() / worker.capacity();
+    return Math.max(c, 1.0 - worker.available() / worker.capacity());
   }
 
   baseWorkerBody(): BodyPartConstant[] {

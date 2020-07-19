@@ -395,84 +395,6 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
   return _.take(sortedSites, 1);
 }
 
-function possible_storage_sites(controller: StructureController): RoomPosition[] {
-  const viableSites = controller.pos.surroundingPositions(2, (site: RoomPosition): boolean => {
-    const terrain = site.look();
-    for (const t of terrain) {
-      switch (t.type) {
-        case LOOK_CONSTRUCTION_SITES:
-          return false;
-        case LOOK_STRUCTURES:
-          return false;
-        case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
-            return false;
-          }
-          break;
-        default:
-          break;
-      }
-    }
-    return true;
-  });
-
-  log.info(`found ${viableSites.length} viable storage sites ${viableSites}`);
-  return viableSites;
-}
-
-function storage_site_viability(pos: RoomPosition, room: Room): number {
-  const spacialViability = _.reduce(
-    pos.surroundingPositions(1),
-    (a: number, p: RoomPosition): number => {
-
-      const terrain = p.look();
-      let viability = 1;
-      for (const t of terrain) {
-        switch (t.type) {
-          case LOOK_SOURCES:
-          case LOOK_MINERALS:
-            viability = 0;
-            break;
-          case LOOK_CONSTRUCTION_SITES:
-            if (t.constructionSite && !u.is_passible_structure(t.constructionSite)) {
-              viability = 0;
-            }
-            break;
-          case LOOK_STRUCTURES:
-            if (t.structure && !u.is_passible_structure(t.structure)) {
-              viability = 0;
-            }
-            break;
-          case LOOK_TERRAIN:
-            if (t.terrain == 'wall') {
-              return 0;
-            }
-            else if (t.terrain == 'swamp') {
-              viability *= 1.0;
-            }
-            break;
-          default:
-            break;
-        }
-      }
-      return a + viability;
-    },
-    0);
-
-  const spawners = room.find(FIND_MY_SPAWNS);
-  if (spawners.length == 0) {
-    return spacialViability;
-  }
-  const locationalViability = _.min(_.map(
-    spawners,
-    (s: StructureSpawn): number => {
-      return pos.getRangeTo(s);
-    }));
-
-  // Want positions with lots of space around, and closer to spawns
-  return spacialViability - locationalViability;
-}
-
 function possible_extractor_sites(room: Room): RoomPosition[] {
   const minerals = room.find(FIND_MINERALS);
   const viableSites: RoomPosition[] = _.map(minerals, (m: Mineral): RoomPosition => { return m.pos; });
@@ -584,42 +506,6 @@ export class Architect implements Expert {
     return [];
   }
 
-  designStorage(): Work[] {
-    const room = this._room;
-    const controller = room.controller;
-    if (!controller) return [];
-
-    const numStorage = u.find_num_building_sites(room, STRUCTURE_STORAGE);
-    const allowedNumStorage = CONTROLLER_STRUCTURES.storage[controller.level];
-    log.info(`${this}: current num storage ${numStorage} - allowed ${allowedNumStorage}`)
-
-    if (numStorage == allowedNumStorage) {
-      log.info(`${this}: already have all the required storage (${numStorage}).`)
-      return [];
-    }
-
-    if (numStorage > allowedNumStorage) {
-      log.error(`${this}: have more storage than allowed??? (${numStorage} > ${allowedNumStorage}`);
-      return [];
-    }
-
-    // Currently only one storage allowed - it goes next to the controller
-    if (numStorage != 0) {
-      log.error(`${this}: only expected one storage to be available - update code!`);
-      return [];
-    }
-
-    const storagePos: RoomPosition[] = _.take(_.sortBy(
-      possible_storage_sites(controller),
-      (rp: RoomPosition): number => { return -storage_site_viability(rp, room); }),
-      1);
-
-    return _.map(storagePos, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new storage build work ${room} ... ${pos}`)
-      return new BuildingWork(room, pos, STRUCTURE_STORAGE);
-    });
-  }
-
   designTowers(): Work[] {
     const room = this._room;
     const controller = room.controller;
@@ -704,11 +590,10 @@ export class Architect implements Expert {
   design(ceos: Executive[]): Work[] {
     const businessWorks: Work[] = _.flatten(_.map(ceos, (ceo) => ceo.business.buildings()));
     const containerWorks: Work[] = this.designContainers();
-    const storageWorks: Work[] = this.designStorage();
     const roadWorks: Work[] = this.designRoads();
     const towerWorks: Work[] = this.designTowers();
     const extractorWorks: Work[] = this.designExtractors();
-    return businessWorks.concat(containerWorks, storageWorks, roadWorks, towerWorks, extractorWorks);
+    return businessWorks.concat(containerWorks, roadWorks, towerWorks, extractorWorks);
   }
 
   schedule(): Job.Model[] {

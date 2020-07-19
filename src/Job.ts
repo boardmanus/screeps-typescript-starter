@@ -1,4 +1,5 @@
 import { Operation } from "Operation";
+import { log } from "lib/logger/log";
 
 
 export enum Prerequisite {
@@ -38,7 +39,7 @@ class Factory {
 
   addBuilder(builderId: string, builder: (id: string) => Model | undefined) {
     this._builders[builderId] = builder;
-    console.log(`INFO: Added factory method for ${builderId}`)
+    log.info(`Added factory method for ${builderId}`)
   }
 
   builderId(id: string): string {

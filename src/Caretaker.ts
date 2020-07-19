@@ -106,10 +106,10 @@ class TowerRepairWork implements Work {
       const res = this.tower.repair(this.site);
       switch (res) {
         case OK:
-          log.debug(`INFO: ${this}: ${this.tower} repaired ${this.site}`);
+          log.info(`${this}: ${this.tower} repaired ${this.site}`);
           break;
         default:
-          log.debug(`ERROR: ${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
+          log.error(`${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
           break;
       }
     }];

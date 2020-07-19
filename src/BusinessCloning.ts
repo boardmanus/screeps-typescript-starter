@@ -6,15 +6,102 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 import JobUnload from 'JobUnload';
+import JobPickup from 'JobPickup';
+import JobRecycle from 'JobRecycle';
+import { setPriority } from 'os';
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
 const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
 
+function find_surrounding_recyclers(spawn: StructureSpawn): (StructureContainer | ConstructionSite)[] {
+  const recyclers = spawn.room.find<StructureContainer>(FIND_STRUCTURES, {
+    filter: (s) => (s.structureType == STRUCTURE_CONTAINER) && spawn.pos.inRangeTo(s.pos, 1)
+  });
+  if (recyclers.length > 0) {
+    return recyclers;
+  }
 
-export function find_building_sites<T extends Structure>(room: Room, type: StructureConstant): T[] {
-  return room.find<T>(FIND_STRUCTURES, { filter: (s) => s.isActive && (s.structureType === type) });
+  return spawn.room.find(FIND_CONSTRUCTION_SITES, {
+    filter: (cs) => (cs.structureType == STRUCTURE_CONTAINER) && spawn.pos.inRangeTo(cs.pos, 1)
+  });
+}
+
+
+function update_spawns(spawns: StructureSpawn[]): void {
+  _.each(spawns, (spawn) => {
+    if (!spawn._recycler) {
+      const recyclers = find_surrounding_recyclers(spawn)
+      if (recyclers.length) {
+        spawn._recycler = recyclers[0];
+      }
+    }
+  });
+}
+
+function find_active_building_sites<T extends Structure>(room: Room, type: StructureConstant): T[] {
+  return room.find<T>(FIND_MY_STRUCTURES, { filter: (s) => s.isActive && (s.structureType === type) });
+}
+
+function find_new_ext_building_sites(spawns: StructureSpawn[], exts: StructureExtension[]): RoomPosition[] {
+
+  if (spawns.length == 0) {
+    return [];
+  }
+
+  const mainSpawn = spawns[0];
+  const extConstruction = mainSpawn.room.find(FIND_CONSTRUCTION_SITES, {
+    filter: (cs) => (cs.structureType == STRUCTURE_EXTENSION)
+  });
+
+  const numExtensions: number = exts.length + extConstruction.length;
+  const rcl = mainSpawn.room.controller?.level ?? 0;
+  const allowedNumExtensions = CONTROLLER_STRUCTURES.extension[rcl];
+  log.info(`${mainSpawn}: current num extensions ${numExtensions} - allowed ${allowedNumExtensions} (rcl=${rcl})`)
+
+  if (numExtensions == allowedNumExtensions) {
+    log.info(`${mainSpawn}: already have all the required extensions (${numExtensions}).`)
+    return [];
+  }
+
+  if (numExtensions > allowedNumExtensions) {
+    log.error(`${mainSpawn}: have more extensions than allowed??? (${numExtensions} > ${allowedNumExtensions}`);
+    return [];
+  }
+
+  const desiredNumExtensions = allowedNumExtensions - numExtensions;
+
+  const extensionPos: RoomPosition[] = _.take(
+    possible_extension_sites(mainSpawn, desiredNumExtensions),
+    desiredNumExtensions);
+
+  return extensionPos;
+}
+
+function find_new_recycle_sites(spawns: StructureSpawn[], exts: StructureExtension[]): RoomPosition[] {
+
+  if (spawns.length == 0) {
+    return [];
+  }
+
+  const mainSpawn = spawns[0];
+  if (mainSpawn._recycler) {
+    return [];
+  }
+
+  const numContainers: number = u.find_num_building_sites(mainSpawn.room, STRUCTURE_CONTAINER);;
+  const allowedContainers = CONTROLLER_STRUCTURES.container[mainSpawn.room.controller?.level ?? 0];
+  if (numContainers >= allowedContainers) {
+    return [];
+  }
+
+  const possibleSites = u.find_empty_surrounding_positions(mainSpawn.pos);
+  if (possibleSites.length == 0) {
+    return [];
+  }
+
+  return _.take(possibleSites, 1);
 }
 
 
@@ -49,6 +136,158 @@ function possible_extension_sites(spawn: StructureSpawn, numExtensions: number):
   return sites;
 }
 
+function adjacent_positions(roomName: string, step: PathStep): RoomPosition[] {
+  switch (step.direction) {
+    case RIGHT:
+    case LEFT: return [
+      new RoomPosition(step.x, step.y + 1, roomName), new RoomPosition(step.x, step.y - 1, roomName)
+    ];
+    case BOTTOM:
+    case TOP: return [
+      new RoomPosition(step.x + 1, step.y, roomName), new RoomPosition(step.x - 1, step.y, roomName)
+    ];
+    case TOP_RIGHT:
+    case BOTTOM_LEFT: return [
+      new RoomPosition(step.x + 1, step.y + 1, roomName), new RoomPosition(step.x - 1, step.y - 1, roomName)
+    ];
+    case TOP_LEFT:
+    case BOTTOM_RIGHT: return [
+      new RoomPosition(step.x + 1, step.y - 1, roomName), new RoomPosition(step.x - 1, step.y + 1, roomName)
+    ];
+  }
+}
+
+function possible_storage_sites(spawn: StructureSpawn): RoomPosition[] {
+  const controller = spawn.room.controller;
+  if (!controller) {
+    log.warning(`${spawn}: no controller => no viable storage sites`);
+    return [];
+  }
+
+  const room = spawn.room;
+  const path = spawn.pos.findPathTo(controller.pos, { ignoreCreeps: true });
+  room.visual.poly(_.map(path, (p) => [p.x, p.y]));
+  const sites = _.flatten(_.map(path, (step) => adjacent_positions(room.name, step)));
+
+  const viableSites = _.filter(sites, (pos) => {
+    const terrain = pos.look();
+    return _.reduce(terrain,
+      (a: boolean, t: LookAtResult): boolean => {
+        switch (t.type) {
+          case LOOK_CONSTRUCTION_SITES:
+          case LOOK_STRUCTURES:
+            room.visual.circle(pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'red' })
+            return false;
+          case LOOK_TERRAIN:
+            if (t.terrain === 'wall') {
+              room.visual.circle(pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'red' })
+              return false;
+            }
+            break;
+          default:
+            break;
+        }
+        return a;
+      },
+      true)
+  });
+
+  log.info(`${spawn}: found ${viableSites.length} viable storage sites ${viableSites}`);
+  _.each(viableSites, (vs) => room.visual.circle(vs, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' }));
+  return viableSites;
+}
+
+function storage_site_viability(spawn: StructureSpawn, pos: RoomPosition): number {
+  const spacialViability = _.reduce(
+    pos.surroundingPositions(1),
+    (a: number, p: RoomPosition): number => {
+
+      const terrain = p.look();
+      let viability = 1;
+      for (const t of terrain) {
+        switch (t.type) {
+          case LOOK_SOURCES:
+          case LOOK_MINERALS:
+            return -2;
+          case LOOK_CONSTRUCTION_SITES:
+            if (t.constructionSite) {
+              if (!u.is_passible_structure(t.constructionSite)) {
+                return -1;
+              }
+              else if (t.constructionSite.structureType == STRUCTURE_ROAD) {
+                viability += 0.5;
+              }
+              else {
+                viability -= 0.5;
+              }
+            }
+            break;
+          case LOOK_STRUCTURES:
+            if (t.structure) {
+              if (!u.is_passible_structure(t.structure)) {
+                return -1;
+              }
+              else if (t.structure.structureType == STRUCTURE_ROAD) {
+                viability += 0.5;
+              }
+              else {
+                viability -= 0.5;
+              }
+            }
+            break;
+          case LOOK_TERRAIN:
+            if (t.terrain == 'wall') {
+              return -1;
+            }
+            break;
+          default:
+            break;
+        }
+      }
+      return a + viability;
+    },
+    0);
+
+  const linearViability = 1.0 / spawn.pos.getRangeTo(pos);
+  // Want positions with lots of space around, and closer to spawns
+  return spacialViability + linearViability;
+}
+
+function find_new_storage_sites(spawn: StructureSpawn): RoomPosition[] {
+  const room = spawn.room;
+  const rcl = room.controller?.level ?? 0;
+  const numStorage = u.find_num_building_sites(room, STRUCTURE_STORAGE);
+  const allowedNumStorage = CONTROLLER_STRUCTURES.storage[rcl];
+  log.info(`${spawn}: current num storage ${numStorage} - allowed ${allowedNumStorage}`)
+
+  if (numStorage == allowedNumStorage) {
+    log.info(`${spawn}: already have all the required storage (${numStorage}).`)
+    return [];
+  }
+
+  if (numStorage > allowedNumStorage) {
+    log.error(`${spawn}: have more storage than allowed??? (${numStorage} > ${allowedNumStorage}`);
+    return [];
+  }
+
+  // Currently only one storage allowed - it goes next to the controller
+  if (numStorage != 0) {
+    log.error(`${spawn}: only expected one storage to be available - update code!`);
+    return [];
+  }
+
+  const storagePos: RoomPosition[] = _.take(_.sortBy(
+    possible_storage_sites(spawn),
+    (rp) => -storage_site_viability(spawn, rp)),
+    1);
+
+  log.debug(`${spawn}: ${storagePos.length} storage pos ${storagePos}`)
+  room.visual.circle(storagePos[0], { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'purple' })
+  return storagePos;
+}
+
+
+
 export default class BusinessCloning implements Business.Model {
 
   static readonly TYPE: string = 'clone';
@@ -61,8 +300,8 @@ export default class BusinessCloning implements Business.Model {
   constructor(room: Room, priority: number = 5) {
     this._priority = priority;
     this._room = room;
-    this._spawns = find_building_sites(room, STRUCTURE_SPAWN);
-    this._extensions = find_building_sites(room, STRUCTURE_EXTENSION);
+    this._spawns = find_active_building_sites(room, STRUCTURE_SPAWN);
+    this._extensions = find_active_building_sites(room, STRUCTURE_EXTENSION);
   }
 
   id(): string {
@@ -78,6 +317,7 @@ export default class BusinessCloning implements Business.Model {
   }
 
   survey() {
+    update_spawns(this._spawns);
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
@@ -93,7 +333,6 @@ export default class BusinessCloning implements Business.Model {
 
   permanentJobs(): Job.Model[] {
     const jobs: Job.Model[] = [];
-    log.debug(`${this}: permanent ${jobs}`);
     return jobs;
   }
 
@@ -106,40 +345,41 @@ export default class BusinessCloning implements Business.Model {
       (s) => s.freeSpace() > 0),
       (s) => new JobUnload(s, this._priority));
 
-    const contracts = [...extJobs, ...spawnJobs];
-    log.debug(`${this}: contracts ... ${extJobs.length} exts, ${spawnJobs.length} spawns`);
+    const pickupJobs: JobPickup[] = _.map(_.filter(this._spawns,
+      (s) => { const r = s.recycler(); return r ? r.available() : false }),
+      (s) => new JobPickup(s.recycler() ?? s, this._priority));
+
+    const recycle = new JobRecycle(this._spawns[0]);
+
+    const contracts = [recycle, ...extJobs, ...spawnJobs, ...pickupJobs];
+
     return contracts;
   }
 
   buildings(): BuildingWork[] {
 
-    const numExtensions: number = u.find_num_building_sites(this._room, STRUCTURE_EXTENSION);
-    const allowedNumExtensions = CONTROLLER_STRUCTURES.extension[this._room.controller?.level ?? 0];
-    log.info(`${this}: current num extensions ${numExtensions} - allowed ${allowedNumExtensions}`)
+    const extWork = _.map(
+      find_new_ext_building_sites(this._spawns, this._extensions),
+      (pos) => {
+        log.info(`${this}: creating new building work ${this._room} @ ${pos}`)
+        return new BuildingWork(this._room, pos, STRUCTURE_EXTENSION);
+      });
 
-    if (numExtensions == allowedNumExtensions) {
-      log.info(`${this}: already have all the required extensions (${numExtensions}).`)
-      return [];
-    }
+    const recycleWork = _.map(
+      find_new_recycle_sites(this._spawns, this._extensions),
+      (pos) => {
+        log.info(`${this}: creating new recycle container work @ ${pos}`);
+        return new BuildingWork(this._room, pos, STRUCTURE_CONTAINER);
+      });
 
-    if (numExtensions > allowedNumExtensions) {
-      log.error(`${this}: have more extensions than allowed??? (${numExtensions} > ${allowedNumExtensions}`);
-      return [];
-    }
+    const storageWork: BuildingWork[] = _.map(
+      find_new_storage_sites(this._spawns[0]),
+      (pos) => {
+        log.info(`${this}: creating new storage work @ ${pos}`);
+        return new BuildingWork(this._room, pos, STRUCTURE_STORAGE);
+      });
 
-    const desiredNumExtensions = allowedNumExtensions - numExtensions;
-
-    const extensionPos: RoomPosition[] = _.take(_.flatten(_.map(
-      this._spawns,
-      (spawn: StructureSpawn): RoomPosition[] => {
-        return possible_extension_sites(spawn, desiredNumExtensions);
-      })),
-      desiredNumExtensions);
-
-    return _.map(extensionPos, (pos) => {
-      log.info(`${this}: creating new building work ${this._room} @ ${pos}`)
-      return new BuildingWork(this._room, pos, STRUCTURE_EXTENSION);
-    });
+    return [...extWork, ...recycleWork, ...storageWork];
   }
 }
 

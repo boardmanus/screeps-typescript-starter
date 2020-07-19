@@ -30,10 +30,10 @@ function map_valid_executives(memory: ExecutiveMemory[]): Executive[] {
     (executive: ExecutiveMemory): Executive | undefined => { return Executive.fromMemory(executive); });
 }
 
-function map_valid_to_links(linkers: (Source | StructureStorage | StructureSpawn)[], to: boolean): StructureLink[] {
+function map_valid_to_links(linkers: (Source | StructureStorage)[], to: boolean): StructureLink[] {
   return _.filter(
     u.map_valid(linkers,
-      (s: Source | StructureStorage | StructureSpawn): StructureLink | undefined => (s._link instanceof StructureLink) ? s._link : undefined),
+      (s: Source | StructureStorage): StructureLink | undefined => (s._link instanceof StructureLink) ? s._link : undefined),
     (l: StructureLink) => (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100));
 }
 
@@ -128,7 +128,7 @@ export class Mayor {
     const room = this._room;
     const fromLinks = map_valid_to_links(room.find(FIND_SOURCES), false);
 
-    const linkers: (StructureStorage | StructureSpawn)[] = room.find(FIND_MY_SPAWNS);
+    const linkers: StructureStorage[] = [];
     if (room.storage) {
       linkers.push(room.storage);
     }
@@ -166,7 +166,18 @@ export class Mayor {
     const newBusinesses: Business.Model[] =
       _.map(this._room.find(FIND_SOURCES), (source) => new BusinessEnergyMining(source));
 
-    newBusinesses.push(new BusinessCloning(this._room));
+    const remoteMining = u.map_valid(this._room.memory?.remoteMines ?? [],
+      (sm) => {
+        const source = Game.getObjectById<Source>(sm.id);
+        log.debug(`${this}: remoteSource=${sm.id}:${source}`)
+        return source ? new BusinessEnergyMining(source) : undefined;
+      });
+    log.info(`${this}: remote mines ${remoteMining}`)
+
+    newBusinesses.push(...remoteMining)
+
+    const cloningBusiness = new BusinessCloning(this._room);
+    newBusinesses.push(cloningBusiness);
 
     if (this._room.storage) {
       newBusinesses.push(new BusinessBanking(this._room.storage));
@@ -249,10 +260,11 @@ export class Mayor {
       room.find(FIND_DROPPED_RESOURCES), (r) => new JobPickup(r, 5));
 
     const tombstoneJobs: Job.Model[] = _.map(
-      room.find(FIND_TOMBSTONES, { filter: (t) => t.capacity() - t.freeSpace() > 0 }),
+      room.find(FIND_TOMBSTONES, { filter: (t) => t.holding() > 0 }),
       (t) => new JobPickup(t, 5));
+    _.each(tombstoneJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().holding()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
-    const linkers: (StructureSpawn | StructureStorage)[] = _.filter(room.find(FIND_MY_SPAWNS));
+    const linkers: StructureStorage[] = [];
     const storage = room.storage;
     if (storage) {
       linkers.push(storage);

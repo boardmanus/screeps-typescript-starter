@@ -272,27 +272,30 @@ export default class BusinessEnergyMining implements Business.Model {
     }
 
     const jobs: Job.Model[] = [];
-    if (mine._link || mine._container) {
-      jobs.push(new JobHarvest(mine, this._priority));
-    }
-
     const link = mine.link();
+    const container = mine.container();
+    if (mine.available() > 0 && (link || container)) {
+      jobs.push(new JobHarvest(mine, this._priority));
+
     if (link) {
       jobs.push(new JobUnload(link, this._priority));
     }
 
-    const container = mine.container();
     if (container) {
-      jobs.push(new JobRepair(container, this._priority));
       jobs.push(new JobUnload(container, this._priority - 2));
       jobs.push(new JobDrop(container, this._priority - 3));
+    }
+    }
+
+    // Allow the employee to repair the container, even if no energy
+    // in mine.
+    if (container && container.hits < container.hitsMax) {
+      jobs.push(new JobRepair(container, this._priority));
     }
 
     // Get employees to build their own structures
     const buildsites = find_mine_construction(this._mine);
     _.each(buildsites, (s) => jobs.push(new JobBuild(s, this._priority)));
-
-    log.debug(`${this}: permanent ${jobs}`);
 
     return jobs;
   }
@@ -318,7 +321,6 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobPickup(container, pickup_priority(container)));
     }
 
-    log.debug(`${this}: contracts ${jobs}`);
     return jobs;
   }
 

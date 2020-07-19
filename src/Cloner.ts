@@ -18,30 +18,13 @@ function is_cloning_structure(s: Structure): boolean {
 
 type CloningStructure = StructureSpawn | StructureExtension;
 
-function get_cloning_energy_sites(room: Room): Structure[] {
-  return room.find<Structure>(FIND_MY_STRUCTURES, { filter: is_cloning_structure });
-}
-
 function max_workers_allowed(_room: Room): number {
   return 8;
 }
 
-function get_cloning_energy(room: Room): [number, number] {
-  return _.reduce(
-    get_cloning_energy_sites(room),
-    (energy: [number, number], site: Structure): [number, number] => {
-      energy[0] += site.available();
-      energy[1] += site.capacity();
-      return energy;
-    },
-    [0, 0]);
-}
-
 function get_spawners(room: Room): StructureSpawn[] {
   return room.find<StructureSpawn>(FIND_MY_STRUCTURES, {
-    filter: (s: AnyStructure) => {
-      return s.structureType == STRUCTURE_SPAWN;
-    }
+    filter: (s) => s.structureType == STRUCTURE_SPAWN
   });
 }
 
@@ -195,7 +178,8 @@ export class Cloner implements Expert {
 
     log.debug(`${this}: ${bosses.length} contract jobs, ${this._numWorkers} workers...`)
 
-    let [availableEnergy, totalEnergy] = get_cloning_energy(this._room);
+    const availableEnergy = this._room.energyAvailable;
+    const totalEnergy = this._room.energyCapacityAvailable;
     if (availableEnergy < 100) {
       log.debug(`${this}: not energy (${availableEnergy}) for cloning.`);
       return [];

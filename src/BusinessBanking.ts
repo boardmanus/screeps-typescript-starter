@@ -11,7 +11,7 @@ import { log } from 'ScrupsLogger';
 import { object, min } from 'lodash';
 import JobDrop from 'JobDrop';
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
 const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
@@ -146,7 +146,6 @@ export default class BusinessBanking implements Business.Model {
     // No permanent jobs for banking. Just ensures a good transporter is
     // created
     return [];
-    ;
   }
 
   contractJobs(): Job.Model[] {
@@ -172,7 +171,6 @@ export default class BusinessBanking implements Business.Model {
       jobs.push(new JobPickup(link, this._priority));
     }
 
-    log.debug(`${this}: contracts ${jobs}`);
     return jobs;
   }
 

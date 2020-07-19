@@ -89,6 +89,9 @@ StructureSpawn.prototype.freeSpace = function (resource = RESOURCE_ENERGY): numb
 StructureSpawn.prototype.capacity = function (): number {
   return this.store.getCapacity(RESOURCE_ENERGY) ?? 0;
 }
+StructureSpawn.prototype.recycler = function (): StructureContainer | undefined {
+  return (this._recycler instanceof StructureContainer) ? this._recycler : undefined;
+}
 
 StructureContainer.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return this.store[resource] ?? 0;

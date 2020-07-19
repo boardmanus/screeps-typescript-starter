@@ -22,6 +22,7 @@ namespace u {
 
   export function errstr(screepsErr: number): string {
     switch (screepsErr) {
+      case OK: return "OK";
       case ERR_BUSY: return "ERR_BUSY";
       case ERR_FULL: return "ERR_FULL";
       case ERR_GCL_NOT_ENOUGH: return "ERR_GCL_NOT_ENOUGH";
@@ -49,14 +50,15 @@ namespace u {
 
   export function generate_body(bodyBase: BodyPartConstant[], bodyTemplate: BodyPartConstant[], funds: number): BodyPartConstant[] {
 
-    const body: BodyPartConstant[] = [...bodyBase];
-    const minCost = body_cost(body);
+    const minCost = body_cost(bodyBase);
     if (funds < minCost) {
       log.debug(`generate_body: funds=${funds} are less than minBody=${bodyTemplate}=${minCost}`)
       return [];
     }
 
+    const body: BodyPartConstant[] = [...bodyBase];
     funds -= minCost;
+
     let outOfFunds = false;
     do {
       for (const b of bodyTemplate) {
@@ -110,8 +112,8 @@ namespace u {
     return room.find(FIND_CONSTRUCTION_SITES, { filter: (s) => (s.structureType === type) });
   }
 
-  export function find_building_sites(room: Room, type: StructureConstant): AnyStructure[] {
-    return room.find(FIND_STRUCTURES, { filter: (s) => (s.structureType === type) });
+  export function find_building_sites<T extends Structure>(room: Room, type: StructureConstant): T[] {
+    return room.find<T>(FIND_STRUCTURES, { filter: (s) => (s.structureType === type) });
   }
 
   export function find_num_building_sites(room: Room, type: StructureConstant | BuildableStructureConstant): number {
@@ -196,7 +198,7 @@ namespace u {
   }
 
   export function taxi_efficiency(worker: Creep, site: Site, energy: number): number {
-    const numCarryParts = _.sum(worker.body, (b: BodyPartDefinition): number => { return (b.type == CARRY) ? 1 : 0; });
+    const numCarryParts = _.sum(worker.body, (b: BodyPartDefinition) => ((b.hits > 0) && (b.type == CARRY)) ? 1 : 0);
     if (numCarryParts == 0) {
       return 0;
     }

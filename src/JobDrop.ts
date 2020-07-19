@@ -64,9 +64,9 @@ export default class JobDrop implements Job.Model {
   efficiency(worker: Creep): number {
     const lastSite = worker.getLastJobSite();
     if (lastSite === this._site || lastSite instanceof StructureContainer) {
-      return 0;
+      return 0.0;
     }
-    return 0.1;
+    return 0.001;
   }
 
   site(): RoomObject {
@@ -104,6 +104,5 @@ Job.factory.addBuilder(JobDrop.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <StructureContainer>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  const priority = Number(frags[3]);
   return new JobDrop(site);
 });

@@ -6,18 +6,18 @@ interface CreepMemory {
 }
 
 interface SourceMemory {
-  id: string | undefined;
+  id: string;
   container: string | undefined;
   link: string | undefined;
 }
 
 interface StorageMemory {
-  id: string | undefined;
+  id: string;
   link: string | undefined;
 }
 
 interface SpawnMemory {
-  id: string | undefined;
+  id: string;
   link: string | undefined;
 }
 
@@ -42,7 +42,7 @@ interface ArchitectMemory {
 }
 
 interface RoomMemory {
-  expats: string[];
+  remoteMines: SourceMemory[];
   executives: ExecutiveMemory[];
   bosses: BossMemory[];
   sources: SourceMemory[];

@@ -8,8 +8,8 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, CARRY, WORK, WORK];
-const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK];
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, CARRY, WORK, WORK, WORK, WORK, WORK, WORK];
+const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, WORK, WORK, WORK];
 const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
 
@@ -176,8 +176,6 @@ export default class BusinessUpgrading implements Business.Model {
       jobs.push(new JobPickup(container, 1));
     }
 
-    log.debug(`${this}: permanent ${jobs}`);
-
     return jobs;
   }
 
@@ -199,7 +197,6 @@ export default class BusinessUpgrading implements Business.Model {
       jobs.push(new JobUnload(container, urgency * 9));
     }
 
-    log.debug(`${this}: contracts ${jobs}`);
     return jobs;
   }
 

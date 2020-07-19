@@ -46,7 +46,8 @@ interface StructureController {
 }
 
 interface StructureSpawn {
-  _link: StructureLink | undefined;
+  _recycler: StructureContainer | ConstructionSite | undefined;
+  recycler(): StructureContainer | undefined;
 }
 
 interface StructureLink {
