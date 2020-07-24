@@ -1,14 +1,12 @@
 import * as Business from 'Business';
 import * as Job from "Job";
-import JobBuild from 'JobBuild';
-import JobRepair from 'JobRepair';
-import { BuildingWork } from 'Architect';
-import u from 'Utility';
-import { log } from 'ScrupsLogger';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRecycle from 'JobRecycle';
-import { setPriority } from 'os';
+import Worker from 'Worker';
+import { BuildingWork } from 'Architect';
+import { log } from 'ScrupsLogger';
+import u from 'Utility';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -35,6 +33,12 @@ function update_spawns(spawns: StructureSpawn[]): void {
       const recyclers = find_surrounding_recyclers(spawn)
       if (recyclers.length) {
         spawn._recycler = recyclers[0];
+      }
+    }
+    if (spawn.spawning) {
+      const creep = Game.creeps[spawn.spawning.name];
+      if (creep && !creep.memory.home) {
+        creep.memory.home = spawn.room.name;
       }
     }
   });
@@ -296,12 +300,18 @@ export default class BusinessCloning implements Business.Model {
   private readonly _room: Room;
   private readonly _spawns: StructureSpawn[];
   private readonly _extensions: StructureExtension[];
+  private readonly _workerHealthRatio: number;
 
   constructor(room: Room, priority: number = 5) {
     this._priority = priority;
     this._room = room;
     this._spawns = find_active_building_sites(room, STRUCTURE_SPAWN);
     this._extensions = find_active_building_sites(room, STRUCTURE_EXTENSION);
+
+    const creeps = room.find(FIND_MY_CREEPS);
+    const nearlyDeadWorkers = _.filter(creeps, (c) => c.ticksToLive && c.ticksToLive < 200).length;
+    const maxWorkers = 8;
+    this._workerHealthRatio = (creeps.length - nearlyDeadWorkers) / maxWorkers;
   }
 
   id(): string {
@@ -314,6 +324,10 @@ export default class BusinessCloning implements Business.Model {
 
   priority(): number {
     return this._priority;
+  }
+
+  needsEmployee(employees: Worker[]): boolean {
+    return employees.length == 0;
   }
 
   survey() {
@@ -337,13 +351,17 @@ export default class BusinessCloning implements Business.Model {
   }
 
   contractJobs(): Job.Model[] {
+
+
+    const extPriority = 4 + (1.0 - this._workerHealthRatio) * this._priority;
     const extJobs: JobUnload[] = _.map(_.filter(this._extensions,
       (e) => e.freeSpace() > 0),
-      (e) => new JobUnload(e, this._priority));
+      (e) => new JobUnload(e, extPriority));
 
+    const spawnPriority = 3 + (1.0 - this._workerHealthRatio) * this._priority;
     const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
       (s) => s.freeSpace() > 0),
-      (s) => new JobUnload(s, this._priority));
+      (s) => new JobUnload(s, spawnPriority));
 
     const pickupJobs: JobPickup[] = _.map(_.filter(this._spawns,
       (s) => { const r = s.recycler(); return r ? r.available() : false }),
@@ -352,6 +370,7 @@ export default class BusinessCloning implements Business.Model {
     const recycle = new JobRecycle(this._spawns[0]);
 
     const contracts = [recycle, ...extJobs, ...spawnJobs, ...pickupJobs];
+    log.debug(`${this}: ${contracts.length} contracts (${extJobs.length} exts)`)
 
     return contracts;
   }

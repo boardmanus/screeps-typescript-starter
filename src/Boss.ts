@@ -1,6 +1,7 @@
 import * as Job from "Job";
 import { Operation } from "./Operation";
 import { Work } from "./Work";
+import JobRecycle from "JobRecycle"
 import u from "./Utility";
 import { log } from './ScrupsLogger';
 
@@ -9,23 +10,29 @@ export default class Boss implements Work {
   readonly job: Job.Model;
   private _workers: Creep[];
 
-  static fromMemory(memory: BossMemory): Boss | undefined {
-    const job = Job.factory.build(memory.job);
+  static fromMemory(memory: BossMemory, jobMap: Job.Map): Boss | undefined {
+    const job = jobMap[memory.job] ?? Job.factory.build(memory.job);
     if (!job) return undefined;
 
     const workers = _.filter(
       u.map_valid_creeps(memory.workers),
       (worker: Creep) => {
-        if (job.completion(worker) < 1.0) {
-          log.debug(`${job.id()}: not complete ${worker.id}`);
-          worker.setJob(job.id());
-          return true;
+
+        if (worker._job != undefined) {
+          log.error(`${worker}: already assigned to ${worker._job}! (not reassigning to ${job.id()})`);
+          return false;
         }
 
-        log.debug(`${job.id()}: complete!`);
-        worker.setLastJobSite(job.site());
-        worker.setJob(undefined);
-        return false;
+        if (job.completion(worker) >= 1.0) {
+          log.debug(`${job.id()}: complete!`);
+          worker.setLastJobSite(job.site());
+          worker.setJob(undefined);
+          return false;
+        }
+
+        //log.debug(`${job.id()}: not complete ${worker.id}`);
+        worker.setJob(job.id());
+        return true;
       });
 
     const boss = new Boss(job, workers);
@@ -34,7 +41,7 @@ export default class Boss implements Work {
 
   toMemory(): BossMemory {
     const memory = <BossMemory>{
-      job: `${this.job.id()}-${this.priority()}`,
+      job: this.job.id(),
       workers: _.map(this._workers, (worker: Creep): string => { return worker.id }),
     };
 

@@ -169,7 +169,8 @@ Creep.prototype.jobMoveTo = function (pos: RoomPosition | RoomObject, range: num
   if (stuckCount < 2) {
     const pathLength = this.memory._move?.path.length ?? 10;
     const ignoreCreeps = (pathLength > 5);
-    const reusePath = (stuckCount && !ignoreCreeps) ? 5 : 20;
+    const reusePath = (stuckCount && !ignoreCreeps) ? 5 : 50;
+    style.lineStyle = ignoreCreeps ? "solid" : "dashed";
     const res = this.moveTo(pos, { ignoreCreeps: ignoreCreeps, range: range, reusePath: reusePath, visualizePathStyle: style });
     return res;
   }

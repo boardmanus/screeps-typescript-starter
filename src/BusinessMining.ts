@@ -5,11 +5,11 @@ import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRepair from 'JobRepair';
 import JobBuild from 'JobBuild';
-import { BuildingWork } from 'Architect';
-import u from 'Utility';
-import { log } from 'ScrupsLogger';
-import { object, min } from 'lodash';
 import JobDrop from 'JobDrop';
+import Worker from 'Worker';
+import u from 'Utility';
+import { BuildingWork } from 'Architect';
+import { log } from 'ScrupsLogger';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
@@ -38,13 +38,20 @@ function find_mine_construction(mine: Source): ConstructionSite[] {
 }
 
 function can_build_container(source: Source): boolean {
-  const rcl = source.room.controller?.level ?? 0;
-  if (rcl < 3) {
+
+  const controller = source.room.controller;
+  if (!controller) {
+    return false;
+  }
+
+  const rcl = controller.level;
+  if (controller.my && rcl < 3) {
     return false;
   }
 
   const numContainers = u.find_num_building_sites(source.room, STRUCTURE_CONTAINER);
   const allowedNumContainers = CONTROLLER_STRUCTURES.container[rcl];
+  log.debug(`${source}: can_build_container: ${numContainers} around, ${allowedNumContainers} allowed`)
 
   return ((allowedNumContainers - numContainers) > 0);
 }
@@ -67,7 +74,7 @@ function can_build_link(source: Source): boolean {
   return haveSinkLink;
 }
 
-function possible_container_sites(source: RoomObject): RoomPosition[] {
+function possible_container_sites(source: Source): RoomPosition[] {
   let haveContainer: boolean = false;
   const viableSites = source.pos.surroundingPositions(1, (site: RoomPosition): boolean => {
     if (haveContainer) {
@@ -77,15 +84,32 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
     for (const t of terrain) {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_CONTAINER) {
-            haveContainer = true;
+          if (t.constructionSite) {
+            switch (t.constructionSite.structureType) {
+              case STRUCTURE_CONTAINER:
+                haveContainer = true;
+                return false;
+              case STRUCTURE_ROAD:
+                break;
+              default:
+                return false;
+            }
           }
-          return false;
+          break;
         case LOOK_STRUCTURES:
-          if (t.structure && t.structure.structureType == STRUCTURE_CONTAINER) {
-            haveContainer = true;
+          if (t.structure) {
+
+            switch (t.structure.structureType) {
+              case STRUCTURE_CONTAINER:
+                haveContainer = true;
+                return false;
+              case STRUCTURE_ROAD:
+                break;
+              default:
+                return false;
+            }
           }
-          return false;
+          break;
         case LOOK_TERRAIN:
           if (t.terrain == 'wall') {
             return false;
@@ -103,8 +127,14 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
   }
 
   log.info(`found ${viableSites.length} viable container sites ${viableSites}`);
+  return viableSites;
+}
+
+function best_container_site(source: Source): RoomPosition {
+  const sites = possible_container_sites(source);
+
   const room = source.room;
-  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
+  const sortedSites = _.sortBy(sites, (site: RoomPosition) => {
     const emptyPositions = u.find_empty_surrounding_positions(site);
     let val = -emptyPositions.length;
     if (room && room.storage) {
@@ -113,17 +143,14 @@ function possible_container_sites(source: RoomObject): RoomPosition[] {
     return val;
   });
 
-  return _.take(sortedSites, 1);
-}
-
-function best_container_site(source: RoomObject): RoomPosition {
-  const sites = possible_container_sites(source);
-  log.debug(`${source}: possible_container_sites ${sites}`)
-  return sites[0];
+  const style: CircleStyle = { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'purple' };
+  _.each(sites, (s) => room.visual.circle(s.x, s.y, style));
+  return sortedSites[0];
 }
 
 function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
   let haveLink: boolean = false;
+  log.debug(`${linkNeighbour}: looking for link positions around`)
   const room = linkNeighbour.room;
   if (!room) {
     return [];
@@ -157,6 +184,8 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
     return true;
   });
 
+  log.debug(`${linkNeighbour}: ${viableSites.length} viable sites (haveLink=${haveLink})`)
+
   if (haveLink) {
     return [];
   }
@@ -175,7 +204,8 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
 }
 
 function best_link_pos(source: Source) {
-  return possible_link_sites(source)[0];
+  const linkSite = source._container ?? source;
+  return possible_link_sites(linkSite)[0];
 }
 
 function pickup_priority(container: StructureContainer): number {
@@ -219,7 +249,7 @@ export default class BusinessEnergyMining implements Business.Model {
   static readonly TYPE: string = 'em';
 
   private readonly _priority: number;
-  private readonly _mine: Source;
+  readonly _mine: Source;
 
   constructor(mine: Source, priority: number = 5) {
     this._priority = priority;
@@ -236,6 +266,10 @@ export default class BusinessEnergyMining implements Business.Model {
 
   priority(): number {
     return this._priority;
+  }
+
+  needsEmployee(employees: Worker[]): boolean {
+    return employees.length == 0;
   }
 
   survey() {
@@ -274,17 +308,17 @@ export default class BusinessEnergyMining implements Business.Model {
     const jobs: Job.Model[] = [];
     const link = mine.link();
     const container = mine.container();
-    if (mine.available() > 0 && (link || container)) {
+    if (mine.available() > 0 && (mine._link || mine._container)) {
       jobs.push(new JobHarvest(mine, this._priority));
 
-    if (link) {
-      jobs.push(new JobUnload(link, this._priority));
-    }
+      if (link) {
+        jobs.push(new JobUnload(link, this._priority));
+      }
 
-    if (container) {
-      jobs.push(new JobUnload(container, this._priority - 2));
-      jobs.push(new JobDrop(container, this._priority - 3));
-    }
+      if (container) {
+        jobs.push(new JobUnload(container, this._priority - 2));
+        jobs.push(new JobDrop(container, this._priority - 3));
+      }
     }
 
     // Allow the employee to repair the container, even if no energy
@@ -294,8 +328,13 @@ export default class BusinessEnergyMining implements Business.Model {
     }
 
     // Get employees to build their own structures
-    const buildsites = find_mine_construction(this._mine);
-    _.each(buildsites, (s) => jobs.push(new JobBuild(s, this._priority)));
+    if (mine._link && !link) {
+      jobs.push(new JobBuild(<ConstructionSite>mine._link, this._priority));
+    }
+
+    if (mine._container && !container) {
+      jobs.push(new JobBuild(<ConstructionSite>mine._container, this._priority));
+    }
 
     return jobs;
   }
@@ -310,15 +349,23 @@ export default class BusinessEnergyMining implements Business.Model {
 
     let jobs: Job.Model[] = [];
 
-    if (!mine.link() && !mine.container()) {
+    if (!mine._link && !mine._container) {
       // When no link or container, use contractors for harvesting.
       jobs.push(new JobHarvest(mine, this._priority));
+    }
+
+    const link = mine.link();
+    if (!link && mine._link) {
+      jobs.push(new JobBuild(<ConstructionSite>mine._link));
     }
 
     const container = mine.container();
     if (container) {
       // Always use a contractor to clear the container
       jobs.push(new JobPickup(container, pickup_priority(container)));
+    }
+    else if (mine._container) {
+      jobs.push(new JobBuild(<ConstructionSite>mine._container));
     }
 
     return jobs;

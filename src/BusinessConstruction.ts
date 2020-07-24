@@ -2,6 +2,7 @@ import * as Business from 'Business';
 import * as Job from "Job";
 import JobBuild from 'JobBuild';
 import JobRepair from 'JobRepair';
+import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
@@ -14,8 +15,9 @@ const MAX_BUILD_JOBS = 5;
 const MAX_REPAIR_JOBS = 5;
 
 export function construction_priority(site: ConstructionSite): number {
+  const energyAvail = site.room?.energyCapacityAvailable ?? 0;
   switch (site.structureType) {
-    case STRUCTURE_EXTENSION: return 6;
+    case STRUCTURE_EXTENSION: return (energyAvail > 1000) ? 3 : 6;
     case STRUCTURE_STORAGE: return 3;
     case STRUCTURE_CONTAINER: return 2;
     default: break;
@@ -92,10 +94,12 @@ export default class BusinessConstruction implements Business.Model {
 
   private readonly _priority: number;
   private readonly _controller: StructureController;
+  private _remoteRooms: Room[];
 
   constructor(controller: StructureController, priority: number = 5) {
     this._priority = priority;
     this._controller = controller;
+    this._remoteRooms = [];
   }
 
   id(): string {
@@ -108,6 +112,15 @@ export default class BusinessConstruction implements Business.Model {
 
   priority(): number {
     return this._priority;
+  }
+
+  setRemoteRooms(remoteRooms: Room[]) {
+    this._remoteRooms.push(...remoteRooms);
+    log.debug(`${this}: ${this._remoteRooms.length}/${remoteRooms.length} remoteRooms (${this._remoteRooms}/${remoteRooms})`)
+  }
+
+  needsEmployee(employees: Worker[]): boolean {
+    return employees.length == 0;
   }
 
   survey() {
@@ -125,19 +138,31 @@ export default class BusinessConstruction implements Business.Model {
   }
 
   permanentJobs(): Job.Model[] {
-    return [];
-  }
-
-  contractJobs(): Job.Model[] {
-
-    const room = this._controller.room;
-
-    const constructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter });
+    const rooms = [this._controller.room, ...this._remoteRooms];
+    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES/*, { filter: worker_construction_filter }*/)));
     const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
       (site) => new JobBuild(site, construction_priority(site))),
       (job) => -job.priority()), MAX_BUILD_JOBS);
 
-    const repairSites = room.find(FIND_STRUCTURES, { filter: worker_repair_filter });
+    const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
+    const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
+      (site) => new JobRepair(site, repair_priority(site))),
+      (job) => -job.priority()), MAX_REPAIR_JOBS);
+
+    const allJobs = [...constructionJobs, ...repairJobs];
+
+    return allJobs;
+  }
+
+  contractJobs(): Job.Model[] {
+
+    const rooms = this._remoteRooms.concat(this._controller.room);
+    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
+    const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
+      (site) => new JobBuild(site, construction_priority(site))),
+      (job) => -job.priority()), MAX_BUILD_JOBS);
+
+    const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
     const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
       (site) => new JobRepair(site, repair_priority(site))),
       (job) => -job.priority()), MAX_REPAIR_JOBS);

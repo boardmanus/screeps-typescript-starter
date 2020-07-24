@@ -135,7 +135,6 @@ export default class JobUnload implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    log.debug(`${this}: work operations for ${worker}`);
     return [unload_at_site(this, worker, this._site)];
   }
 }

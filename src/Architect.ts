@@ -4,16 +4,16 @@ import * as Job from "Job";
 import { log } from "./ScrupsLogger";
 import JobBuild from "JobBuild";
 import Executive from "Executive";
+import BusinessEnergyMining from "BusinessMining";
 import * as Business from "Business";
 import { Operation } from "./Operation";
 import { FunctionCache } from "./Cache";
 import u from "./Utility";
-import BusinessEnergyMining from "BusinessMining";
 
 const ROADING_FIND_PATH_OPTIONS: PathFinderOpts = {
   plainCost: 1,
   swampCost: 1,
-  maxRooms: 1,
+  maxRooms: 3,
   roomCallback: gen_roading_cost_matrix
 };
 
@@ -24,10 +24,12 @@ function gen_roading_cost_matrix(roomName: string): CostMatrix {
     const room: Room = Game.rooms[roomName];
     const matrix = new PathFinder.CostMatrix();
 
+    if (room) {
     _.each(room.find(FIND_STRUCTURES), (s: Structure) => {
       const cost = (u.is_passible_structure(s)) ? 1 : 0xff;
       matrix.set(s.pos.x, s.pos.y, cost);
     });
+    }
 
     return matrix;
   });
@@ -81,17 +83,22 @@ function find_tower_routes(room: Room): RoomPosition[] {
   return paths;
 }
 
-function find_source_routes(room: Room): RoomPosition[] {
-  const sources: Source[] = room.find(FIND_SOURCES);
+function find_source_routes(ceos: Executive[]): (room: Room) => RoomPosition[] {
+  return (room: Room) => {
+    const sources: Source[] = _.map(_.filter(ceos,
+      (ceo) => ceo.business instanceof BusinessEnergyMining),
+      (ceo) => (<BusinessEnergyMining>ceo.business)._mine);
+
   const spawns: StructureSpawn[] = room.find(FIND_MY_SPAWNS);
 
   const paths = _.flatten(_.map(sources, (source: Source): RoomPosition[] => {
     return _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => {
       return find_roading_route(source, spawn);
     }));
-  }));
+    }))
 
   return paths;
+  };
 }
 
 function find_link_routes(room: Room): RoomPosition[] {
@@ -152,8 +159,10 @@ function select_road_sites(room: Room, maxSites: number, name: string, defCounte
 
     log.debug(`${room}: computing roads for ${name}`);
     const sites = _.take(_.filter(selector(room), (pos: RoomPosition) => {
-      const lookies = room.lookAt(pos);
-      const roadFound = _.find(lookies, look_for_road_filter);
+      if (pos.x == 0 || pos.y == 0 || pos.x == 49 || pos.y == 49) {
+        return false;
+      }
+      const roadFound = _.find(pos.look(), look_for_road_filter);
       return !roadFound;
     }),
       maxSites);
@@ -167,13 +176,13 @@ function select_road_sites(room: Room, maxSites: number, name: string, defCounte
   return [];
 }
 
-function possible_road_sites(room: Room, numAllowed: number): RoomPosition[] {
+function possible_road_sites(room: Room, ceos: Executive[], numAllowed: number): RoomPosition[] {
   const controller = room.controller;
   if (!controller) {
     return [];
   }
 
-  const sourceRoutes = select_road_sites(room, numAllowed, 'sources', 17, find_source_routes);
+  const sourceRoutes = select_road_sites(room, numAllowed, 'sources', 17, find_source_routes(ceos));
   if (sourceRoutes.length > 0) {
     return sourceRoutes;
   }
@@ -302,6 +311,11 @@ function possible_tower_sites(protectionSite: RoomObject): RoomPosition[] {
     if (haveTower) {
       return false;
     }
+
+    if (site.x < 6 || site.y < 6 || site.x > 44 || site.y > 44) {
+      return false;
+    }
+
     const terrain = site.look();
     for (const t of terrain) {
       switch (t.type) {
@@ -332,15 +346,7 @@ function possible_tower_sites(protectionSite: RoomObject): RoomPosition[] {
   }
 
   log.info(`found ${viableSites.length} viable tower sites ${viableSites} for ${protectionSite}`);
-  const exits = room.find(FIND_EXIT);
-  const orderedSites = _.sortBy(viableSites, (p: RoomPosition): number => {
-    return _.min(_.map(exits, (ep: RoomPosition): number => {
-      const range = p.getRangeTo(ep);
-      return (range < 4) ? 1000 : range;
-    }))
-  });
-
-  return _.take(orderedSites, 1);
+  return viableSites;
 }
 
 function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
@@ -429,7 +435,13 @@ export class BuildingWork implements Work {
 
   work(): Operation[] {
     return [() => {
-      log.error(`${this}: site=${this.site}`)
+      if (!this.site) {
+        log.error(`${this}: ${this.type} site undefined!`)
+        return;
+      }
+      else {
+        log.info(`${this}: ${this.type} site=${this.site}`)
+      }
       const res = this.room.createConstructionSite(this.site.x, this.site.y, this.type);
       switch (res) {
         case OK:
@@ -525,12 +537,28 @@ export class Architect implements Expert {
       protectionSites.push(room.storage);
     }
 
-    const towerPositions = _.take(_.flatten(_.map(
+    const exits = room.find(FIND_EXIT);
+    const towerPositions = _.take(_.sortBy(_.flatten(_.map(
       protectionSites,
       (obj: RoomObject): RoomPosition[] => {
         return possible_tower_sites(obj);
       })),
+      (pos) => {
+        const towerCloseness = _.min(_.map(
+          room.find(FIND_MY_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_TOWER }),
+          (t) => t.pos.getRangeTo(pos)));
+
+        const exitCloseness = _.min(_.map(exits,
+          (ep: RoomPosition): number => {
+            const range = pos.getRangeTo(ep);
+            return ((range < 10) ? 1000 : (Math.trunc(range / 10) + 1));
+          }));
+
+        // Want to be a nice compromise of close to an exit, but far from another tower.
+        return exitCloseness / towerCloseness;
+      }),
       allowedNumTowers - numTowers);
+
 
     return _.map(towerPositions, (pos: RoomPosition): Work => {
       log.info(`${this}: creating new tower build work at ${pos} ...`);
@@ -559,19 +587,23 @@ export class Architect implements Expert {
     });
   }
 
-  designRoads(): Work[] {
-    const room = this._room;
-    const numRoadConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, {
-      filter: (cs: ConstructionSite) => {
-        return cs.structureType == STRUCTURE_ROAD;
+  designRoads(rooms: Room[], ceos: Executive[]): Work[] {
+    if (rooms.length == 0) {
+      return [];
       }
-    }).length;
+
+    const numRoadConstructionSites = _.sum(rooms, (room) => {
+      const cs = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType == STRUCTURE_ROAD });
+      log.debug(`${this}: ${cs.length} cs in ${room.name}`);
+      return cs.length;
+    });
 
     if (numRoadConstructionSites >= 10) {
       log.info(`${this}: already have all the allowed road construction sites (${numRoadConstructionSites}).`)
       return [];
     }
 
+    const room = rooms[0];
     if (!room.memory.architect) {
       room.memory.architect = <ArchitectMemory>{ roading: {} };
     }
@@ -579,18 +611,21 @@ export class Architect implements Expert {
     const numAllowed = 10 - numRoadConstructionSites;
     log.debug(`${this}: allowing ${numAllowed} road construction sites`);
 
-    const roadPos: RoomPosition[] = possible_road_sites(room, numAllowed);
-
-    return _.map(roadPos, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new road build work ${room} ... ${pos}`)
-      return new BuildingWork(room, pos, STRUCTURE_ROAD);
+    const roadPos: RoomPosition[] = possible_road_sites(room, ceos, numAllowed);
+    return u.map_valid(roadPos, (pos) => {
+      const roadRoom: Room = Game.rooms[pos.roomName];
+      if (!roadRoom) {
+        return undefined;
+      }
+      log.info(`${this}: creating new road build work ${roadRoom} ... ${pos}`)
+      return new BuildingWork(roadRoom, pos, STRUCTURE_ROAD);
     });
   }
 
-  design(ceos: Executive[]): Work[] {
+  design(rooms: Room[], ceos: Executive[]): Work[] {
     const businessWorks: Work[] = _.flatten(_.map(ceos, (ceo) => ceo.business.buildings()));
     const containerWorks: Work[] = this.designContainers();
-    const roadWorks: Work[] = this.designRoads();
+    const roadWorks: Work[] = this.designRoads(rooms, ceos);
     const towerWorks: Work[] = this.designTowers();
     const extractorWorks: Work[] = this.designExtractors();
     return businessWorks.concat(containerWorks, roadWorks, towerWorks, extractorWorks);
@@ -608,12 +643,12 @@ export class Architect implements Expert {
 
   loadStorage(room: Room): void {
     const storage = room.storage;
-    const storageMem = room.memory.storage;
     if (!storage) {
       return;
     }
 
-    if (storageMem.link) {
+    const storageMem = room.memory.storage;
+    if (storageMem?.link) {
       const link = Game.getObjectById<StructureLink>(storageMem.link);
       if (link) {
         storage._link = link;

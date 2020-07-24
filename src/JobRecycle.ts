@@ -3,7 +3,8 @@ import * as Job from "Job";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
 
-const RECYCLE_TIME: number = 30;
+const TTL_NEARLY_DEAD: number = 200;
+const TTL_RECYCLE_TIME: number = 30;
 
 function recycle_at_site(job: JobRecycle, worker: Creep, site: StructureSpawn): Operation {
   return () => {
@@ -15,7 +16,7 @@ function recycle_at_site(job: JobRecycle, worker: Creep, site: StructureSpawn): 
 
     if ((recycler && !worker.pos.isEqualTo(recycler.pos))
       || (!recycler && !worker.pos.inRangeTo(site.pos, 1))) {
-      const res = worker.jobMoveTo(site, recycler ? 1 : 0, <LineStyle>{ opacity: .4, stroke: 'purple' });
+      const res = worker.jobMoveTo(recycleSite, recycler ? 0 : 1, <LineStyle>{ opacity: .4, stroke: 'purple' });
       if (res == OK) {
         log.info(`${job}: ${worker} moved towards recycle site ${site} (${worker.pos.getRangeTo(site)} sq)`);
       }
@@ -67,20 +68,20 @@ export default class JobRecycle implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (!worker.ticksToLive) {
+    if (!worker.ticksToLive || worker.ticksToLive > TTL_NEARLY_DEAD) {
       return 0.0;
     }
 
     const recycler = this._site.recycler();
     const site = recycler ?? this._site;
-
     const timeToRecycler = u.creep_movement_time(worker, site);
-    log.warning(`${this}: ${worker} due to be recycled (ttl=${worker.ticksToLive} - ttr=${timeToRecycler} <= ${RECYCLE_TIME})`)
-    if (worker.ticksToLive - timeToRecycler > RECYCLE_TIME) {
+
+    if (worker.ticksToLive - timeToRecycler > TTL_RECYCLE_TIME) {
+      log.warning(`${this}: ${worker} nearly dead (ttl=${worker.ticksToLive} <= ${TTL_NEARLY_DEAD})`)
       return 0.0;
     }
 
-    log.warning(`${this}: ${worker} due to be recycled (ttl=${worker.ticksToLive} - ttr=${timeToRecycler} <= ${RECYCLE_TIME})`)
+    log.warning(`${this}: ${worker} due to be recycled (ttl=${worker.ticksToLive} - ttr=${timeToRecycler} <= ${TTL_RECYCLE_TIME})`)
 
     return 1000.0;
   }
@@ -90,7 +91,7 @@ export default class JobRecycle implements Job.Model {
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    return true;
+    return false;
   }
 
   completion(worker?: Creep): number {

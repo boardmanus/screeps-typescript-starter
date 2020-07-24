@@ -2,7 +2,6 @@ import { Expert } from "./Expert";
 import * as Job from "Job";
 import { Work } from "./Work";
 import { Operation } from "./Operation";
-import JobUnload from "JobUnload";
 import Executive from "Executive";
 import Boss from "Boss";
 import * as Business from "Business";
@@ -59,8 +58,8 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
-const MAX_HEAVY_WORKERS = 7;
-const MAX_WORKERS = 8;
+const MAX_HEAVY_WORKERS = 5;
+const MAX_WORKERS = 5;
 const MAX_WORKER_ENERGY = 1500;
 
 class CloningWork implements Work {
@@ -149,6 +148,7 @@ export class Cloner implements Expert {
   }
 
   schedule(): Job.Model[] {
+    /*
     const sne = get_spawners_and_extensions(this._room);
     const nearlyDeadWorkers = _.sum(_.map(this._currentWorkers, (w: Creep): number => { return (w.ticksToLive && w.ticksToLive < 300) ? 1 : 0; }));
     log.debug(`${this}: ${sne.length} spawners and extensions requiring energy. ${nearlyDeadWorkers} workers nearly dead.`);
@@ -160,6 +160,8 @@ export class Cloner implements Expert {
         const workerHealthRatio = (this._numWorkers - nearlyDeadWorkers) / this._maxWorkers;
         return new JobUnload(site, basePriority + (1.0 - workerHealthRatio) * PRIORITY_MULTIPLIER_BY_LEVEL[site.room.controller?.level ?? 0]);
       });
+    */
+    return [];
   }
 
   report(): string[] {
@@ -186,7 +188,7 @@ export class Cloner implements Expert {
     }
 
     // Start specializing after links have been established.
-    const ceosWithVacancies = _.sortBy(_.filter(ceos, (ceo) => !ceo.hasEmployee()), (ceo) => ceo.priority());
+    const ceosWithVacancies = _.sortBy(_.filter(ceos, (ceo) => ceo.needsEmployee()), (ceo) => ceo.priority());
     if (ceosWithVacancies.length) {
       log.info(`${this}: ${ceosWithVacancies.length} ceo's with vacancies`);
       const ceo = ceosWithVacancies[0];

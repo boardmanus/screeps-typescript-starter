@@ -4,8 +4,9 @@ import JobUpgrade from 'JobUpgrade';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRepair from 'JobRepair';
-import { BuildingWork } from 'Architect';
+import Worker from 'Worker';
 import u from 'Utility';
+import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, CARRY, WORK, WORK, WORK, WORK, WORK, WORK];
@@ -143,6 +144,10 @@ export default class BusinessUpgrading implements Business.Model {
 
   priority(): number {
     return this._priority;
+  }
+
+  needsEmployee(employees: Worker[]): boolean {
+    return employees.length == 0;
   }
 
   survey() {

@@ -16,13 +16,14 @@ export default class Worker implements Work {
     }
 
     const job = memory.job ? Job.factory.build(memory.job) : undefined;
+    log.debug(`${worker}: ${memory.job} => ${job}`)
     return new Worker(worker, job);
   }
 
   toMemory(): WorkerMemory {
     const memory = <WorkerMemory>{
       worker: this.creep.id,
-      job: this._job ? `${this._job.id()}-${this.priority()}` : undefined,
+      job: this._job ? this._job.id() : undefined,
     };
     return memory;
   }
@@ -42,6 +43,9 @@ export default class Worker implements Work {
         worker.setJob(undefined);
         worker.setLastJobSite(job.site())
       }
+    }
+    else {
+      worker.setJob(undefined);
     }
   }
 

@@ -3,6 +3,7 @@ interface CreepMemory {
   _move: { path: string };
   lastPosition: RoomPosition | undefined;
   stuckCount: number | undefined;
+  home: string | undefined;
 }
 
 interface SourceMemory {

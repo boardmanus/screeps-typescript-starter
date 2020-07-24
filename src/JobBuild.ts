@@ -14,7 +14,8 @@ function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
         log.info(`${job}: ${worker} built stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        res = worker.jobMoveTo(site, 3, <LineStyle>{ opacity: .4, stroke: 'orange' });
+        const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
+        res = worker.jobMoveTo(site, range, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
           log.info(`${job}: ${worker} moved to construction site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }

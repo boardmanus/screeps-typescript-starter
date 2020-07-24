@@ -4,6 +4,15 @@ import u from "./Utility"
 import { log } from './ScrupsLogger'
 
 
+function site_priority(site: Structure, priority: number) {
+  switch (site.structureType) {
+    case STRUCTURE_CONTAINER: return (1.0 - site.hits / site.hitsMax) * 9;
+    default: break;
+  }
+  return priority;
+}
+
+
 function repair_site(job: JobRepair, worker: Creep, site: Structure) {
   return () => {
     worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
@@ -14,7 +23,8 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
         log.info(`${job}: ${worker} repaired stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE: {
-        res = worker.jobMoveTo(site, 3, <LineStyle>{ opacity: .4, stroke: 'orange' });
+        const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
+        res = worker.jobMoveTo(site, range, <LineStyle>{ opacity: .4, stroke: 'orange' });
         if (res == OK) {
           log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
@@ -60,10 +70,11 @@ export default class JobRepair implements Job.Model {
   }
 
   priority(workers?: Creep[]): number {
+    const sitePriority = site_priority(this._site, this._priority);
     if (!workers) {
-      return this._priority;
+      return sitePriority;
     }
-    return this._priority / (workers.length + 1);
+    return sitePriority / (workers.length + 1);
   }
 
   efficiency(worker: Creep): number {

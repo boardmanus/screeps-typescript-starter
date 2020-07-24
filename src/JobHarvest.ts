@@ -6,24 +6,6 @@ import u from "./Utility";
 
 type HarvestSite = Source | Mineral;
 
-
-function unload_at_site(job: JobHarvest, worker: Creep, site: StructureLink | StructureContainer): void {
-  if ((worker.available() == 0) || (site.freeSpace() == 0)) {
-    return;
-  }
-
-  let res: number = worker.transfer(site, RESOURCE_ENERGY);
-  switch (res) {
-    case OK:
-      // Finished job.
-      log.info(`${job}: ${worker} transferred energy to ${site}`);
-      break;
-    default:
-      log.warning(`${job}: ${worker} failed to transfer ${worker.store[RESOURCE_ENERGY]} energy to ${site} (${u.errstr(res)})`);
-      break;
-  }
-}
-
 /**
  * Gets the worker to pickup resources from the job site.
  * @param {Creep} worker to perform the repairSite
@@ -33,6 +15,21 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
   return () => {
     worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
     worker.say('⛏️');
+
+    const container = site._container;
+    if (container
+      && !worker.pos.inRangeTo(container.pos, 0)
+      && _.filter(container.pos.lookFor(LOOK_CREEPS), (c) => c.name != worker.name).length == 0) {
+      const res = worker.jobMoveTo(container, 0, <LineStyle>{ opacity: .4, stroke: 'green' });
+      if (res == OK) {
+        log.info(`${job}: ${worker} is moving to harvest to ${container}@${site} (${worker.pos.getRangeTo(container)} sq)`);
+      }
+      else {
+        log.warning(`${job}: ${worker} failed moving to ${container}@${site} (${worker.pos.getRangeTo(container)} sq) (${u.errstr(res)})`);
+      }
+      return;
+    }
+
     let res: number = worker.harvest(site);
     switch (res) {
       case ERR_NOT_OWNER:
@@ -55,7 +52,7 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
           log.info(`${job}: ${worker} is moving to harvest at ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       case ERR_TIRED:
@@ -254,6 +251,5 @@ Job.factory.addBuilder(JobHarvest.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site: HarvestSite = <HarvestSite>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  const priority = Number(frags[3]);
   return new JobHarvest(site);
 });

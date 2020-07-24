@@ -23,6 +23,7 @@ export interface Model {
   baseWorkerBody(): BodyPartConstant[];
 }
 
+export type Map = { [id: string]: Model };
 
 class Factory {
 

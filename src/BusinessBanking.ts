@@ -1,15 +1,12 @@
 import * as Business from 'Business';
 import * as Job from "Job";
-import JobHarvest from 'JobHarvest';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
-import JobRepair from 'JobRepair';
-import JobBuild from 'JobBuild';
+import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
-import { object, min } from 'lodash';
-import JobDrop from 'JobDrop';
+
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -22,11 +19,17 @@ function find_vault_structures(vault: StructureStorage): AnyStructure[] {
   });
 }
 
+function find_vault_construction(vault: StructureStorage): ConstructionSite[] {
+  return vault.room?.find(FIND_CONSTRUCTION_SITES, {
+    filter: (s) => (s.structureType == STRUCTURE_LINK) && vault.pos.inRangeTo(s.pos, 2)
+  }) ?? [];
+}
+
 function can_build_link(vault: StructureStorage): boolean {
   const rcl = vault.room.controller?.level ?? 0;
   const links = u.find_building_sites(vault.room, STRUCTURE_LINK);
-  const allowedNumContainers = CONTROLLER_STRUCTURES.container[rcl];
-  return (allowedNumContainers - links.length) > 0;
+  const allowedNumLinks = CONTROLLER_STRUCTURES.link[rcl];
+  return (allowedNumLinks - links.length) > 0;
 }
 
 function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
@@ -71,11 +74,7 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
   log.info(`found ${viableSites.length} viable link sites for ${linkNeighbour}`);
   const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
     const emptyPositions = u.find_empty_surrounding_positions(site);
-    let val = -emptyPositions.length;
-    if (room.storage) {
-      val += 1 / site.getRangeTo(room.storage);
-    }
-    return val;
+    return -emptyPositions.length;
   });
 
   return _.take(sortedSites, 1);
@@ -90,13 +89,16 @@ function link_building_work(vault: StructureStorage): BuildingWork {
 }
 
 function update_vault(vault: StructureStorage): void {
-  log.debug(`update_vault(${vault}): l=${vault._link}`)
   if (!vault._link) {
-    const sites = find_vault_structures(vault);
+    const sites: (AnyStructure | ConstructionSite)[] = find_vault_structures(vault);
+    sites.push(...find_vault_construction(vault))
+
     for (const site of sites) {
-      if (!vault._link && (site instanceof StructureLink)) {
+      if (!vault._link && site.structureType === STRUCTURE_LINK) {
         vault._link = site;
-        vault._link._isSink = true;
+        if (vault._link instanceof StructureLink) {
+          vault._link._isSink = true;
+        }
         log.info(`${vault}: updated link to ${site}`);
       }
     }
@@ -125,6 +127,10 @@ export default class BusinessBanking implements Business.Model {
 
   priority(): number {
     return this._priority;
+  }
+
+  needsEmployee(employees: Worker[]): boolean {
+    return employees.length == 0;
   }
 
   survey() {

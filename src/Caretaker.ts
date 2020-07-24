@@ -25,9 +25,14 @@ function damage_ratio(site: Structure): number {
   return (1.0 - site.hits / site.hitsMax);
 }
 
-function wall_damage_ratio(wall: Structure): number {
-  const rcl = wall.room.controller?.level ?? 1;
-  return 1.0 - wall.hits / RAMPART_HITS_MAX[rcl];
+function wall_rampart_damage_ratio(wr: Structure): number {
+  const c = wr.room.controller;
+  if (!c) {
+    return 0;
+  }
+  const halfway = c.progress / c.progressTotal > 0.5;
+  const rcl = c.level - (halfway ? 0 : 1);
+  return 1.0 - wr.hits / RAMPART_HITS_MAX[rcl];
 }
 
 function road_repair_priority(road: StructureRoad): number {
@@ -43,12 +48,12 @@ function rampart_repair_priority(rampart: StructureRampart): number {
     && (rampart.hits < 2 * RAMPART_DECAY_AMOUNT)) {
     return 9;
   }
-  const damageRatio = damage_ratio(rampart);
+  const damageRatio = wall_rampart_damage_ratio(rampart);
   return 1 * Math.pow(damageRatio, 10)
 }
 
 function wall_repair_priority(wall: StructureWall): number {
-  return 1 * Math.pow(wall_damage_ratio(wall), 10);
+  return 1 * Math.pow(wall_rampart_damage_ratio(wall), 10);
 }
 
 function repair_priority(site: Structure): number {
@@ -68,9 +73,8 @@ function tower_repair_filter(tower: StructureTower[], site: Structure): boolean 
 
   switch (site.structureType) {
     case STRUCTURE_WALL:
-      return wall_damage_ratio(site) > 0.92;
     case STRUCTURE_RAMPART:
-      return damage_ratio(site) > 0.92;
+      return wall_rampart_damage_ratio(site) > 0.92;
     default:
       break;
   }
