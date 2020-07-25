@@ -154,7 +154,7 @@ export default class BusinessBanking implements Business.Model {
     return [];
   }
 
-  contractJobs(): Job.Model[] {
+  contractJobs(employees: Worker[]): Job.Model[] {
     const vault: StructureStorage = this._vault;
     const attackers = u.find_nearby_attackers(vault);
     if (attackers.length > 0) {

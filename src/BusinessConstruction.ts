@@ -154,7 +154,7 @@ export default class BusinessConstruction implements Business.Model {
     return allJobs;
   }
 
-  contractJobs(): Job.Model[] {
+  contractJobs(employees: Worker[]): Job.Model[] {
 
     const rooms = this._remoteRooms.concat(this._controller.room);
     const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));

@@ -346,12 +346,10 @@ export default class BusinessCloning implements Business.Model {
   }
 
   permanentJobs(): Job.Model[] {
-    const jobs: Job.Model[] = [];
-    return jobs;
+    return [];
   }
 
-  contractJobs(): Job.Model[] {
-
+  contractJobs(employees: Worker[]): Job.Model[] {
 
     const extPriority = 4 + (1.0 - this._workerHealthRatio) * this._priority;
     const extJobs: JobUnload[] = _.map(_.filter(this._extensions,

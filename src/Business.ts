@@ -10,7 +10,7 @@ export interface Model {
   needsEmployee(employees: Worker[]): boolean;
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];
   permanentJobs(): Job.Model[];
-  contractJobs(): Job.Model[];
+  contractJobs(employees: Worker[]): Job.Model[];
   buildings(): BuildingWork[];
 }
 

@@ -133,11 +133,7 @@ export default class Executive implements Work {
   }
 
   contracts(): Job.Model[] {
-    if (this._employees.length) {
-      return this.business.contractJobs();
-    }
-    // When no employees, permanent jobs are also carried out by contractors.
-    return this.business.permanentJobs().concat(this.business.contractJobs());
+    return this.business.contractJobs(this._employees);
   }
 
   survey(): void {

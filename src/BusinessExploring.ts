@@ -65,7 +65,7 @@ export default class BusinessExploring implements Business.Model {
     return _.map(this._flags, (f) => new JobScout(f));
   }
 
-  contractJobs(): Job.Model[] {
+  contractJobs(employees: Worker[]): Job.Model[] {
     return [];
   }
 

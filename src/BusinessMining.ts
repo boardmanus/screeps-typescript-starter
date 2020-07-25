@@ -339,7 +339,7 @@ export default class BusinessEnergyMining implements Business.Model {
     return jobs;
   }
 
-  contractJobs(): Job.Model[] {
+  contractJobs(employees: Worker[]): Job.Model[] {
     const mine: Source = this._mine;
     const attackers = u.find_nearby_attackers(mine);
     if (attackers.length > 0) {
@@ -349,17 +349,22 @@ export default class BusinessEnergyMining implements Business.Model {
 
     let jobs: Job.Model[] = [];
 
-    if (!mine._link && !mine._container) {
-      // When no link or container, use contractors for harvesting.
-      jobs.push(new JobHarvest(mine, this._priority));
+    const link = mine.link();
+    const container = mine.container();
+
+    if ((employees.length == 0) || (!mine._link && !mine._container)) {
+      // When no employees, link and container, use contractors for harvesting.
+      jobs.push(new JobHarvest(mine));
+
+      if (link) {
+        jobs.push(new JobUnload(link));
+      }
     }
 
-    const link = mine.link();
     if (!link && mine._link) {
       jobs.push(new JobBuild(<ConstructionSite>mine._link));
     }
 
-    const container = mine.container();
     if (container) {
       // Always use a contractor to clear the container
       jobs.push(new JobPickup(container, pickup_priority(container)));

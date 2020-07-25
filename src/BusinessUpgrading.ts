@@ -184,7 +184,7 @@ export default class BusinessUpgrading implements Business.Model {
     return jobs;
   }
 
-  contractJobs(): Job.Model[] {
+  contractJobs(employees: Worker[]): Job.Model[] {
     const controller: StructureController = this._controller;
     const attackers = u.find_nearby_attackers(controller);
     if (attackers.length > 0) {
@@ -195,11 +195,17 @@ export default class BusinessUpgrading implements Business.Model {
     let jobs: Job.Model[] = [];
     jobs.push(new JobUpgrade(controller));
 
-
     const container = controller.container();
-    if (container && container.freeSpace() > 0) {
-      const urgency = container.freeSpace() / container.capacity();
-      jobs.push(new JobUnload(container, urgency * 9));
+    if (employees.length) {
+      if (container && container.freeSpace() > 0) {
+        const urgency = container.freeSpace() / container.capacity();
+        jobs.push(new JobUnload(container, urgency * 9));
+      }
+    }
+    else {
+      if (container && container.available()) {
+        jobs.push(new JobPickup(container));
+      }
     }
 
     return jobs;
