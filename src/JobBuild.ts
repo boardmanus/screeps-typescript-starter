@@ -85,7 +85,11 @@ export default class JobBuild implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    return u.work_efficiency(worker, this._site, worker.available(), BUILD_POWER);
+    // Calculate the efficiency for working with full energy, and then
+    // multiply by the ratio available.
+    // This should allow fuller workers to be chosen more.
+    const ratio = worker.available() / worker.capacity();
+    return ratio * u.work_efficiency(worker, this._site, worker.capacity(), BUILD_POWER);
   }
 
   completion(worker?: Creep): number {

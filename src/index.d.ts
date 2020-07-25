@@ -10,12 +10,12 @@ interface RoomObject {
 }
 
 interface Creep {
-  _job: string | undefined;
-  _lastJobSite: RoomObject;
+  _job: Object | undefined;
+  _lastJob: Object | undefined;
   setJob(job: string | undefined): void;
   isEmployed(): boolean;
-  setLastJobSite(lastJobSite: RoomObject): void;
-  getLastJobSite(): RoomObject | undefined;
+  setLastJob(lastJob: Object): void;
+  getLastJob(): Object | undefined;
   jobMoveTo(pos: RoomPosition | RoomObject, range: number, style: LineStyle): number;
 }
 

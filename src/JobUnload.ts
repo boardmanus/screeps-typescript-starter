@@ -2,6 +2,7 @@ import { Operation } from "./Operation";
 import * as Job from "Job";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
+import JobPickup from "JobPickup";
 
 function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operation {
   return () => {
@@ -75,7 +76,8 @@ export default class JobUnload implements Job.Model {
 
   efficiency(worker: Creep): number {
 
-    if (worker.getLastJobSite() === this._site) {
+    const lastJob = <Job.Model>worker.getLastJob();
+    if (lastJob && lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
       return 0;
     }
 

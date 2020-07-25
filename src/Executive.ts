@@ -134,7 +134,7 @@ export default class Executive implements Work {
   survey(): void {
     this.business.survey();
 
-    const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.hasJob());
+    const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.hasJob() && !worker.creep.spawning);
     if (lazyWorkers.length == 0) {
       //log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
       return;

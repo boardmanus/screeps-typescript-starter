@@ -375,18 +375,18 @@ function prioritize_bosses(bosses: Boss[]): Boss[] {
 
 function worker_rating(worker: Creep, boss: Boss, minPriority: number): number {
   //const suitability = boss.job.suitability(worker);
-  const jobSite = boss.job.site();
-  const lastJobSite = worker.getLastJobSite();
-  if (jobSite === lastJobSite) {
-    return 0;
-  }
-  else if (lastJobSite &&
-    boss.job instanceof JobUnload &&
-    jobSite instanceof StructureContainer &&
-    lastJobSite instanceof StructureContainer) {
-    // Don't pickup/unload between containers.
-    return 0;
-  }
+  //const jobSite = boss.job.site();
+  //const lastJob = <Job.Model>worker.getLastJob();
+  //if (jobSite === lastJobSite) {
+  //  return 0;
+  //}
+  //else if (lastJobSite &&
+  //  boss.job instanceof JobUnload &&
+  //  jobSite instanceof StructureContainer &&
+  //  lastJobSite instanceof StructureContainer) {
+  //  // Don't pickup/unload between containers.
+  //  return 0;
+  //}
 
   //const closeness = boss.job.site().pos.getRangeTo(worker);
   //return closeness;

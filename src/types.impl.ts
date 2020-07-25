@@ -141,11 +141,11 @@ Creep.prototype.setJob = function (job: string | undefined): void {
 Creep.prototype.isEmployed = function (): boolean {
   return (this._job ? true : false);
 }
-Creep.prototype.setLastJobSite = function (lastJobSite: RoomObject): void {
-  this._lastJobSite = lastJobSite;
+Creep.prototype.setLastJob = function (lastJob: Object): void {
+  this._lastJob = lastJob;
 }
-Creep.prototype.getLastJobSite = function (): RoomObject {
-  return this._lastJobSite;
+Creep.prototype.getLastJob = function (): Object | undefined {
+  return this._lastJob;
 }
 Creep.prototype.jobMoveTo = function (pos: RoomPosition | RoomObject, range: number, style: LineStyle): number {
 

@@ -2,6 +2,7 @@ import { Operation } from "./Operation";
 import * as Job from "Job";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
+import JobPickup from "JobPickup";
 
 function drop_at_site(job: JobDrop, worker: Creep, site: StructureContainer): Operation {
   return () => {
@@ -62,8 +63,8 @@ export default class JobDrop implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    const lastSite = worker.getLastJobSite();
-    if (lastSite === this._site || lastSite instanceof StructureContainer) {
+    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
+    if (lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
       return 0.0;
     }
     return 0.001;

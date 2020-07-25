@@ -24,7 +24,7 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
         log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
       }
       else {
-        log.error(`${job}: ${worker} failed moving to repair @ ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed moving to repair @ ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
       }
       return;
     }
@@ -41,7 +41,7 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
           log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
         }
         else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       }
@@ -95,7 +95,11 @@ export default class JobRepair implements Job.Model {
       return 0.0;
     }
 
-    return u.work_efficiency(worker, this._site, worker.available(), REPAIR_POWER);
+    // Calculate the efficiency for working with full energy, and then
+    // multiply by the ratio available.
+    // This should allow fuller workers to be chosen more.
+    const ratio = worker.available() / worker.capacity();
+    return ratio * u.work_efficiency(worker, this._site, worker.capacity(), REPAIR_POWER);
   }
 
   isSatisfied(workers: Creep[]): boolean {

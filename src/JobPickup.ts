@@ -89,11 +89,6 @@ export default class JobPickup implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    let booster = 1;
-    if (worker.getLastJobSite() === this._site) {
-      return 0;
-    }
-
     if (u.find_nearby_attackers(this._site).length > 0) {
       return 0;
     }
