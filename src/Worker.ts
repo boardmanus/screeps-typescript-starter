@@ -16,7 +16,7 @@ export default class Worker implements Work {
     }
 
     const job = memory.job ? Job.factory.build(memory.job) : undefined;
-    log.debug(`${worker}: ${memory.job} => ${job}`)
+    //log.debug(`${worker}: ${memory.job} => ${job}`)
     return new Worker(worker, job);
   }
 
@@ -34,7 +34,7 @@ export default class Worker implements Work {
 
     if (job) {
       if (job.completion(worker) < 1.0) {
-        log.debug(`${this}: ${job.id()} in progress by ${worker.id}`);
+        //log.debug(`${this}: ${job.id()} in progress by ${worker.id}`);
         worker.setJob(job.id());
       }
       else {
@@ -78,7 +78,7 @@ export default class Worker implements Work {
 
   assignJob(job: Job.Model) {
     this._job = job;
-    log.debug(`${this}: assigning job ${job}`);
+    //log.debug(`${this}: assigning job ${job}`);
     this.creep.setJob(this._job.id());
   }
 }

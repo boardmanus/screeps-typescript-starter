@@ -38,19 +38,10 @@ function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
 
   const workableJobs = _.filter(viableJobs, (job) => {
     const workers: Creep[] = _.map(_.filter(busyWorkers, (w) => job.id() == w.job()?.id()), (w) => w.creep);
-    if (creep.name.startsWith('bus-explore'))
-      log.debug(`${creep}: ${job} already has ${workers.length} workers (${workers})`)
     return !job.isSatisfied(workers);
   });
 
-  if (creep.name.startsWith('bus-explore'))
-    log.debug(`${creep}: ${workableJobs.length} workable jobs (${workableJobs})`)
-
   const orderedJobs = _.sortBy(workableJobs, (job) => -job.priority([creep]) * job.efficiency(creep));
-  if (creep.name.startsWith('bus-explore'))
-    log.debug(`${creep}: prereq=${jobPrerequisite}, a=${available}, f=${free}, #jobs=${viableJobs.length}`)
-  if (creep.name.startsWith('bus-explore'))
-    _.each(orderedJobs, (j) => log.debug(`${creep}: ${j.priority([creep])}*${j.efficiency(creep)} e/s for ${j}`))
 
   if (orderedJobs.length == 0) {
     return undefined;
@@ -93,7 +84,7 @@ export default class Executive implements Work {
     this._resumes = [];
 
     if (resumes && resumes.length > 0) {
-      log.debug(`${this}: resumes=${resumes}`)
+      //log.debug(`${this}: resumes=${resumes}`)
       this._employees.push(...map_valid_resumes(resumes));
     }
   }
@@ -104,6 +95,10 @@ export default class Executive implements Work {
 
   toString(): string {
     return this.id();
+  }
+
+  employees(): Worker[] {
+    return this._employees;
   }
 
   hasEmployee(): boolean {
@@ -141,12 +136,12 @@ export default class Executive implements Work {
 
     const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.hasJob());
     if (lazyWorkers.length == 0) {
-      log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
+      //log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
       return;
     }
 
     const jobs = this.business.permanentJobs();
-    log.debug(`${this}: lazyWorkers=${lazyWorkers}`)
+    //log.debug(`${this}: lazyWorkers=${lazyWorkers}`)
     for (const worker of lazyWorkers) {
       const bestJob = find_best_job(worker.creep, busyWorkers, jobs);
       if (bestJob) {

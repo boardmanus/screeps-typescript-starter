@@ -118,7 +118,10 @@ export default class JobPickup implements Job.Model {
     }
 
     if (worker) {
-      return 1.0 - worker.freeSpace() / worker.capacity();
+      if (worker.freeSpace() == 0) {
+        return 1.0;
+      }
+      return worker.holding() / worker.capacity();
     }
 
     return 0.0;

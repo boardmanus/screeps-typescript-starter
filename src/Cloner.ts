@@ -58,7 +58,7 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
-const MAX_HEAVY_WORKERS = 5;
+const MAX_HEAVY_WORKERS = 3;
 const MAX_WORKERS = 5;
 const MAX_WORKER_ENERGY = 1500;
 
@@ -209,7 +209,7 @@ export class Cloner implements Expert {
       return [];
     }
 
-    const numEmployees = ceos.length - ceosWithVacancies.length;
+    const numEmployees = _.sum(ceos, (ceo) => ceo.employees().length);
     const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS) + numEmployees;
     if ((this._numWorkers >= maxWorkers)
       || ((this._numWorkers > MIN_SAFE_WORKERS + numEmployees)

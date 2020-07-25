@@ -8,7 +8,7 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
     worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
     worker.say('🚑');
     let resource: ResourceConstant = RESOURCE_ENERGY;
-    if (site.structureType == STRUCTURE_CONTAINER || site.structureType == STRUCTURE_STORAGE) {
+    if (site.structureType == STRUCTURE_TERMINAL || site.structureType == STRUCTURE_STORAGE) {
       resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
     }
 
@@ -38,7 +38,7 @@ function resources_available(worker: Creep, site: UnloadSite): number {
   switch (site.structureType) {
     case STRUCTURE_STORAGE:
     case STRUCTURE_TERMINAL:
-      return worker.carry.getUsedCapacity();
+      return worker.holding();
     default: {
       return worker.available(RESOURCE_ENERGY);
     }
@@ -102,13 +102,10 @@ export default class JobUnload implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    if (this._site instanceof StructureTower) {
-      if (this._site.freeSpace() <= TOWER_ENERGY_COST) {
-        return 1.0;
-      }
-    }
-
-    if (this._site.freeSpace() == 0) {
+    const freespace = this._site.freeSpace();
+    if (freespace == 0
+      || ((this._site instanceof StructureTower)
+        && (freespace <= TOWER_ENERGY_COST))) {
       return 1.0;
     }
 
@@ -116,7 +113,7 @@ export default class JobUnload implements Job.Model {
       return 1.0;
     }
 
-    return 1.0 - this._site.freeSpace() / this._site.capacity();
+    return this._site.holding() / this._site.capacity();
   }
 
   satisfiesPrerequisite(p: Job.Prerequisite): boolean {

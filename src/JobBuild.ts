@@ -8,6 +8,18 @@ function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
   return () => {
     worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
     worker.say('⚒️');
+    const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
+    if (dumbPos) {
+      const res = worker.jobMoveTo(site, 0, <LineStyle>{ opacity: .4, stroke: 'orange' });
+      if (res == OK) {
+        log.info(`${job}: ${worker} moved to build site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+      }
+      else {
+        log.error(`${job}: ${worker} failed moving to build @ ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+      }
+      return;
+    }
+
     let res: number = worker.build(site);
     switch (res) {
       case OK:

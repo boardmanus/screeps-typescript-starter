@@ -17,6 +17,18 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
   return () => {
     worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
     worker.say('🛠️');
+    const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
+    if (dumbPos) {
+      const res = worker.jobMoveTo(site, 0, <LineStyle>{ opacity: .4, stroke: 'orange' });
+      if (res == OK) {
+        log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
+      }
+      else {
+        log.error(`${job}: ${worker} failed moving to repair @ ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
+      }
+      return;
+    }
+
     let res: number = worker.repair(site);
     switch (res) {
       case OK:

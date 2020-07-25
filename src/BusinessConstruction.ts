@@ -99,11 +99,7 @@ function worker_repair_filter(site: Structure): boolean {
       break;
   }
 
-  if (badHealth) {
-    return !badHealth;
-  }
-
-  return u.find_nearby_attackers(site).length == 0;
+  return badHealth && u.find_nearby_attackers(site).length == 0;
 }
 
 function worker_construction_filter(site: Structure): boolean {
@@ -126,7 +122,7 @@ export default class BusinessConstruction implements Business.Model {
     this._remoteRooms = remoteRooms;
 
     const rooms = [this._controller.room, ...this._remoteRooms];
-    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES/*, { filter: worker_construction_filter }*/)));
+    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
     const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
       (site) => new JobBuild(site, construction_priority(site))),
       (job) => -job.priority()), MAX_BUILD_JOBS);
@@ -137,6 +133,11 @@ export default class BusinessConstruction implements Business.Model {
       (job) => -job.priority()), MAX_REPAIR_JOBS);
 
     this._allJobs = [...constructionJobs, ...repairJobs];
+
+    log.debug(`Top 5 Buiding Jobs:`);
+    _.each(_.take(constructionJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
+    log.debug(`Top 5 Repair Jobs:`);
+    _.each(_.take(repairJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
   }
 
   id(): string {
