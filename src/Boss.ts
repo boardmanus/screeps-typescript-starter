@@ -89,9 +89,7 @@ export default class Boss implements Work {
   }
 
   work(): Operation[] {
-    return _.flatten(_.map(
-      this._workers,
-      (worker: Creep): Operation[] => { return this.job.work(worker); }));
+    return _.flatten(_.map(this._workers, (worker) => this.job.work(worker)));
   }
 
   assignWorker(worker: Creep) {

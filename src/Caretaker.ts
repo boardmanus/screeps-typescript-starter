@@ -30,9 +30,11 @@ function wall_rampart_damage_ratio(wr: Structure): number {
   if (!c) {
     return 0;
   }
-  const halfway = c.progress / c.progressTotal > 0.5;
-  const rcl = c.level - (halfway ? 0 : 1);
-  return 1.0 - wr.hits / RAMPART_HITS_MAX[rcl];
+  const progress = c.progress / c.progressTotal;
+  const rcl = c.level;
+  const nextRcl = Math.min(rcl + 1, 8);
+  const dHits = RAMPART_HITS_MAX[nextRcl] - RAMPART_HITS_MAX[rcl];
+  return 1.0 - 10.0 * wr.hits / (RAMPART_HITS_MAX[rcl] + progress * dHits);
 }
 
 function road_repair_priority(road: StructureRoad): number {
@@ -49,11 +51,12 @@ function rampart_repair_priority(rampart: StructureRampart): number {
     return 9;
   }
   const damageRatio = wall_rampart_damage_ratio(rampart);
-  return 1 * Math.pow(damageRatio, 10)
+  return 2 * damageRatio;
 }
 
 function wall_repair_priority(wall: StructureWall): number {
-  return 1 * Math.pow(wall_rampart_damage_ratio(wall), 10);
+  const damageRatio = wall_rampart_damage_ratio(wall);
+  return 2 * damageRatio;
 }
 
 function repair_priority(site: Structure): number {
@@ -66,17 +69,14 @@ function repair_priority(site: Structure): number {
 }
 
 
-function tower_repair_filter(tower: StructureTower[], site: Structure): boolean {
+function tower_repair_filter(tower: StructureTower[], site: Structure, minPriority: number): boolean {
   if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
     return false;
   }
 
-  switch (site.structureType) {
-    case STRUCTURE_WALL:
-    case STRUCTURE_RAMPART:
-      return wall_rampart_damage_ratio(site) > 0.92;
-    default:
-      break;
+  const repairPriority = repair_priority(site);
+  if (repairPriority < minPriority) {
+    return false;
   }
 
   const power: number = _.max(_.map(tower, (t: StructureTower): number => { return repair_power(t, site); }));
@@ -213,12 +213,15 @@ export class Caretaker implements Expert {
       return work;
     }
 
+    const cloneHealth = 1.0 - this._room.energyAvailable / this._room.energyCapacityAvailable;
+    const minPriority = 4.0 * cloneHealth;
+
     const repairSites = room.find(FIND_STRUCTURES, {
       filter: (s: Structure) => {
-        return tower_repair_filter(this._towers, s);
+        return tower_repair_filter(this._towers, s, minPriority);
       }
     });
-
+    log.debug(`${this}: ${repairSites.length} repair sites`)
     if (repairSites.length == 0) {
       return [];
     }
@@ -231,8 +234,9 @@ export class Caretaker implements Expert {
         return -repair_priority(s) * repair_power(t, s);
       });
 
-      log.debug(`Top 5 Tower Repair Sites:`)
+      log.debug(`Top 5 ${t} Repair Sites:`)
       _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${repair_power(t, s)}`))
+
       log.info(`${this}: creating new tower repair work ${t} => ${sortedSites[0]} ...`)
       work.push(new TowerRepairWork(t, sortedSites[0]));
     }

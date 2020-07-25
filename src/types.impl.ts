@@ -123,7 +123,7 @@ StructureTower.prototype.freeSpace = function (resource = RESOURCE_ENERGY): numb
   return this.store.getFreeCapacity(resource) ?? 0;
 }
 StructureTower.prototype.capacity = function (): number {
-  return this.store.getCapacity() ?? 0;
+  return this.store.getCapacity(RESOURCE_ENERGY) ?? 0;
 }
 
 Creep.prototype.available = function (resource = RESOURCE_ENERGY): number {
