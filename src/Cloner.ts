@@ -203,6 +203,12 @@ export class Cloner implements Expert {
       return [];
     }
 
+    const numBossedWorkers = _.sum(bosses, (b) => b.workers().length);
+    if (ceosWithVacancies.length > 0 && numBossedWorkers > 2) {
+      log.debug(`${this}: not cloning => ${ceosWithVacancies.length} ceos with vacancies, and ${numBossedWorkers} bossed`);
+      return [];
+    }
+
     const numEmployees = ceos.length - ceosWithVacancies.length;
     const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS) + numEmployees;
     if ((this._numWorkers >= maxWorkers)

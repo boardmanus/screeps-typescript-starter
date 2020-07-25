@@ -131,9 +131,7 @@ export class Mayor {
       const upgrading = new BusinessUpgrading(this._room.controller);
       this._businessMap[upgrading.id()] = upgrading;
 
-      log.debug(`${this}: about to construct BusinessConstruction...`)
-      const construction = new BusinessConstruction(this._room.controller);
-      construction.setRemoteRooms(this._remoteRooms);
+      const construction = new BusinessConstruction(this._room.controller, this._remoteRooms);
       this._businessMap[construction.id()] = construction;
     }
 
@@ -250,11 +248,11 @@ export class Mayor {
     this._lazyWorkers = lazyWorkers;
     this._redundantBosses = redundantBosses;
 
-    //log.debug(`Top 10 bosses!`)
-    //_.each(_.take(prioritize_bosses(this._bosses), 10), (b) => log.debug(`${b}: p-${b.priority()}, r-${worker_rating(b.workers()[0], b, 0)}`));
-    //log.debug(`Top 10 vacancies!`)
-    //const employed = _.flatten(_.map(this._bosses, (b) => b.workers()));
-    //_.each(_.take(prioritize_bosses(this._redundantBosses), 10), (b) => log.debug(`${b}: p-${b.priority()}, r-${_.map(employed, (w) => worker_rating(w, b, 0))}`));
+    log.debug(`Top 5 bosses!`)
+    _.each(_.take(prioritize_bosses(this._bosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, r-${worker_rating(b.workers()[0], b, 0)}`));
+    log.debug(`Top 5 vacancies!`)
+    const employed = _.flatten(_.map(this._bosses, (b) => b.workers()));
+    _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, r-${_.map(employed, (w) => worker_rating(w, b, 0))}`));
   }
 
   mineralJobs(): Job.Model[] {
@@ -320,17 +318,11 @@ export class Mayor {
     });
     const foes = room.find(FIND_HOSTILE_CREEPS);
     const unloadJobs: JobUnload[] = _.map(towers, (s: StructureTower): JobUnload => {
-      let p = 1;
-      if (foes.length) {
-        p = 10;
-      }
-      else {
-        p = (s.freeSpace() < 100) ? 1 : 5;
-      }
+      const p = (foes.length) ? 10 : (s.freeSpace() / s.capacity() * 5);
       return new JobUnload(s, p);
     });
     const jobs: JobUnload[] = unloadJobs;
-    log.info(`${this} scheduling ${jobs.length} unload jobs...`);
+    log.info(`${this} scheduling ${jobs.length} unload jobs (${jobs})...`);
     return jobs;
   }
 
@@ -366,10 +358,10 @@ export class Mayor {
     const [sourceJobs, sinkJobs] = _.partition(bosses, (b: Boss) => { return b.job.satisfiesPrerequisite(Job.Prerequisite.COLLECT_ENERGY); });
 
     log.info(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
-    //_.each(sinkJobs, (boss) => log.debug(`${boss}: sink job  @ ${boss.job.site()}`))
+    _.each(sinkJobs, (boss) => log.debug(`${boss}: sink job  @ ${boss.job.site()}`))
     const [hiringSinks, lazyFull] = assign_workers(sinkJobs, fullWorkers);
     log.info(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs ${sourceJobs}`);
-    //_.each(sourceJobs, (boss) => log.debug(`${boss}: source job @ ${boss.job.site()}`))
+    _.each(sourceJobs, (boss) => log.debug(`${boss}: source job @ ${boss.job.site()}`))
     const [hiringSources, lazyEmpty] = assign_workers(sourceJobs, emptyWorkers);
     log.info(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left - over jobs`);
     const [hiring, lazyMulti] = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
@@ -447,8 +439,8 @@ function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]
     bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
     bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
     pairings = _.filter(pairings, (wbp: WorkerBossPairing) => { return wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker; });
-    log.debug(`Refined Worker-Boss Pairings:`)
-    _.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
+    //log.debug(`Refined Worker-Boss Pairings:`)
+    //_.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
   }
   while (pairings.length);
 

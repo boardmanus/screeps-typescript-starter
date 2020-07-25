@@ -367,7 +367,10 @@ export default class BusinessEnergyMining implements Business.Model {
 
     if (container) {
       // Always use a contractor to clear the container
-      jobs.push(new JobPickup(container, pickup_priority(container)));
+      if (container.available()) {
+        const pickup = new JobPickup(container, pickup_priority(container));
+        jobs.push(pickup);
+      }
     }
     else if (mine._container) {
       jobs.push(new JobBuild(<ConstructionSite>mine._container));

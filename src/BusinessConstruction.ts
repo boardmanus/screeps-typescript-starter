@@ -25,31 +25,54 @@ export function construction_priority(site: ConstructionSite): number {
   return 1;
 }
 
-function road_repair_priority(road: StructureRoad, damageRatio: number): number {
+
+function damage_ratio(site: Structure): number {
+  return (1.0 - site.hits / site.hitsMax);
+}
+
+function wall_rampart_damage_ratio(wr: Structure): number {
+  const c = wr.room.controller;
+  if (!c) {
+    return 0;
+  }
+  const progress = c.progress / c.progressTotal;
+  const rcl = c.level;
+  const nextRcl = Math.min(rcl + 1, 8);
+  const dHits = RAMPART_HITS_MAX[nextRcl] - RAMPART_HITS_MAX[rcl];
+  return 1.0 - 10.0 * wr.hits / (RAMPART_HITS_MAX[rcl] + progress * dHits);
+}
+
+function road_repair_priority(road: StructureRoad): number {
   const decayAmount = ROAD_DECAY_AMOUNT * 5;
   if ((road.ticksToDecay < ROAD_DECAY_TIME) && (road.hits < decayAmount)) {
-    return 5;
+    return 8;
   }
+  return 2 * damage_ratio(road);
+}
+
+function rampart_repair_priority(rampart: StructureRampart): number {
+  if ((rampart.ticksToDecay < RAMPART_DECAY_TIME / 3)
+    && (rampart.hits < 2 * RAMPART_DECAY_AMOUNT)) {
+    return 9;
+  }
+  const damageRatio = wall_rampart_damage_ratio(rampart);
   return 2 * damageRatio;
 }
 
-function rampart_repair_priority(rampart: StructureRampart, damageRatio: number): number {
-  if ((rampart.ticksToDecay < RAMPART_DECAY_TIME / 3)
-    && (rampart.hits < 2 * RAMPART_DECAY_AMOUNT)) {
-    return 5;
-  }
-  return 1 * Math.pow(damageRatio, 10)
+function wall_repair_priority(wall: StructureWall): number {
+  const damageRatio = wall_rampart_damage_ratio(wall);
+  return 2 * damageRatio;
 }
 
 function repair_priority(site: Structure): number {
-  const damageRatio = (1.0 - site.hits / site.hitsMax);
   switch (site.structureType) {
-    case STRUCTURE_ROAD: return road_repair_priority(<StructureRoad>site, damageRatio);
-    case STRUCTURE_RAMPART: return rampart_repair_priority(<StructureRampart>site, damageRatio);
-    case STRUCTURE_WALL: return 1 * Math.pow(damageRatio, 20);
-    default: return 8 * damageRatio;
+    case STRUCTURE_ROAD: return road_repair_priority(<StructureRoad>site);
+    case STRUCTURE_RAMPART: return rampart_repair_priority(<StructureRampart>site);
+    case STRUCTURE_WALL: return wall_repair_priority(<StructureWall>site);
+    default: return 5 * damage_ratio(site);
   }
 }
+
 
 function worker_repair_filter(site: Structure): boolean {
   if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
@@ -94,12 +117,26 @@ export default class BusinessConstruction implements Business.Model {
 
   private readonly _priority: number;
   private readonly _controller: StructureController;
-  private _remoteRooms: Room[];
+  private readonly _remoteRooms: Room[];
+  private readonly _allJobs: Job.Model[]
 
-  constructor(controller: StructureController, priority: number = 5) {
+  constructor(controller: StructureController, remoteRooms: Room[], priority: number = 5) {
     this._priority = priority;
     this._controller = controller;
-    this._remoteRooms = [];
+    this._remoteRooms = remoteRooms;
+
+    const rooms = [this._controller.room, ...this._remoteRooms];
+    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES/*, { filter: worker_construction_filter }*/)));
+    const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
+      (site) => new JobBuild(site, construction_priority(site))),
+      (job) => -job.priority()), MAX_BUILD_JOBS);
+
+    const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
+    const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
+      (site) => new JobRepair(site, repair_priority(site))),
+      (job) => -job.priority()), MAX_REPAIR_JOBS);
+
+    this._allJobs = [...constructionJobs, ...repairJobs];
   }
 
   id(): string {
@@ -112,11 +149,6 @@ export default class BusinessConstruction implements Business.Model {
 
   priority(): number {
     return this._priority;
-  }
-
-  setRemoteRooms(remoteRooms: Room[]) {
-    this._remoteRooms.push(...remoteRooms);
-    log.debug(`${this}: ${this._remoteRooms.length}/${remoteRooms.length} remoteRooms (${this._remoteRooms}/${remoteRooms})`)
   }
 
   needsEmployee(employees: Worker[]): boolean {
@@ -138,36 +170,11 @@ export default class BusinessConstruction implements Business.Model {
   }
 
   permanentJobs(): Job.Model[] {
-    const rooms = [this._controller.room, ...this._remoteRooms];
-    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES/*, { filter: worker_construction_filter }*/)));
-    const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
-      (site) => new JobBuild(site, construction_priority(site))),
-      (job) => -job.priority()), MAX_BUILD_JOBS);
-
-    const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
-    const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
-      (site) => new JobRepair(site, repair_priority(site))),
-      (job) => -job.priority()), MAX_REPAIR_JOBS);
-
-    const allJobs = [...constructionJobs, ...repairJobs];
-
-    return allJobs;
+    return this._allJobs;
   }
 
   contractJobs(employees: Worker[]): Job.Model[] {
-
-    const rooms = this._remoteRooms.concat(this._controller.room);
-    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
-    const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
-      (site) => new JobBuild(site, construction_priority(site))),
-      (job) => -job.priority()), MAX_BUILD_JOBS);
-
-    const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
-    const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
-      (site) => new JobRepair(site, repair_priority(site))),
-      (job) => -job.priority()), MAX_REPAIR_JOBS);
-
-    return [...constructionJobs, ...repairJobs];
+    return this._allJobs;
   }
 
   buildings(): BuildingWork[] {
@@ -181,5 +188,5 @@ Business.factory.addBuilder(BusinessConstruction.TYPE, (id: string): Business.Mo
   if (!controller) {
     return undefined;
   }
-  return new BusinessConstruction(controller);
+  return new BusinessConstruction(controller, []);
 });
