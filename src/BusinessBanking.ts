@@ -166,9 +166,11 @@ export default class BusinessBanking implements Business.Model {
 
     let jobs: Job.Model[] = [];
 
+    const hostiles = this._vault.room.find(FIND_HOSTILE_CREEPS).length;
+    const minRatio = (hostiles > 0) ? 1.0 : 0.1;
     const energyRatio = this._vault.room.energyAvailable / this._vault.room.energyCapacityAvailable;
     if (vault.available() > 0) {
-      jobs.push(new JobPickup(vault, Math.max(0.1, 1.0 - energyRatio) * 2));
+      jobs.push(new JobPickup(vault, Math.max(minRatio, 1.0 - energyRatio) * 1));
     }
 
     if (vault.freeSpace() > 0) {
