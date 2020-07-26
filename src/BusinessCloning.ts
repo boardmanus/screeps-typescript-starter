@@ -354,14 +354,19 @@ export default class BusinessCloning implements Business.Model {
     const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
     log.debug(`${this}: roomHealth=${roomHealth}`)
     const extPriority = 4 + (1.0 - roomHealth) * this._priority;
-    const extJobs: JobUnload[] = _.map(_.filter(this._extensions,
+    const extJobs: JobUnload[] = _.map(_.take(_.sortBy(_.filter(this._extensions,
       (e) => e.freeSpace() > 0),
+      (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
+      5),
       (e) => new JobUnload(e, extPriority));
 
-    const spawnPriority = 3 + (1.0 - roomHealth) * this._priority;
-    const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
-      (s) => s.freeSpace() > 0),
-      (s) => new JobUnload(s, spawnPriority));
+    if (extJobs.length < 5) {
+      const spawnPriority = 3 + (1.0 - roomHealth) * this._priority;
+      const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
+        (s) => s.freeSpace() > 0),
+        (s) => new JobUnload(s, spawnPriority));
+      extJobs.push(...spawnJobs);
+    }
 
     const pickupJobs: JobPickup[] = _.map(_.filter(this._spawns,
       (s) => { const r = s.recycler(); return r ? r.available() : false }),
@@ -369,7 +374,7 @@ export default class BusinessCloning implements Business.Model {
 
     const recycle = new JobRecycle(this._spawns[0]);
 
-    const contracts = [recycle, ...extJobs, ...spawnJobs, ...pickupJobs];
+    const contracts = [recycle, ...extJobs, ...pickupJobs];
     log.debug(`${this}: ${contracts.length} contracts (${extJobs.length} exts)`)
 
     return contracts;

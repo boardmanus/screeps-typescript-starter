@@ -102,11 +102,7 @@ export default class JobRecycle implements Job.Model {
   }
 
   satisfiesPrerequisite(p: Job.Prerequisite): boolean {
-    return p == Job.Prerequisite.COLLECT_ENERGY;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    return Job.Prerequisite.NONE;
+    return p == Job.Prerequisite.COLLECT_ENERGY || p == Job.Prerequisite.NONE;
   }
 
   baseWorkerBody(): BodyPartConstant[] {

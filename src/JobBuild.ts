@@ -88,6 +88,10 @@ export default class JobBuild implements Job.Model {
     // Calculate the efficiency for working with full energy, and then
     // multiply by the ratio available.
     // This should allow fuller workers to be chosen more.
+    if (worker.available() == 0) {
+      return 0.0;
+    }
+
     const ratio = worker.available() / worker.capacity();
     return ratio * u.work_efficiency(worker, this._site, worker.capacity(), BUILD_POWER);
   }
@@ -106,19 +110,11 @@ export default class JobBuild implements Job.Model {
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY) {
+    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY || prerequisite == Job.Prerequisite.NONE) {
       return this.completion() < 1.0;
     }
 
     return false;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    if (worker.available() == 0) {
-      return Job.Prerequisite.COLLECT_ENERGY;
-    }
-
-    return Job.Prerequisite.NONE;
   }
 
   work(worker: Creep): Operation[] {

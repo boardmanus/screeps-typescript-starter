@@ -1,5 +1,6 @@
 import { Operation } from "./Operation";
 import * as Job from "Job";
+import JobDrop from "JobDrop"
 import u from "./Utility"
 import { log } from './ScrupsLogger'
 
@@ -89,11 +90,26 @@ export default class JobPickup implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
+
+    if (worker.freeSpace() == 0) {
+      return 0.0;
+    }
+
     if (u.find_nearby_attackers(this._site).length > 0) {
       return 0;
     }
 
-    return u.taxi_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()));
+    // The energy/s with respect to travel time, and amount to pickup
+    const e = u.taxi_efficiency(worker, this._site, Math.min(worker.freeSpace(), this._site.available()));
+
+    // If the workers last job was dropping off at this site, then
+    // reduce the efficiency of a pickup from the same place.
+    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
+    if (lastJob && (lastJob.site() === this._site) && (lastJob.type() == JobDrop.TYPE)) {
+      return 0.01 * e;
+    }
+
+    return e;
   }
 
   site(): RoomObject {
@@ -127,19 +143,11 @@ export default class JobPickup implements Job.Model {
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY) {
+    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY || prerequisite == Job.Prerequisite.NONE) {
       return this._site.available() > 0;
     }
 
     return false;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    if (worker.carry.getUsedCapacity() == worker.carryCapacity) {
-      return Job.Prerequisite.DELIVER_ENERGY;
-    }
-
-    return Job.Prerequisite.NONE;
   }
 
   work(worker: Creep): Operation[] {

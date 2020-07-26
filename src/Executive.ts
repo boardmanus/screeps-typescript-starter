@@ -18,7 +18,6 @@ function map_valid_resumes(resumes: string[]): Worker[] {
 
 function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
 
-  const needsEnergy = (creep.available() < creep.capacity() / 2.0);
   let jobPrerequisite: Job.Prerequisite;
   const available = creep.available();
   const free = creep.freeSpace();
@@ -32,9 +31,7 @@ function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
     jobPrerequisite = Job.Prerequisite.NONE;
   }
 
-  const viableJobs = (jobPrerequisite == Job.Prerequisite.NONE)
-    ? jobs
-    : _.filter(jobs, (job) => job.satisfiesPrerequisite(jobPrerequisite));
+  const viableJobs = _.filter(jobs, (job) => job.efficiency(creep) > 0);//satisfiesPrerequisite(jobPrerequisite));
 
   const workableJobs = _.filter(viableJobs, (job) => {
     const workers: Creep[] = _.map(_.filter(busyWorkers, (w) => job.id() == w.job()?.id()), (w) => w.creep);
@@ -136,7 +133,7 @@ export default class Executive implements Work {
 
     const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.hasJob() && !worker.creep.spawning);
     if (lazyWorkers.length == 0) {
-      //log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
+      log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
       return;
     }
 
@@ -145,7 +142,7 @@ export default class Executive implements Work {
     for (const worker of lazyWorkers) {
       const bestJob = find_best_job(worker.creep, busyWorkers, jobs);
       if (bestJob) {
-        //log.info(`${this}: assigning ${bestJob} to ${worker}`);
+        log.info(`${this}: assigning ${bestJob} to ${worker}`);
         worker.assignJob(bestJob);
       }
     }

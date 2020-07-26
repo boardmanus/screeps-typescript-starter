@@ -97,7 +97,7 @@ export default class Boss implements Work {
       log.debug(`ERROR: ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
       return;
     }
-    log.debug(`${this}: assigning worker ${worker}`);
+    log.debug(`${this}: assigning worker ${worker}: p-${this.priority()}, e-${this.job.efficiency(worker)}`);
     worker.setJob(this.job.id());
     this._workers.push(worker);
   }

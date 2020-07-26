@@ -19,7 +19,6 @@ export interface Model {
   completion(worker?: Creep): number;
   work(worker: Creep): Operation[];
   satisfiesPrerequisite(prerequisite: Prerequisite): boolean;
-  prerequisite(worker: Creep): Prerequisite;
   baseWorkerBody(): BodyPartConstant[];
 }
 

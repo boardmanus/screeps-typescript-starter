@@ -111,6 +111,9 @@ export default class JobUpgrade implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
+    if (worker.available() == 0) {
+      return 0.0;
+    }
     return u.work_efficiency(worker, this._site, worker.available(), UPGRADE_CONTROLLER_POWER);
   }
 
@@ -131,14 +134,7 @@ export default class JobUpgrade implements Job.Model {
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    return prerequisite == Job.Prerequisite.DELIVER_ENERGY;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    if (worker.available() == 0) {
-      return Job.Prerequisite.COLLECT_ENERGY;
-    }
-    return Job.Prerequisite.NONE;
+    return prerequisite == Job.Prerequisite.DELIVER_ENERGY || prerequisite == Job.Prerequisite.NONE;
   }
 
   baseWorkerBody(): BodyPartConstant[] {

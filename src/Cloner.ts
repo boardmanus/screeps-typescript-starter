@@ -7,6 +7,11 @@ import Boss from "Boss";
 import * as Business from "Business";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
+import BusinessEnergyMining from "BusinessMining";
+import BusinessExploring from "BusinessExploring";
+import BusinessBanking from "BusinessBanking";
+import BusinessCloning from "BusinessCloning";
+import BusinessUpgrading from "BusinessUpgrading";
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, CARRY, MOVE, MOVE];
@@ -58,7 +63,7 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
-const MAX_HEAVY_WORKERS = 3;
+const MAX_HEAVY_WORKERS = 4;
 const MAX_WORKERS = 5;
 const MAX_WORKER_ENERGY = 1500;
 
@@ -170,7 +175,7 @@ export class Cloner implements Expert {
     return r;
   }
 
-  clone(ceos: Executive[], bosses: Boss[], lazyWorkers: Creep[]): Work[] {
+  clone(ceos: Executive[], bosses: Boss[], lazyWorkers: Creep[], allCreeps: Creep[]): Work[] {
 
     const spawners = _.filter(get_spawners(this._room), (s) => !s.spawning);
     if (spawners.length == 0) {
@@ -179,6 +184,10 @@ export class Cloner implements Expert {
     }
 
     log.debug(`${this}: ${bosses.length} contract jobs, ${this._numWorkers} workers...`)
+    if (lazyWorkers.length > 0) {
+      log.debug(`${this}: not cloning => ${lazyWorkers.length} lazy workers present`);
+      return [];
+    }
 
     const availableEnergy = this._room.energyAvailable;
     const totalEnergy = this._room.energyCapacityAvailable;
@@ -188,7 +197,8 @@ export class Cloner implements Expert {
     }
 
     // Start specializing after links have been established.
-    const ceosWithVacancies = _.sortBy(_.filter(ceos, (ceo) => ceo.needsEmployee()), (ceo) => ceo.priority());
+    const [vacantCeos, usefulCeos] = _.partition(ceos, (ceo) => ceo.needsEmployee());
+    const ceosWithVacancies = _.sortBy(vacantCeos, (ceo) => ceo.priority());
     if (ceosWithVacancies.length) {
       log.info(`${this}: ${ceosWithVacancies.length} ceo's with vacancies`);
       const ceo = ceosWithVacancies[0];
@@ -198,45 +208,22 @@ export class Cloner implements Expert {
       }
     }
 
-    if (lazyWorkers.length > 0) {
-      log.debug(`${this}: not cloning => ${lazyWorkers.length} lazy workers present`);
+    const [harvesters, others1] = _.partition(usefulCeos, (ceo) => ceo.business instanceof BusinessEnergyMining);
+    const [scouts, others2] = _.partition(others1, (ceo) => ceo.business instanceof BusinessExploring);
+    const [movers, others3] = _.partition(others2, (ceo) => ceo.business instanceof BusinessBanking || ceo.business instanceof BusinessCloning);
+    const [upgraders, fixers] = _.partition(others3, (ceo) => ceo.business instanceof BusinessUpgrading);
+
+    const numScouts = _.sum(scouts, (s) => s.employees().length);
+    const numWorkers = allCreeps.length - harvesters.length - numScouts - upgraders.length;
+    const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS);
+    if (numWorkers >= maxWorkers) {
+      log.info(`${this}: not cloning => ${numWorkers} >= ${maxWorkers} workers (t<${allCreeps.length}> - h<${harvesters.length}> - s<${numScouts}> - u<${upgraders.length}>)`)
       return [];
     }
 
-    const numBossedWorkers = _.sum(bosses, (b) => b.workers().length);
-    if (ceosWithVacancies.length > 0 && numBossedWorkers > 2) {
-      log.debug(`${this}: not cloning => ${ceosWithVacancies.length} ceos with vacancies, and ${numBossedWorkers} bossed`);
-      return [];
-    }
+    const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : MAX_WORKER_ENERGY;
 
-    const numEmployees = _.sum(ceos, (ceo) => ceo.employees().length);
-    const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS) + numEmployees;
-    if ((this._numWorkers >= maxWorkers)
-      || ((this._numWorkers > MIN_SAFE_WORKERS + numEmployees)
-        && availableEnergy < MAX_WORKER_ENERGY
-        && availableEnergy / totalEnergy < 0.9)) {
-      log.debug(`${this}: not cloning => numWorkers=${this._numWorkers} energy=${availableEnergy}/${totalEnergy}=${availableEnergy / totalEnergy}`)
-      return [];
-    }
-
-    // Find the most sort after contracts.
-    if (bosses.length == 0) {
-      log.debug(`${this}: no bosses, no cloney.`);
-      return [];
-    }
-    /*
-        const TAXI_JOBS = [JobPickup.TYPE, JobUnload.TYPE];
-        const [taxiBosses, workerBosses] = _.partition(bosses, (b) => TAXI_JOBS.includes(b.job.type()));
-        const taxiCreeps = _.sum(taxiBosses, (b) => b.numWorkers());
-        const workerCreeps = _.sum(workerBosses, (b) => b.numWorkers());
-        log.debug(`${this}: ${taxiCreeps} taxis, ${workerCreeps} peons`);
-
-        const taxiRating = taxiBosses.length - taxiCreeps;
-        const workerRating = workerBosses.length - workerCreeps;
-        const bestRepresentativeJob = (taxiBosses.length > 0 && taxiRating > workerRating) ? taxiBosses[0].job : workerBosses[0].job;
-        log.debug(`${this}: taxiRating: ${taxiRating}, workerRating: ${workerRating} => bestJob: ${bestRepresentativeJob}`);
-    */
-    const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, availableEnergy));
+    const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, energyToUse));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];

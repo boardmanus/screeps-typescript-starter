@@ -38,7 +38,7 @@ export default class Worker implements Work {
         worker.setJob(job.id());
       }
       else {
-        log.debug(`${this}: ${job.id()} completed by ${worker.id}`);
+        log.debug(`${this}: ${job.id()} completed by ${worker}`);
         this._job = undefined;
         worker.setJob(undefined);
         worker.setLastJob(job);

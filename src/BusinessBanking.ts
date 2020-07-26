@@ -111,10 +111,12 @@ export default class BusinessBanking implements Business.Model {
 
   private readonly _priority: number;
   private readonly _vault: StructureStorage;
+  private readonly _remoteRooms: Room[];
 
-  constructor(vault: StructureStorage, priority: number = 5) {
+  constructor(vault: StructureStorage, remoteRooms: Room[], priority: number = 5) {
     this._priority = priority;
     this._vault = vault;
+    this._remoteRooms = remoteRooms;
   }
 
   id(): string {
@@ -130,7 +132,7 @@ export default class BusinessBanking implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return employees.length == 0;
+    return employees.length < Math.max(1, this._remoteRooms.length);
   }
 
   survey() {
@@ -164,12 +166,13 @@ export default class BusinessBanking implements Business.Model {
 
     let jobs: Job.Model[] = [];
 
+    const energyRatio = this._vault.room.energyAvailable / this._vault.room.energyCapacityAvailable;
     if (vault.available() > 0) {
-      jobs.push(new JobPickup(vault, 1));
+      jobs.push(new JobPickup(vault, Math.max(0.1, 1.0 - energyRatio) * 2));
     }
 
     if (vault.freeSpace() > 0) {
-      jobs.push(new JobUnload(vault, 1));
+      jobs.push(new JobUnload(vault, Math.max(0.1, energyRatio) * 1));
     }
 
     const link = vault.link();
@@ -198,7 +201,7 @@ Business.factory.addBuilder(BusinessBanking.TYPE, (id: string): Business.Model |
   if (!vault) {
     return undefined;
   }
-  return new BusinessBanking(vault);
+  return new BusinessBanking(vault, []);
 });
 
 

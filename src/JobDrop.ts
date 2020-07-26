@@ -63,10 +63,15 @@ export default class JobDrop implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
-    if (lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
+    if (worker.holding() == 0) {
       return 0.0;
     }
+
+    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
+    if (lastJob && lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
+      return 0.0;
+    }
+
     return 0.001;
   }
 
@@ -83,11 +88,7 @@ export default class JobDrop implements Job.Model {
   }
 
   satisfiesPrerequisite(p: Job.Prerequisite): boolean {
-    return p == Job.Prerequisite.DELIVER_ENERGY;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    return Job.Prerequisite.NONE;
+    return p == Job.Prerequisite.DELIVER_ENERGY || p == Job.Prerequisite.NONE;
   }
 
   baseWorkerBody(): BodyPartConstant[] {

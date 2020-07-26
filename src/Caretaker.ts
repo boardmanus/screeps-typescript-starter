@@ -34,7 +34,7 @@ function wall_rampart_damage_ratio(wr: Structure): number {
   const rcl = c.level;
   const nextRcl = Math.min(rcl + 1, 8);
   const dHits = RAMPART_HITS_MAX[nextRcl] - RAMPART_HITS_MAX[rcl];
-  return 1.0 - 10.0 * wr.hits / (RAMPART_HITS_MAX[rcl] + progress * dHits);
+  return 1.0 - 100.0 * wr.hits / (RAMPART_HITS_MAX[rcl] + progress * dHits);
 }
 
 function road_repair_priority(road: StructureRoad): number {

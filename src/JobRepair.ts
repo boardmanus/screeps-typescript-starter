@@ -91,7 +91,7 @@ export default class JobRepair implements Job.Model {
 
   efficiency(worker: Creep): number {
 
-    if (this._site.hits >= this._site.hitsMax) {
+    if (worker.available() == 0 || this._site.hits >= this._site.hitsMax) {
       return 0.0;
     }
 
@@ -129,19 +129,11 @@ export default class JobRepair implements Job.Model {
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY) {
+    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY || prerequisite == Job.Prerequisite.NONE) {
       return this.completion() < 1.0;
     }
 
     return false;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    if (worker.available() == 0) {
-      return Job.Prerequisite.COLLECT_ENERGY;
-    }
-
-    return Job.Prerequisite.NONE;
   }
 
   work(worker: Creep): Operation[] {

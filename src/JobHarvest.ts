@@ -183,7 +183,8 @@ export default class JobHarvest implements Job.Model {
   }
 
   satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY) {
+    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY ||
+      prerequisite == Job.Prerequisite.NONE) {
       return this._site.available() > 0;
     }
 
@@ -197,15 +198,6 @@ export default class JobHarvest implements Job.Model {
     }
 
     return u.work_efficiency(worker, this._site, worker.freeSpace(), HARVEST_POWER);
-  }
-
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    if (worker.carry.getUsedCapacity() == worker.carryCapacity) {
-      return Job.Prerequisite.DELIVER_ENERGY;
-    }
-
-    return Job.Prerequisite.NONE;
   }
 
   isSatisfied(workers: Creep[]): boolean {

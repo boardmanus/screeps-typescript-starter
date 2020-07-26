@@ -76,6 +76,10 @@ export default class JobUnload implements Job.Model {
 
   efficiency(worker: Creep): number {
 
+    if (worker.holding() == 0 || this._site.freeSpace() == 0) {
+      return 0.0;
+    }
+
     const lastJob = <Job.Model>worker.getLastJob();
     if (lastJob && lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
       return 0;
@@ -119,14 +123,9 @@ export default class JobUnload implements Job.Model {
   }
 
   satisfiesPrerequisite(p: Job.Prerequisite): boolean {
-    return p == Job.Prerequisite.DELIVER_ENERGY && this._site.freeSpace() > 0;
-  }
-
-  prerequisite(worker: Creep): Job.Prerequisite {
-    if (resources_available(worker, this._site) == 0) {
-      return Job.Prerequisite.COLLECT_ENERGY;
-    }
-    return Job.Prerequisite.NONE;
+    return ((p == Job.Prerequisite.DELIVER_ENERGY
+      || p == Job.Prerequisite.NONE)
+      && this._site.freeSpace() > 0);
   }
 
   baseWorkerBody(): BodyPartConstant[] {

@@ -36,13 +36,25 @@ Resource.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return (this.resourceType == resource) ? this.amount : 0;
 }
 
+Resource.prototype.holding = function (): number {
+  return this.amount;
+}
+
 Tombstone.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return this.store[resource] ?? 0;
+}
+Tombstone.prototype.holding = function (): number {
+  return this.store.getUsedCapacity() ?? 0;
 }
 
 Source.prototype.available = function (resource = RESOURCE_ENERGY): number {
   return (resource == RESOURCE_ENERGY) ? this.energy : 0;
 }
+
+Source.prototype.holding = function (): number {
+  return this.energy;
+}
+
 
 Source.prototype.link = function (): StructureLink | undefined {
   return (this._link instanceof StructureLink) ? this._link : undefined;
@@ -54,6 +66,9 @@ Source.prototype.container = function (): StructureContainer | undefined {
 
 Mineral.prototype.available = function (resource?: ResourceConstant): number {
   return (resource == this.mineralType) ? this.mineralAmount : 0;
+}
+Mineral.prototype.holding = function (): number {
+  return this.mineralAmount;
 }
 
 StructureController.prototype.container = function (): StructureContainer | undefined {
@@ -167,10 +182,12 @@ Creep.prototype.jobMoveTo = function (pos: RoomPosition | RoomObject, range: num
   this.memory.stuckCount = stuckCount;
 
   if (stuckCount < 2) {
-    const pathLength = this.memory._move?.path.length ?? 10;
-    const ignoreCreeps = (pathLength > 5);
-    const reusePath = (stuckCount && !ignoreCreeps) ? 5 : 50;
+    const ignoreCreeps = (stuckCount == 0);
+    const reusePath = ignoreCreeps ? 5 : 50;
     style.lineStyle = ignoreCreeps ? "solid" : "dashed";
+    if (stuckCount) {
+      log.warning(`${this}: stuck-${stuckCount} at ${pos}`);
+    }
     const res = this.moveTo(pos, { ignoreCreeps: ignoreCreeps, range: range, reusePath: reusePath, visualizePathStyle: style });
     return res;
   }
