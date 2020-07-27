@@ -4,10 +4,11 @@ import u from "./Utility"
 import { log } from './ScrupsLogger'
 import JobPickup from "JobPickup";
 
-function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operation {
+
+function unload_at_site(job: JobUnload, worker: Creep): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
-    worker.say('🚑');
+    const site = job._site;
+    Job.visualize(job, worker);
     let resource: ResourceConstant = RESOURCE_ENERGY;
     if (site.structureType == STRUCTURE_TERMINAL || site.structureType == STRUCTURE_STORAGE) {
       resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
@@ -20,13 +21,7 @@ function unload_at_site(job: JobUnload, worker: Creep, site: UnloadSite): Operat
         log.info(`${job}: ${worker} transferred ${resource} to ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'orange' });
-        if (res == OK) {
-          log.info(`${job}: ${worker} moved towards unload site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-        }
-        else {
-          log.warning(`${job}: ${worker} failed moving to unload site ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-        }
+        Job.moveTo(job, worker, 1);
         break;
       default:
         log.warning(`${job}: ${worker} failed to transfer ${worker.store[resource]} ${resource} to ${site} (${u.errstr(res)})`);
@@ -68,6 +63,14 @@ export default class JobUnload implements Job.Model {
 
   toString(): string {
     return this.id();
+  }
+
+  say(): string {
+    return '🚑';
+  }
+
+  styleColour(): string {
+    return 'orange';
   }
 
   priority(workers?: Creep[]): number {
@@ -133,7 +136,7 @@ export default class JobUnload implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    return [unload_at_site(this, worker, this._site)];
+    return [unload_at_site(this, worker)];
   }
 }
 

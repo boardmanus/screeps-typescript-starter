@@ -25,16 +25,23 @@ function damage_ratio(site: Structure): number {
   return (1.0 - site.hits / site.hitsMax);
 }
 
-function wall_rampart_damage_ratio(wr: Structure): number {
-  const c = wr.room.controller;
+function wall_rampart_desired_hits(room: Room): number {
+  const c = room.controller;
   if (!c) {
     return 0;
   }
+
   const progress = c.progress / c.progressTotal;
   const rcl = c.level;
-  const nextRcl = Math.min(rcl + 1, 8);
-  const dHits = RAMPART_HITS_MAX[nextRcl] - RAMPART_HITS_MAX[rcl];
-  return 1.0 - 100.0 * wr.hits / (RAMPART_HITS_MAX[rcl] + progress * dHits);
+  const prevRcl = Math.max(rcl - 1, 2);
+  const dHits = RAMPART_HITS_MAX[rcl] - RAMPART_HITS_MAX[prevRcl];
+  const maxHits = RAMPART_HITS_MAX[rcl] + progress * dHits;
+
+  return maxHits / 30.0;
+}
+
+function wall_rampart_damage_ratio(wr: Structure): number {
+  return 1.0 - wr.hits / wall_rampart_desired_hits(wr.room);
 }
 
 function road_repair_priority(road: StructureRoad): number {
@@ -213,6 +220,7 @@ export class Caretaker implements Expert {
       return work;
     }
 
+    log.info(`${this}: ${wall_rampart_desired_hits(this._room)} desired wall/rampart hits`);
     const cloneHealth = 1.0 - this._room.energyAvailable / this._room.energyCapacityAvailable;
     const minPriority = 4.0 * cloneHealth;
 
@@ -221,6 +229,7 @@ export class Caretaker implements Expert {
         return tower_repair_filter(this._towers, s, minPriority);
       }
     });
+
     log.debug(`${this}: ${repairSites.length} repair sites`)
     if (repairSites.length == 0) {
       return [];

@@ -4,19 +4,12 @@ import u from "./Utility"
 import { log } from './ScrupsLogger'
 import JobPickup from "JobPickup";
 
-function drop_at_site(job: JobDrop, worker: Creep, site: StructureContainer): Operation {
+function drop_at_site(job: JobDrop, worker: Creep): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'purple' });
-    worker.say('👎');
-
+    const site = job._site;
+    Job.visualize(job, worker);
     if (!worker.pos.isEqualTo(site.pos)) {
-      const res = worker.jobMoveTo(site, 0, <LineStyle>{ opacity: .4, stroke: 'purple' });
-      if (res == OK) {
-        log.info(`${job}: ${worker} moved towards drop site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-      }
-      else {
-        log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-      }
+      const res = Job.moveTo(job, worker, 0);
       return;
     }
 
@@ -58,6 +51,14 @@ export default class JobDrop implements Job.Model {
     return this.id();
   }
 
+  say(): string {
+    return '👎';
+  }
+
+  styleColour(): string {
+    return 'purple';
+  }
+
   priority(workers?: Creep[]): number {
     return this._priority;
   }
@@ -97,7 +98,7 @@ export default class JobDrop implements Job.Model {
 
   work(worker: Creep): Operation[] {
     log.debug(`${this}: work operations for ${worker}`);
-    return [drop_at_site(this, worker, this._site)];
+    return [drop_at_site(this, worker)];
   }
 }
 

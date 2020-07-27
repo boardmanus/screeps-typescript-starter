@@ -3,22 +3,16 @@ import * as Job from "Job";
 import u from "./Utility";
 import { log } from './ScrupsLogger'
 
-function upgrade_site(job: JobUpgrade, worker: Creep, site: StructureController): Operation {
+function upgrade_site(job: JobUpgrade, worker: Creep): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
-    worker.say('🏵️');
+    const site = job._site;
+    Job.visualize(job, worker);
 
     const container = site._container;
     if (container
       && !worker.pos.inRangeTo(container.pos, 0)
       && container.pos.lookFor(LOOK_CREEPS).length == 0) {
-      const res = worker.jobMoveTo(container, 0, <LineStyle>{ opacity: .4, stroke: 'green' });
-      if (res == OK) {
-        log.info(`${job}: ${worker} is moving to harvest to ${container}@${site} (${worker.pos.getRangeTo(container)} sq)`);
-      }
-      else {
-        log.error(`${job}: ${worker} failed moving to ${container}@${site} (${worker.pos.getRangeTo(container)} sq) (${u.errstr(res)})`);
-      }
+      Job.moveTo(job, worker, 0, container);
       return;
     }
 
@@ -28,14 +22,7 @@ function upgrade_site(job: JobUpgrade, worker: Creep, site: StructureController)
         log.info(`${job}: ${worker} upgraded controller ${site})`);
         break;
       case ERR_NOT_IN_RANGE: {
-
-        res = worker.jobMoveTo(site, 3, <LineStyle>{ opacity: .4, stroke: 'orange' });
-        if (res == OK) {
-          log.info(`${job}: ${worker} moved towards controller ${site} (${worker.pos.getRangeTo(site)} sq)`);
-        }
-        else {
-          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-        }
+        Job.moveTo(job, worker, 3);
         break;
       }
       default:
@@ -82,6 +69,14 @@ export default class JobUpgrade implements Job.Model {
 
   toString(): string {
     return this.id();
+  }
+
+  say(): string {
+    return '🏵️';
+  }
+
+  styleColour(): string {
+    return 'purple';
   }
 
   priority(workers?: Creep[]): number {
@@ -142,7 +137,7 @@ export default class JobUpgrade implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    return [upgrade_site(this, worker, this._site)];
+    return [upgrade_site(this, worker)];
   }
 }
 

@@ -7,20 +7,14 @@ import { log } from './ScrupsLogger'
 
 function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure | Tombstone): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
+    Job.visualize(job, worker);
     let res: number = worker.withdraw(site, RESOURCE_ENERGY);
     switch (res) {
       default:
         log.error(`${job}: unexpected error while ${worker} tried withdrawing from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
-        res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
-        if (res == OK) {
-          log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
-        }
-        else {
-          log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-        }
+        res = Job.moveTo(job, worker, 1);
         break;
       case OK:
         // Finished job.
@@ -32,8 +26,7 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: Structure | Tom
 
 function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
-    worker.say('🚑');
+    Job.visualize(job, worker);
     let res: number = worker.pickup(site);
     switch (res) {
       case OK:
@@ -41,15 +34,11 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
         log.info(`${job}: ${worker} picked up resources from ${site}`);
         break;
       case ERR_NOT_IN_RANGE: {
-        res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
+        res = Job.moveTo(job, worker, 1);
         if (res == OK) {
-          log.info(`${job}: ${worker} moved towards ${site} (${worker.pos.getRangeTo(site)} sq)`);
           if (worker.pickup(site) == OK) {
             log.info(`${job}: ... and ${worker} picked up resources from ${site}`);
           }
-        }
-        else {
-          log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
         }
         break;
       }
@@ -82,6 +71,14 @@ export default class JobPickup implements Job.Model {
 
   toString(): string {
     return this.id();
+  }
+
+  say(): string {
+    return '🚑';
+  }
+
+  styleColour(): string {
+    return 'green';
   }
 
   priority(workers?: Creep[]): number {

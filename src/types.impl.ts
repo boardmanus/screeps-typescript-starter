@@ -70,6 +70,12 @@ Mineral.prototype.available = function (resource?: ResourceConstant): number {
 Mineral.prototype.holding = function (): number {
   return this.mineralAmount;
 }
+Mineral.prototype.container = function (): StructureContainer | undefined {
+  return (this._container instanceof StructureContainer) ? this._container : undefined;
+}
+Mineral.prototype.extractor = function (): StructureExtractor | undefined {
+  return (this._extractor instanceof StructureExtractor) ? this._extractor : undefined;
+}
 
 StructureController.prototype.container = function (): StructureContainer | undefined {
   return (this._container instanceof StructureContainer) ? this._container : undefined;
@@ -161,41 +167,4 @@ Creep.prototype.setLastJob = function (lastJob: Object): void {
 }
 Creep.prototype.getLastJob = function (): Object | undefined {
   return this._lastJob;
-}
-Creep.prototype.jobMoveTo = function (pos: RoomPosition | RoomObject, range: number, style: LineStyle): number {
-
-  if (this.fatigue) {
-    log.warning(`${this}: failed moving to ${pos} (tired)`);
-    return ERR_TIRED;
-  }
-
-  if (this.spawning) {
-    log.warning(`${this}: failed moving to ${pos} (still spawning)`);
-    return ERR_BUSY;
-  }
-
-  const lastPos = this.memory.lastPosition ?? this.pos;
-  const stuck = this.pos.inRangeTo(lastPos, 0);
-  const stuckCount = stuck ? (this.memory.stuckCount ?? 0) + 1 : 0;
-
-  this.memory.lastPosition = this.pos;
-  this.memory.stuckCount = stuckCount;
-
-  if (stuckCount < 2) {
-    const ignoreCreeps = (stuckCount == 0);
-    const reusePath = ignoreCreeps ? 5 : 50;
-    style.lineStyle = ignoreCreeps ? "solid" : "dashed";
-    if (stuckCount) {
-      log.warning(`${this}: stuck-${stuckCount} at ${pos}`);
-    }
-    const res = this.moveTo(pos, { ignoreCreeps: ignoreCreeps, range: range, reusePath: reusePath, visualizePathStyle: style });
-    return res;
-  }
-
-  // Re-evaluate the path, ensuring creeps aren't ignored this time.
-  log.warning(`${this}: stuck-${stuckCount} at ${pos}`);
-  const reusePath = (stuckCount > 5) ? 0 : 5 - stuckCount;
-  const res = this.moveTo(pos, { ignoreCreeps: false, range: range, reusePath: reusePath, visualizePathStyle: style });
-
-  return res;
 }

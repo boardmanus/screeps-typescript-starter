@@ -16,7 +16,6 @@ interface Creep {
   isEmployed(): boolean;
   setLastJob(lastJob: Object): void;
   getLastJob(): Object | undefined;
-  jobMoveTo(pos: RoomPosition | RoomObject, range: number, style: LineStyle): number;
 }
 
 interface Source {
@@ -28,11 +27,11 @@ interface Source {
 }
 
 interface Mineral {
-  _container: StructureContainer | undefined;
-  _link: StructureLink | undefined;
+  _container: StructureContainer | ConstructionSite | undefined;
+  _extractor: StructureExtractor | ConstructionSite | undefined;
 
-  link(): StructureLink | undefined;
   container(): StructureContainer | undefined;
+  extractor(): StructureExtractor | undefined;
 }
 
 interface StructureStorage {

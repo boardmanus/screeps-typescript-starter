@@ -6,18 +6,11 @@ import { log } from './ScrupsLogger'
 const TTL_NEARLY_DEAD: number = 200;
 const TTL_RECYCLE_TIME: number = 30;
 
-function scout_at_site(job: JobScout, worker: Creep, site: Flag): Operation {
+function scout_at_site(job: JobScout, worker: Creep): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'red' });
-    worker.say('🤖');
-
-    const res = worker.jobMoveTo(site, 0, <LineStyle>{ opacity: .4, stroke: 'grey' });
-    if (res == OK) {
-      log.info(`${job}: ${worker} moved towards scout site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-    }
-    else {
-      log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-    }
+    const site = job._site;
+    Job.visualize(job, worker);
+    Job.moveTo(job, worker, 0);
   }
 }
 
@@ -43,6 +36,14 @@ export default class JobScout implements Job.Model {
 
   toString(): string {
     return this.id();
+  }
+
+  say(): string {
+    return '🤖';
+  }
+
+  styleColour(): string {
+    return 'blue';
   }
 
   priority(workers?: Creep[]): number {
@@ -82,7 +83,7 @@ export default class JobScout implements Job.Model {
 
   work(worker: Creep): Operation[] {
     if (!worker.pos.inRangeTo(this._site.pos, 0)) {
-      return [scout_at_site(this, worker, this._site)];
+      return [scout_at_site(this, worker)];
     }
     return [];
   }

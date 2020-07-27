@@ -6,23 +6,17 @@ import { log } from './ScrupsLogger'
 const TTL_NEARLY_DEAD: number = 200;
 const TTL_RECYCLE_TIME: number = 30;
 
-function recycle_at_site(job: JobRecycle, worker: Creep, site: StructureSpawn): Operation {
+function recycle_at_site(job: JobRecycle, worker: Creep): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'red' });
-    worker.say('☠️');
+    const site = job._site;
 
     const recycler = site.recycler();
     const recycleSite = recycler ?? site
+    Job.visualize(job, worker, recycleSite);
 
     if ((recycler && !worker.pos.isEqualTo(recycler.pos))
       || (!recycler && !worker.pos.inRangeTo(site.pos, 1))) {
-      const res = worker.jobMoveTo(recycleSite, recycler ? 0 : 1, <LineStyle>{ opacity: .4, stroke: 'purple' });
-      if (res == OK) {
-        log.info(`${job}: ${worker} moved towards recycle site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-      }
-      else {
-        log.warning(`${job}: ${worker} failed moving to ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-      }
+      Job.moveTo(job, worker, recycler ? 0 : 1, recycler);
       return;
     }
 
@@ -61,6 +55,14 @@ export default class JobRecycle implements Job.Model {
 
   toString(): string {
     return this.id();
+  }
+
+  say(): string {
+    return '☠️';
+  }
+
+  styleColour(): string {
+    return 'red';
   }
 
   priority(workers?: Creep[]): number {
@@ -111,7 +113,7 @@ export default class JobRecycle implements Job.Model {
 
   work(worker: Creep): Operation[] {
     log.debug(`${this}: work operations for ${worker}`);
-    return [recycle_at_site(this, worker, this._site)];
+    return [recycle_at_site(this, worker)];
   }
 }
 

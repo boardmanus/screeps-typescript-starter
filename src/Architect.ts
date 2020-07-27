@@ -4,7 +4,7 @@ import * as Job from "Job";
 import { log } from "./ScrupsLogger";
 import JobBuild from "JobBuild";
 import Executive from "Executive";
-import BusinessEnergyMining from "BusinessMining";
+import BusinessEnergyMining from "BusinessEnergyMining";
 import * as Business from "Business";
 import { Operation } from "./Operation";
 import { FunctionCache } from "./Cache";
@@ -25,10 +25,10 @@ function gen_roading_cost_matrix(roomName: string): CostMatrix {
     const matrix = new PathFinder.CostMatrix();
 
     if (room) {
-    _.each(room.find(FIND_STRUCTURES), (s: Structure) => {
-      const cost = (u.is_passible_structure(s)) ? 1 : 0xff;
-      matrix.set(s.pos.x, s.pos.y, cost);
-    });
+      _.each(room.find(FIND_STRUCTURES), (s: Structure) => {
+        const cost = (u.is_passible_structure(s)) ? 1 : 0xff;
+        matrix.set(s.pos.x, s.pos.y, cost);
+      });
     }
 
     return matrix;
@@ -89,15 +89,15 @@ function find_source_routes(ceos: Executive[]): (room: Room) => RoomPosition[] {
       (ceo) => ceo.business instanceof BusinessEnergyMining),
       (ceo) => (<BusinessEnergyMining>ceo.business)._mine);
 
-  const spawns: StructureSpawn[] = room.find(FIND_MY_SPAWNS);
+    const spawns: StructureSpawn[] = room.find(FIND_MY_SPAWNS);
 
-  const paths = _.flatten(_.map(sources, (source: Source): RoomPosition[] => {
-    return _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => {
-      return find_roading_route(source, spawn);
-    }));
+    const paths = _.flatten(_.map(sources, (source: Source): RoomPosition[] => {
+      return _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => {
+        return find_roading_route(source, spawn);
+      }));
     }))
 
-  return paths;
+    return paths;
   };
 }
 
@@ -400,7 +400,7 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
 
   return _.take(sortedSites, 1);
 }
-
+/*
 function possible_extractor_sites(room: Room): RoomPosition[] {
   const minerals = room.find(FIND_MINERALS);
   const viableSites: RoomPosition[] = _.map(minerals, (m: Mineral): RoomPosition => { return m.pos; });
@@ -408,7 +408,7 @@ function possible_extractor_sites(room: Room): RoomPosition[] {
   log.info(`found ${viableSites.length} viable extrator sites ${viableSites}`);
   return viableSites;
 }
-
+*/
 export class BuildingWork implements Work {
 
   readonly site: RoomPosition;
@@ -494,30 +494,30 @@ export class Architect implements Expert {
     log.debug(`${this} surveying...`);
 
   }
+  /*
+    designContainers(): Work[] {
+      const room = this._room;
+      const controller = room.controller;
+      if (!controller) {
+        return [];
+      }
+      const numContainers = u.find_num_building_sites(room, STRUCTURE_CONTAINER);
+      const allowedNumContainers = CONTROLLER_STRUCTURES.container[controller.level];
+      log.info(`${this}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
 
-  designContainers(): Work[] {
-    const room = this._room;
-    const controller = room.controller;
-    if (!controller) {
+      if (numContainers == allowedNumContainers) {
+        log.info(`${this}: already have all the required containers (${numContainers}).`)
+        return [];
+      }
+
+      if (numContainers > allowedNumContainers) {
+        log.error(`${this}: have more containers than allowed??? (${numContainers} > ${allowedNumContainers}`);
+        return [];
+      }
+
       return [];
     }
-    const numContainers = u.find_num_building_sites(room, STRUCTURE_CONTAINER);
-    const allowedNumContainers = CONTROLLER_STRUCTURES.container[controller.level];
-    log.info(`${this}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
-
-    if (numContainers == allowedNumContainers) {
-      log.info(`${this}: already have all the required containers (${numContainers}).`)
-      return [];
-    }
-
-    if (numContainers > allowedNumContainers) {
-      log.error(`${this}: have more containers than allowed??? (${numContainers} > ${allowedNumContainers}`);
-      return [];
-    }
-
-    return [];
-  }
-
+  */
   designTowers(): Work[] {
     const room = this._room;
     const controller = room.controller;
@@ -565,32 +565,32 @@ export class Architect implements Expert {
       return new BuildingWork(room, pos, STRUCTURE_TOWER);
     });
   }
+  /*
+    designExtractors(): Work[] {
+      const room = this._room;
+      const controller = room.controller;
+      if (!controller) return [];
 
-  designExtractors(): Work[] {
-    const room = this._room;
-    const controller = room.controller;
-    if (!controller) return [];
+      const numExtractors = u.find_num_building_sites(room, STRUCTURE_EXTRACTOR);
+      const allowedNumExtractors = CONTROLLER_STRUCTURES.extractor[controller.level];
+      log.info(`${this}: current num extractors ${numExtractors} - allowed ${allowedNumExtractors}`)
 
-    const numExtractors = u.find_num_building_sites(room, STRUCTURE_EXTRACTOR);
-    const allowedNumExtractors = CONTROLLER_STRUCTURES.extractor[controller.level];
-    log.info(`${this}: current num extractors ${numExtractors} - allowed ${allowedNumExtractors}`)
+      if (numExtractors >= allowedNumExtractors) {
+        log.info(`${this}: already have all the required extractors (${numExtractors})`);
+        return [];
+      }
 
-    if (numExtractors >= allowedNumExtractors) {
-      log.info(`${this}: already have all the required extractors (${numExtractors})`);
-      return [];
+      const extractorPositions = _.take(possible_extractor_sites(room), allowedNumExtractors - numExtractors);
+      return _.map(extractorPositions, (pos: RoomPosition): Work => {
+        log.info(`${this}: creating new extractor build work at ${pos} ...`);
+        return new BuildingWork(room, pos, STRUCTURE_EXTRACTOR);
+      });
     }
-
-    const extractorPositions = _.take(possible_extractor_sites(room), allowedNumExtractors - numExtractors);
-    return _.map(extractorPositions, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new extractor build work at ${pos} ...`);
-      return new BuildingWork(room, pos, STRUCTURE_EXTRACTOR);
-    });
-  }
-
+  */
   designRoads(rooms: Room[], ceos: Executive[]): Work[] {
     if (rooms.length == 0) {
       return [];
-      }
+    }
 
     const numRoadConstructionSites = _.sum(rooms, (room) => {
       const cs = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType == STRUCTURE_ROAD });
@@ -624,11 +624,11 @@ export class Architect implements Expert {
 
   design(rooms: Room[], ceos: Executive[]): Work[] {
     const businessWorks: Work[] = _.flatten(_.map(ceos, (ceo) => ceo.business.buildings()));
-    const containerWorks: Work[] = this.designContainers();
     const roadWorks: Work[] = this.designRoads(rooms, ceos);
     const towerWorks: Work[] = this.designTowers();
-    const extractorWorks: Work[] = this.designExtractors();
-    return businessWorks.concat(containerWorks, roadWorks, towerWorks, extractorWorks);
+    //const extractorWorks: Work[] = this.designExtractors();
+    //const containerWorks: Work[] = this.designContainers();
+    return businessWorks.concat(roadWorks, towerWorks);
   }
 
   schedule(): Job.Model[] {

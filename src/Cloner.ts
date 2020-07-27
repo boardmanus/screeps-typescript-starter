@@ -7,7 +7,7 @@ import Boss from "Boss";
 import * as Business from "Business";
 import u from "./Utility"
 import { log } from './ScrupsLogger'
-import BusinessEnergyMining from "BusinessMining";
+import BusinessEnergyMining from "BusinessEnergyMining";
 import BusinessExploring from "BusinessExploring";
 import BusinessBanking from "BusinessBanking";
 import BusinessCloning from "BusinessCloning";
@@ -228,17 +228,17 @@ export class Cloner implements Expert {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];
     }
+    /*
+        const cloneTime = u.time_to_spawn(creepBody);
+        const replaceableWorkers: Creep[] = this._room.find(FIND_MY_CREEPS, {
+          filter: (c) => !c.ticksToLive || c.ticksToLive <= cloneTime
+        });
 
-    const cloneTime = u.time_to_spawn(creepBody);
-    const replaceableWorkers: Creep[] = this._room.find(FIND_MY_CREEPS, {
-      filter: (c) => !c.ticksToLive || c.ticksToLive <= cloneTime
-    });
-
-    if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
-      log.debug(`${this}: got enough workers (${this._numWorkers} - ${replaceableWorkers.length} >= ${this._maxWorkers}) - not cloning`);
-      return [];
-    }
-
+        if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
+          log.debug(`${this}: got enough workers (${this._numWorkers} - ${replaceableWorkers.length} >= ${this._maxWorkers}) - not cloning`);
+          return [];
+        }
+    */
     return [new CloningWork(spawners[0], this.getUniqueCreepName(), creepBody)];
   }
 }

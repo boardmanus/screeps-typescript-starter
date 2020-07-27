@@ -13,19 +13,14 @@ function site_priority(site: Structure, priority: number) {
 }
 
 
-function repair_site(job: JobRepair, worker: Creep, site: Structure) {
+function repair_site(job: JobRepair, worker: Creep) {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
-    worker.say('🛠️');
+    const site = job._site;
+    Job.visualize(job, worker);
+
     const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
     if (dumbPos) {
-      const res = worker.jobMoveTo(site, 0, <LineStyle>{ opacity: .4, stroke: 'orange' });
-      if (res == OK) {
-        log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-      }
-      else {
-        log.warning(`${job}: ${worker} failed moving to repair @ ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-      }
+      Job.moveTo(job, worker, 0);
       return;
     }
 
@@ -36,17 +31,11 @@ function repair_site(job: JobRepair, worker: Creep, site: Structure) {
         break;
       case ERR_NOT_IN_RANGE: {
         const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
-        res = worker.jobMoveTo(site, range, <LineStyle>{ opacity: .4, stroke: 'orange' });
-        if (res == OK) {
-          log.info(`${job}: ${worker} moved to repair site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-        }
-        else {
-          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-        }
+        Job.moveTo(job, worker, range);
         break;
       }
       default:
-        log.warning(`${job}: ${worker} failed while repairing at ${site} (${u.errstr(res)})`);
+        log.error(`${job}: ${worker} failed while repairing at ${site} (${u.errstr(res)})`);
         break;
     }
   }
@@ -77,6 +66,14 @@ export default class JobRepair implements Job.Model {
     return this.id();
   }
 
+  say(): string {
+    return '🛠️';
+  }
+
+  styleColour(): string {
+    return 'yellow';
+  }
+
   site(): RoomObject {
     return this._site;
   }
@@ -95,11 +92,22 @@ export default class JobRepair implements Job.Model {
       return 0.0;
     }
 
-    // Calculate the efficiency for working with full energy, and then
-    // multiply by the ratio available.
-    // This should allow fuller workers to be chosen more.
-    const ratio = worker.available() / worker.capacity();
-    return ratio * u.work_efficiency(worker, this._site, worker.capacity(), REPAIR_POWER);
+    const workTime = u.creep_work_time(worker, worker.available(), REPAIR_POWER);
+    if (workTime == u.FOREVER) {
+      return 0.0;
+    }
+
+    const travelTime = u.creep_movement_time(worker, this._site);
+    if (travelTime == u.FOREVER) {
+      return 0.0;
+    }
+
+    // If it's going to longer to travel, as it is to work, then don't do it.
+    //if (workTime * 5.0 < travelTime) {
+    //  return 0.0;
+    //}
+
+    return worker.available() / (workTime + travelTime);
   }
 
   isSatisfied(workers: Creep[]): boolean {
@@ -137,7 +145,7 @@ export default class JobRepair implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    return [repair_site(this, worker, this._site)];
+    return [repair_site(this, worker)];
   }
 }
 

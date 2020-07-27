@@ -1,7 +1,11 @@
 import { log } from "./ScrupsLogger";
 import { FunctionCache } from "./Cache";
 
+
 namespace u {
+
+  export const FOREVER: number = 10e10;
+
   export function map_valid<T, U>(objs: T[], f: (obj: T) => U | undefined | null): U[] {
     if (!objs) return [];
     return _.reduce(
@@ -149,36 +153,6 @@ namespace u {
 
   export type Site = Creep | Structure | Resource | Tombstone | Source | Mineral | ConstructionSite;
 
-  export function movement_time(weight: number, moveParts: number, path: RoomPosition[]) {
-    // time waiting for fatigue
-    const t_f = _.sum(path, (p: RoomPosition): number => {
-      const t = terrain_cost(p);
-      const f = weight * t;
-      return (f > 0) ? Math.ceil(f / (2 * moveParts)) : 0;
-    });
-
-    // total time is waiting time + traversal time
-    return t_f + path.length;
-  }
-
-  export function creep_movement_time(worker: Creep, site: Site): number {
-    const [moveParts, carryParts] = _.reduce(
-      worker.body,
-      ([n, c], b: BodyPartDefinition): [number, number] => {
-        return [(b.type == MOVE) ? n + 1 : n, (b.type == CARRY) ? c + 1 : c];
-      },
-      [0, 0]);
-
-    const weight = worker.body.length - moveParts - carryParts * (worker.freeSpace() / worker.capacity());
-
-    const path = get_path(worker, site);
-    if (path.length == 0) {
-      return 0;
-    }
-
-    return movement_time(weight, moveParts, path);
-  }
-
   const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
   export function get_path(from: Site, to: Site): RoomPosition[] {
     return _pathCache.getValue(`${from.pos} - ${to.pos}`, () => {
@@ -197,13 +171,62 @@ namespace u {
     return _.sum(worker.body, (b) => (b.type == WORK) ? maxEnergyPerPart : 0);
   }
 
-  export function taxi_efficiency(worker: Creep, site: Site, energy: number): number {
-    const numCarryParts = _.sum(worker.body, (b: BodyPartDefinition) => ((b.hits > 0) && (b.type == CARRY)) ? 1 : 0);
-    if (numCarryParts == 0) {
+  export function movement_time(weight: number, moveParts: number, path: RoomPosition[]) {
+    if (path.length == 0) {
       return 0;
     }
 
-    const timeToMove = Math.ceil(u.creep_movement_time(worker, site));
+    if (moveParts == 0) {
+      // Forever
+      return FOREVER;
+    }
+
+    // time waiting for fatigue
+    const t_f = _.sum(path, (p: RoomPosition): number => {
+      const t = terrain_cost(p);
+      const f = weight * t;
+      return (f > 0) ? Math.ceil(f / (2 * moveParts)) : 0;
+    });
+
+    // total time is waiting time + traversal time
+    return t_f + path.length;
+  }
+
+  export function creep_movement_time(worker: Creep, site: Site): number {
+
+    const [moveParts, carryParts] = _.reduce(
+      worker.body,
+      ([n, c], b: BodyPartDefinition): [number, number] => {
+        return [(b.type == MOVE) ? n + 1 : n, (b.type == CARRY) ? c + 1 : c];
+      },
+      [0, 0]);
+
+    if (worker.room.name == site.room?.name) {
+      const range = worker.pos.getRangeTo(site.pos);
+      if (range < 2) {
+        if (moveParts == 0 && range > 0) {
+          return FOREVER;
+        }
+        return range;
+      }
+    }
+
+    const weight = worker.body.length - moveParts - carryParts * (worker.freeSpace() / worker.capacity());
+
+    const path = get_path(worker, site);
+    if (path.length == 0) {
+      return 0;
+    }
+
+    return movement_time(weight, moveParts, path);
+  }
+
+  export function taxi_efficiency(worker: Creep, site: Site, energy: number): number {
+
+    const timeToMove = u.creep_movement_time(worker, site);
+    if (timeToMove == FOREVER) {
+      return 0.0;
+    }
 
     // Efficiency is the energy exchange per second from where the creep is.
     const t = Math.max(1, timeToMove);
@@ -211,20 +234,36 @@ namespace u {
     return e;
   }
 
-  export function work_efficiency(worker: Creep, site: Site, energy: number, maxEnergyPerPart: number): number {
-    const numWorkerParts = _.sum(worker.body, (b) => (b.type == WORK) ? 1 : 0);
-    if (numWorkerParts == 0) {
-      return 0;
-    }
-
+  export function work_time(numWorkerParts: number, energy: number, maxEnergyPerPart: number): number {
     const workEnergyPerTick = numWorkerParts * maxEnergyPerPart;
     const timeToWork = Math.ceil(energy / workEnergyPerTick);
-    const timeToMove = Math.ceil(u.creep_movement_time(worker, site));
+    return timeToWork;
+  }
+
+  export function creep_work_time(worker: Creep, energy: number, maxEnergyPerPart: number): number {
+    const numWorkerParts = _.sum(worker.body, (b) => (b.type == WORK) ? 1 : 0);
+    if (numWorkerParts == 0) {
+      return FOREVER;
+    }
+
+    return u.work_time(numWorkerParts, energy, maxEnergyPerPart);
+  }
+
+  export function work_efficiency(worker: Creep, site: Site, energy: number, maxEnergyPerPart: number): number {
+
+    const timeToWork = u.creep_work_time(worker, energy, maxEnergyPerPart);
+    if (timeToWork == FOREVER) {
+      return 0.0;
+    }
+
+    const timeToMove = u.creep_movement_time(worker, site);
+    if (timeToMove == FOREVER) {
+      return 0.0;
+    }
 
     // Efficiency is the energy exchange per second from where the creep is.
     const t = Math.max(1, timeToMove + timeToWork);
-    const e = energy / t;
-    return e;
+    return energy / t;
   }
 
   export function find_my_sites(obj: RoomObject, type: StructureConstant, radius: number): AnyOwnedStructure[] {
@@ -236,3 +275,4 @@ namespace u {
 }
 
 export default u;
+

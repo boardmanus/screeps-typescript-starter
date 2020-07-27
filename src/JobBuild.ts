@@ -4,19 +4,13 @@ import u from "./Utility"
 import { log } from "lib/logger/log";
 
 
-function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
+function build_site(job: JobBuild, worker: Creep) {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'orange' });
-    worker.say('⚒️');
+    const site = job._site;
+    Job.visualize(job, worker);
     const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
     if (dumbPos) {
-      const res = worker.jobMoveTo(site, 0, <LineStyle>{ opacity: .4, stroke: 'orange' });
-      if (res == OK) {
-        log.info(`${job}: ${worker} moved to build site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-      }
-      else {
-        log.error(`${job}: ${worker} failed moving to build @ ${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-      }
+      const res = Job.moveTo(job, worker, 0);
       return;
     }
 
@@ -27,13 +21,7 @@ function build_site(job: JobBuild, worker: Creep, site: ConstructionSite) {
         break;
       case ERR_NOT_IN_RANGE:
         const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
-        res = worker.jobMoveTo(site, range, <LineStyle>{ opacity: .4, stroke: 'orange' });
-        if (res == OK) {
-          log.info(`${job}: ${worker} moved to construction site ${site} (${worker.pos.getRangeTo(site)} sq)`);
-        }
-        else {
-          log.error(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-        }
+        res = Job.moveTo(job, worker, range);
         break;
       default:
         log.warning(`${job}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
@@ -70,6 +58,14 @@ export default class JobBuild implements Job.Model {
 
   site(): RoomObject {
     return this._site;
+  }
+
+  say(): string {
+    return '⚒️';
+  }
+
+  styleColour(): string {
+    return 'yellow';
   }
 
   priority(workers?: Creep[]): number {
@@ -118,7 +114,7 @@ export default class JobBuild implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    return [build_site(this, worker, this._site)];
+    return [build_site(this, worker)];
   }
 }
 

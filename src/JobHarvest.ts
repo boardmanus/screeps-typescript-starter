@@ -11,22 +11,15 @@ type HarvestSite = Source | Mineral;
  * @param {Creep} worker to perform the repairSite
  * @return {boolean} whether the worker did something useful
  */
-function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestSite): Operation {
+function harvest_energy_from_site(job: JobHarvest, worker: Creep): Operation {
   return () => {
-    worker.room.visual.circle(site.pos, { fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: 'green' });
-    worker.say('⛏️');
-
+    const site = job._site;
+    Job.visualize(job, worker);
     const container = site._container;
     if (container
       && !worker.pos.inRangeTo(container.pos, 0)
       && _.filter(container.pos.lookFor(LOOK_CREEPS), (c) => c.name != worker.name).length == 0) {
-      const res = worker.jobMoveTo(container, 0, <LineStyle>{ opacity: .4, stroke: 'green' });
-      if (res == OK) {
-        log.info(`${job}: ${worker} is moving to harvest to ${container}@${site} (${worker.pos.getRangeTo(container)} sq)`);
-      }
-      else {
-        log.warning(`${job}: ${worker} failed moving to ${container}@${site} (${worker.pos.getRangeTo(container)} sq) (${u.errstr(res)})`);
-      }
+      Job.moveTo(job, worker, 0, container);
       return;
     }
 
@@ -47,13 +40,7 @@ function harvest_energy_from_site(job: JobHarvest, worker: Creep, site: HarvestS
         log.warning(`${job}: ${site.id} doesn't have any energy for ${worker} to harvest (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
-        res = worker.jobMoveTo(site, 1, <LineStyle>{ opacity: .4, stroke: 'green' });
-        if (res == OK) {
-          log.info(`${job}: ${worker} is moving to harvest at ${site} (${worker.pos.getRangeTo(site)} sq)`);
-        }
-        else {
-          log.warning(`${job}: ${worker} failed moving to controller-${site} (${worker.pos.getRangeTo(site)} sq) (${u.errstr(res)})`);
-        }
+        res = Job.moveTo(job, worker, 1);
         break;
       case ERR_TIRED:
         // Mining minerals is pretty tiring...
@@ -169,6 +156,14 @@ export default class JobHarvest implements Job.Model {
     return this.id();
   }
 
+  say(): string {
+    return '⛏️';
+  }
+
+  styleColour(): string {
+    return 'green';
+  }
+
   priority(workers?: Creep[]): number {
     if (!workers) return this._priority;
     return this._priority / (workers.length + 1);
@@ -234,7 +229,7 @@ export default class JobHarvest implements Job.Model {
       return [];
     }
 
-    return [harvest_energy_from_site(this, worker, this._site)];
+    return [harvest_energy_from_site(this, worker)];
   }
 }
 

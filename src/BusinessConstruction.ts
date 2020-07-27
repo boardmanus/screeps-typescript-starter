@@ -13,6 +13,7 @@ const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
 const MAX_BUILD_JOBS = 5;
 const MAX_REPAIR_JOBS = 5;
+const WORK_PER_EMPLOYEE = 100000;
 
 export function construction_priority(site: ConstructionSite): number {
   const energyAvail = site.room?.energyCapacityAvailable ?? 0;
@@ -29,17 +30,23 @@ export function construction_priority(site: ConstructionSite): number {
 function damage_ratio(site: Structure): number {
   return (1.0 - site.hits / site.hitsMax);
 }
-
-function wall_rampart_damage_ratio(wr: Structure): number {
-  const c = wr.room.controller;
+function wall_rampart_desired_hits(room: Room): number {
+  const c = room.controller;
   if (!c) {
     return 0;
   }
+
   const progress = c.progress / c.progressTotal;
   const rcl = c.level;
-  const nextRcl = Math.min(rcl + 1, 8);
-  const dHits = RAMPART_HITS_MAX[nextRcl] - RAMPART_HITS_MAX[rcl];
-  return 1.0 - 10.0 * wr.hits / (RAMPART_HITS_MAX[rcl] + progress * dHits);
+  const prevRcl = Math.max(rcl - 1, 2);
+  const dHits = RAMPART_HITS_MAX[rcl] - RAMPART_HITS_MAX[prevRcl];
+  const maxHits = RAMPART_HITS_MAX[rcl] + progress * dHits;
+
+  return maxHits / 30.0;
+}
+
+function wall_rampart_damage_ratio(wr: Structure): number {
+  return 1.0 - wr.hits / wall_rampart_desired_hits(wr.room);
 }
 
 function road_repair_priority(road: StructureRoad): number {
@@ -114,7 +121,10 @@ export default class BusinessConstruction implements Business.Model {
   private readonly _priority: number;
   private readonly _controller: StructureController;
   private readonly _remoteRooms: Room[];
-  private readonly _allJobs: Job.Model[]
+  private readonly _allJobs: Job.Model[];
+  private readonly _repairJobs: JobRepair[];
+  private readonly _buildJobs: JobBuild[];
+  private readonly _allConstructionSites: ConstructionSite[];
 
   constructor(controller: StructureController, remoteRooms: Room[], priority: number = 5) {
     this._priority = priority;
@@ -122,22 +132,24 @@ export default class BusinessConstruction implements Business.Model {
     this._remoteRooms = remoteRooms;
 
     const rooms = [this._controller.room, ...this._remoteRooms];
-    const constructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
-    const constructionJobs = _.take(_.sortBy(_.map(constructionSites,
+
+    this._allConstructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
+
+    this._buildJobs = _.take(_.sortBy(_.map(this._allConstructionSites,
       (site) => new JobBuild(site, construction_priority(site))),
       (job) => -job.priority()), MAX_BUILD_JOBS);
 
     const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
-    const repairJobs: JobRepair[] = _.take(_.sortBy(_.map(repairSites,
+    this._repairJobs = _.take(_.sortBy(_.map(repairSites,
       (site) => new JobRepair(site, repair_priority(site))),
       (job) => -job.priority()), MAX_REPAIR_JOBS);
 
-    this._allJobs = [...constructionJobs, ...repairJobs];
+    this._allJobs = [...this._buildJobs, ...this._repairJobs];
 
     log.debug(`Top 5 Buiding Jobs:`);
-    _.each(_.take(constructionJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
+    _.each(_.take(this._buildJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
     log.debug(`Top 5 Repair Jobs:`);
-    _.each(_.take(repairJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
+    _.each(_.take(this._repairJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
   }
 
   id(): string {
@@ -153,7 +165,22 @@ export default class BusinessConstruction implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return employees.length == 0;
+    let workRequired = _.sum(this._allConstructionSites, (cs) => cs.progressTotal - cs.progress);
+    workRequired += _.sum(_.filter(_.map(this._repairJobs,
+      (j) => <Structure>j.site()),
+      (s) => !(s instanceof StructureWall) && !(s instanceof StructureRampart)),
+      (s) => s.hitsMax - s.hits);
+
+    let desiredEmployees = Math.trunc(workRequired / WORK_PER_EMPLOYEE);
+    log.debug(`${this}: ${desiredEmployees} desired construction employees (${workRequired}/${WORK_PER_EMPLOYEE})`)
+
+    if (desiredEmployees == 0) {
+
+      if (this._repairJobs.length >= 5 && this._repairJobs[4].priority() > 5) {
+        desiredEmployees = 1;
+      }
+    }
+    return employees.length < desiredEmployees;
   }
 
   survey() {

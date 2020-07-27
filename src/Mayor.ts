@@ -12,12 +12,13 @@ import Executive from "Executive";
 import { Operation } from "Operation";
 import u from "Utility";
 import { log } from 'ScrupsLogger';
-import BusinessEnergyMining from "BusinessMining";
+import BusinessEnergyMining from "BusinessEnergyMining";
 import BusinessBanking from "BusinessBanking";
 import BusinessConstruction from "BusinessConstruction";
 import BusinessUpgrading from "BusinessUpgrading";
 import BusinessCloning from "BusinessCloning";
 import BusinessExploring from "BusinessExploring";
+import BusinessMineralMining from "BusinessMineralMining";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
@@ -113,9 +114,14 @@ export class Mayor {
 
     const rooms = [this._room, ...this._remoteRooms];
     for (const room of rooms) {
-      _.map(room.find(FIND_SOURCES), (source) => {
+      _.each(room.find(FIND_SOURCES), (source) => {
         const mining = new BusinessEnergyMining(source);
         this._businessMap[mining.id()] = mining;
+      });
+
+      _.each(room.find(FIND_MINERALS), (mineral) => {
+        //const mining = new BusinessMineralMining(mineral);
+        //this._businessMap[mining.id()] = mining;
       });
     }
 
@@ -215,7 +221,7 @@ export class Mayor {
       ..._.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
       ...this.pickupJobs(),
       ...this.unloadJobs(),
-      ...this.mineralJobs(),
+      //...this.mineralJobs(),
       ...this._architect.schedule(),
       ...this._cloner.schedule(),
       ...this._caretaker.schedule()];
@@ -252,21 +258,21 @@ export class Mayor {
     _.each(_.take(prioritize_bosses(this._bosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))}`));
     log.debug(`Top 5 vacancies!`)
     const employed = _.flatten(_.map(this._bosses, (b) => b.workers()));
-    _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(employed, (w) => b.job.efficiency(w))}`));
+    _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))}`));
   }
+  /*
+    mineralJobs(): Job.Model[] {
 
-  mineralJobs(): Job.Model[] {
+      const mineralJobs: Job.Model[] = _.map<Mineral, Job.Model>(
+        this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
+        (mineral: Mineral): Job.Model => {
+          return new JobHarvest(mineral);
+        });
 
-    const mineralJobs: Job.Model[] = _.map<Mineral, Job.Model>(
-      this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
-      (mineral: Mineral): Job.Model => {
-        return new JobHarvest(mineral);
-      });
-
-    log.info(`${this} scheduling ${mineralJobs.length} mineral harvest jobs...`);
-    return mineralJobs;
-  }
-
+      log.info(`${this} scheduling ${mineralJobs.length} mineral harvest jobs...`);
+      return mineralJobs;
+    }
+  */
   pickupJobs(): Job.Model[] {
     const room = this._room;
     const allRooms = [room, ...this._remoteRooms];
