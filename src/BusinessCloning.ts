@@ -369,8 +369,8 @@ export default class BusinessCloning implements Business.Model {
     }
 
     const pickupJobs: JobPickup[] = _.map(_.filter(this._spawns,
-      (s) => { const r = s.recycler(); return r ? r.available() : false }),
-      (s) => new JobPickup(s.recycler() ?? s, undefined, this._priority));
+      (s) => { const r = s.recycler(); return r?.available() ?? false }),
+      (s) => new JobPickup(s.recycler() ?? s, 'all', this._priority));
 
     const recycle = new JobRecycle(this._spawns[0]);
 

@@ -252,8 +252,8 @@ export default class BusinessMineralMining implements Business.Model {
 
     const extractor = mine.extractor();
     const container = mine.container();
-    log.debug(`${this}: ${mine} has ${extractor}, ${container}, ${mine.holding()} resources of ${mine.mineralType}`)
-    if (mine.holding() > 0 && container && extractor) {
+    log.debug(`${this}: ${mine} has ${extractor}, ${container}, ${mine.available()} resources of ${mine.mineralType}`)
+    if (mine.available() > 0 && container && extractor) {
       jobs.push(new JobHarvest(mine, this._priority));
 
       if (container.freeSpace()) {
@@ -279,8 +279,8 @@ export default class BusinessMineralMining implements Business.Model {
 
     const container = mine.container();
 
-    if (container && container.holding()) {
-      jobs.push(new JobPickup(container, mine.mineralType, pickup_priority(container)));
+    if (container && container.available() > 0) {
+      jobs.push(new JobPickup(container, 'all', pickup_priority(container)));
     }
 
     return jobs;

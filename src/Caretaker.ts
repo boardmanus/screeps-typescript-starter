@@ -176,7 +176,7 @@ export class Caretaker implements Expert {
         if (s.structureType != STRUCTURE_TOWER) {
           return false;
         }
-        return s.available() > 0;
+        return s.available(RESOURCE_ENERGY) > 0;
       }
     });
   }
@@ -206,7 +206,7 @@ export class Caretaker implements Expert {
     if (foes.length > 0) {
       for (let i = 0; i < this._towers.length; ++i) {
         const t = this._towers[i];
-        if (t.available() < TOWER_ENERGY_COST) continue;
+        if (t.available(RESOURCE_ENERGY) < TOWER_ENERGY_COST) continue;
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
         if (f) {
@@ -234,7 +234,7 @@ export class Caretaker implements Expert {
 
     for (let i = 0; i < this._towers.length; ++i) {
       const t = this._towers[i];
-      if (t.available() < TOWER_CAPACITY / 3) continue;
+      if (t.available(RESOURCE_ENERGY) < TOWER_CAPACITY / 3) continue;
 
       const sortedSites = _.sortBy(repairSites, (s: Structure) => {
         return -repair_priority(s) * repair_power(t, s);

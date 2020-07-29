@@ -178,7 +178,7 @@ export default class JobHarvest implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (worker.freeSpace() == 0 || this._site.holding() == 0) {
+    if (worker.freeSpace() == 0 || this._site.available() == 0) {
       return 0.0;
     }
 
@@ -201,13 +201,11 @@ export default class JobHarvest implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    const emptiness: number = (this._site instanceof Source)
-      ? 1.0 - this._site.energy / this._site.energyCapacity
-      : 1.0 - this._site.mineralAmount / mineral_capacity(this._site);
+    const emptiness: number = this._site.freeSpace() / this._site.capacity();
 
     if (worker) {
       const maxHolding = worker.capacity() - u.work_energy(worker, 2);
-      const fullness = worker.holding() / maxHolding;
+      const fullness = worker.available() / maxHolding;
       return Math.min(1.0, Math.max(emptiness, fullness));
     }
 

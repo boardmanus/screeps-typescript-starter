@@ -52,7 +52,7 @@ export default class JobScout implements Job.Model {
 
   efficiency(worker: Creep): number {
     // Scouts should hold nothing
-    if (worker.holding() != 0) {
+    if (worker.available() != 0) {
       return 0.0;
     }
     return 1.0;

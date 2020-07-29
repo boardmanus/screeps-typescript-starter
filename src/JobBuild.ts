@@ -75,7 +75,7 @@ export default class JobBuild implements Job.Model {
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    const energy = _.sum(workers, (w: Creep): number => { return w.available(); });
+    const energy = _.sum(workers, (w: Creep): number => { return w.available(RESOURCE_ENERGY); });
     const energyRequired = (this._site.progressTotal - this._site.progress) / (BUILD_POWER);
     return energy >= energyRequired;
   }
@@ -84,16 +84,18 @@ export default class JobBuild implements Job.Model {
     // Calculate the efficiency for working, and then
     // multiply by the ratio available.
     // This should allow fuller workers to be chosen more.
-    if (worker.available() == 0) {
+    const available = worker.available(RESOURCE_ENERGY);
+    if (available == 0) {
       return 0.0;
     }
 
-    if (worker.available() / worker.capacity() < 0.25) {
+    const capacity = worker.capacity();
+    if (available / capacity < 0.25) {
       return 0.0;
     }
 
-    const ratio = worker.available() / worker.capacity();
-    return ratio * u.work_efficiency(worker, this._site, worker.available(), BUILD_POWER);
+    const ratio = available / capacity;
+    return ratio * u.work_efficiency(worker, this._site, available, BUILD_POWER);
   }
 
   completion(worker?: Creep): number {
@@ -102,7 +104,7 @@ export default class JobBuild implements Job.Model {
       return completion;
     }
 
-    return 1.0 - worker.available() / worker.carryCapacity;
+    return 1.0 - worker.available(RESOURCE_ENERGY) / worker.capacity();
   }
 
   baseWorkerBody(): BodyPartConstant[] {

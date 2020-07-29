@@ -106,10 +106,11 @@ export default class JobUpgrade implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (worker.available() == 0) {
+    const available = worker.available(RESOURCE_ENERGY);
+    if (available == 0) {
       return 0.0;
     }
-    return u.work_efficiency(worker, this._site, worker.available(), UPGRADE_CONTROLLER_POWER);
+    return u.work_efficiency(worker, this._site, available, UPGRADE_CONTROLLER_POWER);
   }
 
   site(): RoomObject {
@@ -122,7 +123,7 @@ export default class JobUpgrade implements Job.Model {
 
   completion(worker?: Creep): number {
     if (worker) {
-      return 1.0 - worker.available() / worker.capacity();
+      return 1.0 - worker.available(RESOURCE_ENERGY) / worker.capacity();
     }
 
     return 0.0;

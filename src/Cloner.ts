@@ -32,12 +32,6 @@ function get_spawners(room: Room): StructureSpawn[] {
   });
 }
 
-function get_spawners_and_extensions(room: Room): CloningStructure[] {
-  return room.find<CloningStructure>(FIND_MY_STRUCTURES, {
-    filter: (s) => is_cloning_structure(s) && (s.available() < s.capacity())
-  });
-}
-
 function clone_a_worker(work: CloningWork): Operation {
   return () => {
     const res = work.site.spawnCreep(work.body, work.name);

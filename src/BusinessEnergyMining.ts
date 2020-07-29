@@ -332,15 +332,19 @@ export default class BusinessEnergyMining implements Business.Model {
     const jobs: Job.Model[] = [];
     const link = mine.link();
     const container = mine.container();
-    if (mine.available() > 0 && (mine._link || mine._container)) {
+    if (mine.available(RESOURCE_ENERGY) > 0 && (mine._link || mine._container)) {
       jobs.push(new JobHarvest(mine, this._priority));
 
+      if (this._mine.room.storage) {
+        jobs.push(new JobUnload(this._mine.room.storage, 'minerals', 9));
+      }
+
       if (link) {
-        jobs.push(new JobUnload(link, RESOURCE_ENERGY, this._priority));
+        jobs.push(new JobUnload(link, RESOURCE_ENERGY, this._priority - 1));
       }
 
       if (container) {
-        jobs.push(new JobUnload(container, undefined, this._priority - 2));
+        jobs.push(new JobUnload(container, 'all', this._priority - 2));
         jobs.push(new JobDrop(container, this._priority - 3));
       }
     }
@@ -384,7 +388,7 @@ export default class BusinessEnergyMining implements Business.Model {
     if (container) {
       // Always use a contractor to clear the container
       if (container.available()) {
-        const pickup = new JobPickup(container, RESOURCE_ENERGY, pickup_priority(container));
+        const pickup = new JobPickup(container, 'all', pickup_priority(container));
         jobs.push(pickup);
       }
     }

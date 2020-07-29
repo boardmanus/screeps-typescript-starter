@@ -18,19 +18,6 @@ function map_valid_resumes(resumes: string[]): Worker[] {
 
 function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
 
-  let jobPrerequisite: Job.Prerequisite;
-  const available = creep.available();
-  const free = creep.freeSpace();
-  if (available == 0 && free > 0) {
-    jobPrerequisite = Job.Prerequisite.COLLECT_ENERGY;
-  }
-  else if (free == 0 && available > 0) {
-    jobPrerequisite = Job.Prerequisite.DELIVER_ENERGY;
-  }
-  else {
-    jobPrerequisite = Job.Prerequisite.NONE;
-  }
-
   const viableJobs = _.filter(jobs, (job) => job.efficiency(creep) > 0);
 
   const workableJobs = _.filter(viableJobs, (job) => {

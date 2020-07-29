@@ -27,7 +27,7 @@ function best_resource(worker: Creep, site: UnloadSite, resourceType: ResourceTy
       resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
       break;
     case 'minerals':
-      const storedMinerals = _.intersection(Object.keys(worker.store), u.RESOURCE_MINERALS);
+      const storedMinerals = _.intersection(Object.keys(worker.store), u.ALL_MINERALS);
       resource = <ResourceConstant>_.max(storedMinerals, (r: ResourceConstant) => { return worker.store[r]; });
       break;
     default:
@@ -114,7 +114,7 @@ export default class JobUnload implements Job.Model {
 
     let e = u.taxi_efficiency(worker, this._site, unloadable);
     if (this._site instanceof StructureStorage) {
-      const optimumRatio = worker.holding() / worker.capacity();
+      const optimumRatio = available / worker.capacity();
       e *= optimumRatio;
       if (this._site.pos.getRangeTo(worker) < 5) {
         e /= 5;

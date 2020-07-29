@@ -74,4 +74,9 @@ interface Memory {
 type UnloadSite = StructureTerminal | StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
 type PickupSite = Resource | Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 type PickupStoreSite = Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
-type ResourceType = ResourceConstant | 'all' | 'minerals';
+
+declare const RESOURCE_ALL: RESOURCE_ALL;
+declare const RESOURCE_MINERALS: RESOURCE_MINERALS;
+type RESOURCE_ALL = 'all';
+type RESOURCE_MINERALS = 'minerals';
+type ResourceType = ResourceConstant | RESOURCE_ENERGY | RESOURCE_ALL | RESOURCE_MINERALS;

@@ -274,7 +274,7 @@ namespace u {
   }
 
 
-  export const RESOURCE_MINERALS: ResourceConstant[] = [
+  export const ALL_MINERALS: ResourceConstant[] = [
     RESOURCE_HYDROGEN,
     RESOURCE_OXYGEN,
     RESOURCE_UTRIUM,
@@ -329,7 +329,7 @@ namespace u {
   export function resource_matches_type(resource: ResourceConstant, type: ResourceType) {
     switch (type) {
       case 'all': return true;
-      case 'minerals': return (_.indexOf(RESOURCE_MINERALS, resource) != -1);
+      case 'minerals': return (_.indexOf(ALL_MINERALS, resource) != -1);
       default: return resource === type;
     }
   }
@@ -337,7 +337,7 @@ namespace u {
     switch (rType) {
       case 'all': return store.getUsedCapacity();
       case 'minerals': return _.sum(Object.keys(store), (r) => {
-        return (_.indexOf(RESOURCE_MINERALS, r) != -1) ? store.getUsedCapacity(<ResourceConstant>r) : 0;
+        return (_.indexOf(ALL_MINERALS, r) != -1) ? store.getUsedCapacity(<ResourceConstant>r) : 0;
       });
       default: return store[<ResourceConstant>rType];
     }
@@ -355,7 +355,7 @@ namespace u {
         resource = <ResourceConstant>_.max(Object.keys(store), (r: ResourceConstant) => { return store[r]; });
         break;
       case 'minerals':
-        const storedMinerals = _.intersection(Object.keys(store), u.RESOURCE_MINERALS);
+        const storedMinerals = _.intersection(Object.keys(store), ALL_MINERALS);
         resource = <ResourceConstant>_.max(storedMinerals, (r: ResourceConstant) => { return store[r]; });
         break;
       default:

@@ -279,17 +279,17 @@ export class Mayor {
     const scavengeJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
       return _.map(room.find(FIND_DROPPED_RESOURCES), (r: Resource) => new JobPickup(r, r.resourceType, 7));
     }));
-    _.each(scavengeJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().holding()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
+    _.each(scavengeJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
     const tombstoneJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
       return _.map(room.find(FIND_TOMBSTONES,
-        { filter: (t) => t.holding() > 0 }),
+        { filter: (t) => t.available() > 0 }),
         (t) => {
           const resource = <ResourceConstant>_.max(Object.keys(t.store), (r: ResourceConstant) => { return t.store[r]; });
           return new JobPickup(t, resource, 5);
         });
     }));
-    _.each(tombstoneJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().holding()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
+    _.each(tombstoneJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
     const linkers: StructureStorage[] = [];
     const storage = room.storage;

@@ -64,7 +64,7 @@ export default class JobDrop implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (worker.holding() == 0) {
+    if (worker.available() == 0) {
       return 0.0;
     }
 
@@ -85,7 +85,7 @@ export default class JobDrop implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    return !worker ? 0.0 : (1.0 - worker.holding() / worker.capacity());
+    return !worker ? 0.0 : (1.0 - worker.available() / worker.capacity());
   }
 
   baseWorkerBody(): BodyPartConstant[] {

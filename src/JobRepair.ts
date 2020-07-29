@@ -88,11 +88,12 @@ export default class JobRepair implements Job.Model {
 
   efficiency(worker: Creep): number {
 
-    if (worker.available() == 0 || this._site.hits >= this._site.hitsMax) {
+    const available = worker.available();
+    if (available == 0 || this._site.hits >= this._site.hitsMax) {
       return 0.0;
     }
 
-    const workTime = u.creep_work_time(worker, worker.available(), REPAIR_POWER);
+    const workTime = u.creep_work_time(worker, available, REPAIR_POWER);
     if (workTime == u.FOREVER) {
       return 0.0;
     }
@@ -108,21 +109,22 @@ export default class JobRepair implements Job.Model {
     //}
 
     // Make sure a decent amount of energy is available.
-    if (worker.available() / worker.capacity() < 0.25) {
+    const capacity = worker.capacity();
+    if (available / capacity < 0.25) {
       return 0.0;
     }
 
     // Favor workers with more energy...
-    const ratio = worker.available() / worker.capacity();
-    return ratio * worker.available() / (workTime + travelTime);
+    const ratio = available / capacity;
+    return ratio * available / (workTime + travelTime);
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    const energy = _.sum(workers, (w: Creep): number => { return w.available(); });
+    const energy = _.sum(workers, (w: Creep): number => { return w.available(RESOURCE_ENERGY); });
     const workParts = _.sum(workers, (w: Creep): number => {
       return _.sum(w.body, (b: BodyPartDefinition): number => { return b.type == WORK ? 1 : 0; });
     });
-    const damage = this._site.hitsMax - this._site.hitsMax;
+    const damage = this._site.hitsMax - this._site.hits;
     return (energy * 100 * workParts > damage);
   }
 
@@ -136,7 +138,7 @@ export default class JobRepair implements Job.Model {
       return c;
     }
 
-    return Math.max(c, 1.0 - worker.available() / worker.capacity());
+    return Math.max(c, 1.0 - worker.available(RESOURCE_ENERGY) / worker.capacity());
   }
 
   baseWorkerBody(): BodyPartConstant[] {
