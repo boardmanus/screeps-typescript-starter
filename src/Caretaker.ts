@@ -1,12 +1,12 @@
 import { Expert } from "./Expert";
 import { Work } from "./Work";
 import * as Job from "Job";
-import JobBuild from "./JobBuild";
-import JobRepair from "./JobRepair";
 import { Operation } from "./Operation";
-import { FunctionCache } from "./Cache";
 import u from "./Utility";
 import { log } from './ScrupsLogger'
+
+const MAX_RAMPART_WALL = 1000000;
+const MAX_RCL = 8;
 
 
 function repair_power(tower: StructureTower, site: Structure): number {
@@ -32,12 +32,9 @@ function wall_rampart_desired_hits(room: Room): number {
   }
 
   const progress = c.progress / c.progressTotal;
-  const rcl = c.level;
-  const prevRcl = Math.max(rcl - 1, 2);
-  const dHits = RAMPART_HITS_MAX[rcl] - RAMPART_HITS_MAX[prevRcl];
-  const maxHits = RAMPART_HITS_MAX[rcl] + progress * dHits;
+  const rcl = c.level + progress;
 
-  return maxHits / 30.0;
+  return MAX_RAMPART_WALL * rcl / MAX_RCL;
 }
 
 function wall_rampart_damage_ratio(wr: Structure): number {

@@ -177,18 +177,8 @@ export default class JobHarvest implements Job.Model {
     return [WORK, CARRY, MOVE, MOVE];
   }
 
-  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    if (prerequisite == Job.Prerequisite.COLLECT_ENERGY ||
-      prerequisite == Job.Prerequisite.NONE) {
-      return this._site.available() > 0;
-    }
-
-    return false;
-  }
-
-
   efficiency(worker: Creep): number {
-    if (worker.freeSpace() == 0 || this._site.available() == 0) {
+    if (worker.freeSpace() == 0 || this._site.holding() == 0) {
       return 0.0;
     }
 

@@ -31,7 +31,7 @@ function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
     jobPrerequisite = Job.Prerequisite.NONE;
   }
 
-  const viableJobs = _.filter(jobs, (job) => job.efficiency(creep) > 0);//satisfiesPrerequisite(jobPrerequisite));
+  const viableJobs = _.filter(jobs, (job) => job.efficiency(creep) > 0);
 
   const workableJobs = _.filter(viableJobs, (job) => {
     const workers: Creep[] = _.map(_.filter(busyWorkers, (w) => job.id() == w.job()?.id()), (w) => w.creep);
@@ -131,19 +131,25 @@ export default class Executive implements Work {
   survey(): void {
     this.business.survey();
 
+    const jobs = this.business.permanentJobs();
+    if (jobs.length == 0) {
+      return;
+    }
+
     const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.hasJob() && !worker.creep.spawning);
     if (lazyWorkers.length == 0) {
       log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
       return;
     }
 
-    const jobs = this.business.permanentJobs();
-    //log.debug(`${this}: lazyWorkers=${lazyWorkers}`)
     for (const worker of lazyWorkers) {
       const bestJob = find_best_job(worker.creep, busyWorkers, jobs);
       if (bestJob) {
         log.info(`${this}: assigning ${bestJob} to ${worker}`);
         worker.assignJob(bestJob);
+      }
+      else {
+        log.warning(`${this}: no job for ${worker.creep}! (${jobs.length} possible)`)
       }
     }
   }

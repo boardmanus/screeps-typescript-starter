@@ -479,7 +479,6 @@ export class Architect implements Expert {
 
   constructor(room: Room) {
     this._room = room;
-    this.load();
   }
 
   id(): string {
@@ -641,27 +640,6 @@ export class Architect implements Expert {
     return r;
   }
 
-  loadStorage(room: Room): void {
-    const storage = room.storage;
-    if (!storage) {
-      return;
-    }
-
-    const storageMem = room.memory.storage;
-    if (storageMem?.link) {
-      const link = Game.getObjectById<StructureLink>(storageMem.link);
-      if (link) {
-        storage._link = link;
-      }
-    }
-  }
-
-
-  load(): void {
-    const room = this._room;
-    this.loadStorage(room);
-  }
-
   save(): void {
     const room = this._room;
 
@@ -675,14 +653,5 @@ export class Architect implements Expert {
         };
         return sm;
       });
-
-    if (room.storage) {
-      const s = room.storage;
-      room.memory.storage =
-        <StorageMemory>{
-          id: s.id,
-          link: s._link ? s._link.id : undefined
-        };
-    }
   }
 }

@@ -85,11 +85,7 @@ export default class JobDrop implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    return !worker ? 0.0 : (1.0 - worker.available() / worker.capacity());
-  }
-
-  satisfiesPrerequisite(p: Job.Prerequisite): boolean {
-    return p == Job.Prerequisite.DELIVER_ENERGY || p == Job.Prerequisite.NONE;
+    return !worker ? 0.0 : (1.0 - worker.holding() / worker.capacity());
   }
 
   baseWorkerBody(): BodyPartConstant[] {

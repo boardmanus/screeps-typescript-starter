@@ -4,7 +4,6 @@ import { Cloner } from "./Cloner";
 import * as Job from "Job";
 import * as Business from "Business";
 import { Work } from "./Work";
-import JobHarvest from "JobHarvest";
 import JobPickup from "JobPickup";
 import JobUnload from "JobUnload";
 import Boss from "Boss";
@@ -118,18 +117,18 @@ export class Mayor {
         const mining = new BusinessEnergyMining(source);
         this._businessMap[mining.id()] = mining;
       });
-
-      _.each(room.find(FIND_MINERALS), (mineral) => {
-        //const mining = new BusinessMineralMining(mineral);
-        //this._businessMap[mining.id()] = mining;
-      });
     }
+
+    _.each(room.find(FIND_MINERALS), (mineral) => {
+      const mining = new BusinessMineralMining(mineral);
+      this._businessMap[mining.id()] = mining;
+    });
 
     const cloningBusiness = new BusinessCloning(this._room);
     this._businessMap[cloningBusiness.id()] = cloningBusiness;
 
     if (this._room.storage) {
-      const banking = new BusinessBanking(this._room.storage, this._remoteRooms);
+      const banking = new BusinessBanking(this._room, this._remoteRooms);
       this._businessMap[banking.id()] = banking;
     }
 
@@ -255,10 +254,10 @@ export class Mayor {
     this._redundantBosses = redundantBosses;
 
     log.debug(`Top 5 bosses!`)
-    _.each(_.take(prioritize_bosses(this._bosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))}`));
+    _.each(_.take(prioritize_bosses(this._bosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
     log.debug(`Top 5 vacancies!`)
     const employed = _.flatten(_.map(this._bosses, (b) => b.workers()));
-    _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))}`));
+    _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
   }
   /*
     mineralJobs(): Job.Model[] {
@@ -278,12 +277,17 @@ export class Mayor {
     const allRooms = [room, ...this._remoteRooms];
 
     const scavengeJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
-      return _.map(room.find(FIND_DROPPED_RESOURCES), (r) => new JobPickup(r, 7));
+      return _.map(room.find(FIND_DROPPED_RESOURCES), (r: Resource) => new JobPickup(r, r.resourceType, 7));
     }));
     _.each(scavengeJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().holding()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
     const tombstoneJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
-      return _.map(room.find(FIND_TOMBSTONES, { filter: (t) => true/*t.holding() > 0*/ }), (t) => new JobPickup(t, 5));
+      return _.map(room.find(FIND_TOMBSTONES,
+        { filter: (t) => t.holding() > 0 }),
+        (t) => {
+          const resource = <ResourceConstant>_.max(Object.keys(t.store), (r: ResourceConstant) => { return t.store[r]; });
+          return new JobPickup(t, resource, 5);
+        });
     }));
     _.each(tombstoneJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().holding()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
@@ -304,7 +308,7 @@ export class Mayor {
               : (space < 600) ? 3
                 : 2);
 
-        return new JobPickup(link, p);
+        return new JobPickup(link, RESOURCE_ENERGY, p);
       }
 
       return null;
@@ -325,7 +329,7 @@ export class Mayor {
     const foes = room.find(FIND_HOSTILE_CREEPS);
     const unloadJobs: JobUnload[] = _.map(towers, (s: StructureTower): JobUnload => {
       const p = (foes.length) ? 10 : (s.freeSpace() / s.capacity() * 5);
-      return new JobUnload(s, p);
+      return new JobUnload(s, RESOURCE_ENERGY, p);
     });
     const jobs: JobUnload[] = unloadJobs;
     log.info(`${this} scheduling ${jobs.length} unload jobs (${jobs})...`);

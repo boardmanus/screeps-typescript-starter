@@ -128,10 +128,6 @@ export default class JobUpgrade implements Job.Model {
     return 0.0;
   }
 
-  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    return prerequisite == Job.Prerequisite.DELIVER_ENERGY || prerequisite == Job.Prerequisite.NONE;
-  }
-
   baseWorkerBody(): BodyPartConstant[] {
     return [WORK, CARRY, MOVE];
   }

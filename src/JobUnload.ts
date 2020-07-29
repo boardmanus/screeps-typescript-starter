@@ -4,16 +4,45 @@ import u from "./Utility"
 import { log } from './ScrupsLogger'
 import JobPickup from "JobPickup";
 
+function is_energy_only(site: UnloadSite): boolean {
+  switch (site.structureType) {
+    case STRUCTURE_STORAGE:
+    case STRUCTURE_TERMINAL:
+    case STRUCTURE_CONTAINER:
+      return false;
+    default: {
+      return true;
+    }
+  }
+}
+
+function best_resource(worker: Creep, site: UnloadSite, resourceType: ResourceType): ResourceConstant {
+  if (is_energy_only(site)) {
+    return RESOURCE_ENERGY;
+  }
+
+  let resource: ResourceConstant;
+  switch (resourceType) {
+    case 'all':
+      resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
+      break;
+    case 'minerals':
+      const storedMinerals = _.intersection(Object.keys(worker.store), u.RESOURCE_MINERALS);
+      resource = <ResourceConstant>_.max(storedMinerals, (r: ResourceConstant) => { return worker.store[r]; });
+      break;
+    default:
+      resource = <ResourceConstant>resourceType;
+  }
+
+  return resource;
+}
 
 function unload_at_site(job: JobUnload, worker: Creep): Operation {
   return () => {
     const site = job._site;
     Job.visualize(job, worker);
-    let resource: ResourceConstant = RESOURCE_ENERGY;
-    if (site.structureType == STRUCTURE_TERMINAL || site.structureType == STRUCTURE_STORAGE) {
-      resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
-    }
 
+    const resource = best_resource(worker, site, job._resource);
     let res: number = worker.transfer(site, resource);
     switch (res) {
       case OK:
@@ -30,31 +59,22 @@ function unload_at_site(job: JobUnload, worker: Creep): Operation {
   }
 }
 
-function resources_available(worker: Creep, site: UnloadSite): number {
-  switch (site.structureType) {
-    case STRUCTURE_STORAGE:
-    case STRUCTURE_TERMINAL:
-      return worker.holding();
-    default: {
-      return worker.available(RESOURCE_ENERGY);
-    }
-  }
-}
-
 export default class JobUnload implements Job.Model {
 
   static readonly TYPE = 'unload';
 
   readonly _site: UnloadSite;
+  readonly _resource: ResourceType;
   readonly _priority: number;
 
-  constructor(site: UnloadSite, priority: number = 1) {
+  constructor(site: UnloadSite, resource: ResourceType = RESOURCE_ENERGY, priority: number = 1) {
     this._site = site;
+    this._resource = resource;
     this._priority = priority;
   }
 
   id(): string {
-    return `job-${JobUnload.TYPE}-${this._site.id}`;
+    return `job-${JobUnload.TYPE}-${this._resource}-${this._site.id}`;
   }
 
   type(): string {
@@ -79,16 +99,20 @@ export default class JobUnload implements Job.Model {
 
   efficiency(worker: Creep): number {
 
-    if (worker.holding() == 0 || this._site.freeSpace() == 0) {
+    const available = worker.available(this._resource);
+    const free = this._site.freeSpace(this._resource);
+    if (available == 0 || free == 0) {
       return 0.0;
     }
 
     const lastJob = <Job.Model>worker.getLastJob();
     if (lastJob && lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
-      return 0;
+      return 0.0;
     }
 
-    let e = u.taxi_efficiency(worker, this._site, Math.min(worker.available(), this._site.freeSpace()));
+    const unloadable = Math.min(available, free);
+
+    let e = u.taxi_efficiency(worker, this._site, unloadable);
     if (this._site instanceof StructureStorage) {
       const optimumRatio = worker.holding() / worker.capacity();
       e *= optimumRatio;
@@ -105,30 +129,24 @@ export default class JobUnload implements Job.Model {
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    return this._site.freeSpace() - _.sum(workers, (w: Creep): number => {
-      return resources_available(w, this._site)
+    return this._site.freeSpace(this._resource) - _.sum(workers, (w: Creep): number => {
+      return w.available(this._resource);
     }) <= 0;
   }
 
   completion(worker?: Creep): number {
-    const freespace = this._site.freeSpace();
+    const freespace = this._site.freeSpace(this._resource);
     if (freespace == 0
       || ((this._site instanceof StructureTower)
         && (freespace <= TOWER_ENERGY_COST))) {
       return 1.0;
     }
 
-    if (worker && (resources_available(worker, this._site) == 0)) {
+    if (worker && (worker.available(this._resource) == 0)) {
       return 1.0;
     }
 
-    return this._site.holding() / this._site.capacity();
-  }
-
-  satisfiesPrerequisite(p: Job.Prerequisite): boolean {
-    return ((p == Job.Prerequisite.DELIVER_ENERGY
-      || p == Job.Prerequisite.NONE)
-      && this._site.freeSpace() > 0);
+    return 1.0 - freespace / this._site.capacity();
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -143,8 +161,8 @@ export default class JobUnload implements Job.Model {
 
 Job.factory.addBuilder(JobUnload.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
-  const site = <UnloadSite>Game.getObjectById(frags[2]);
+  const site = <UnloadSite>Game.getObjectById(frags[3]);
   if (!site) return undefined;
-  const priority = Number(frags[3]);
-  return new JobUnload(site);
+  const resource = (frags[2] === 'any') ? undefined : <ResourceConstant>frags[2];
+  return new JobUnload(site, resource);
 });

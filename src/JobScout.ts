@@ -72,11 +72,6 @@ export default class JobScout implements Job.Model {
     return 0.0;
   }
 
-  satisfiesPrerequisite(p: Job.Prerequisite): boolean {
-    // Doesn't satisfy any prereq's
-    return p == Job.Prerequisite.NONE;
-  }
-
   baseWorkerBody(): BodyPartConstant[] {
     return [MOVE, MOVE];
   }

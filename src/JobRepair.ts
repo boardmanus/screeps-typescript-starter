@@ -107,7 +107,14 @@ export default class JobRepair implements Job.Model {
     //  return 0.0;
     //}
 
-    return worker.available() / (workTime + travelTime);
+    // Make sure a decent amount of energy is available.
+    if (worker.available() / worker.capacity() < 0.25) {
+      return 0.0;
+    }
+
+    // Favor workers with more energy...
+    const ratio = worker.available() / worker.capacity();
+    return ratio * worker.available() / (workTime + travelTime);
   }
 
   isSatisfied(workers: Creep[]): boolean {
@@ -134,14 +141,6 @@ export default class JobRepair implements Job.Model {
 
   baseWorkerBody(): BodyPartConstant[] {
     return [WORK, MOVE, CARRY, MOVE];
-  }
-
-  satisfiesPrerequisite(prerequisite: Job.Prerequisite): boolean {
-    if (prerequisite == Job.Prerequisite.DELIVER_ENERGY || prerequisite == Job.Prerequisite.NONE) {
-      return this.completion() < 1.0;
-    }
-
-    return false;
   }
 
   work(worker: Creep): Operation[] {

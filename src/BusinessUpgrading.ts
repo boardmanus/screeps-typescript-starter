@@ -178,7 +178,7 @@ export default class BusinessUpgrading implements Business.Model {
     if (container) {
       jobs.push(new JobUpgrade(controller));
       jobs.push(new JobRepair(container, this._priority));
-      jobs.push(new JobPickup(container, 1));
+      jobs.push(new JobPickup(container, RESOURCE_ENERGY, 1));
     }
 
     return jobs;
@@ -199,7 +199,7 @@ export default class BusinessUpgrading implements Business.Model {
     if (_.find(employees, (e) => !e.creep.spawning)) {
       if (container && container.freeSpace() > 0) {
         const urgency = container.freeSpace() / container.capacity();
-        jobs.push(new JobUnload(container, urgency * 9));
+        jobs.push(new JobUnload(container, RESOURCE_ENERGY, urgency * 9));
       }
     }
     else {

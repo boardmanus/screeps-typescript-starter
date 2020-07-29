@@ -227,21 +227,45 @@ function link_building_work(source: Source): BuildingWork {
 }
 
 function update_mine(mine: Source): void {
+
+  mine._link = undefined;
+  mine._container = undefined;
+
+  // Load information from storage, if possible
+  const allSourceMem: SourceMemory[] = mine.room.memory.sources ?? [];
+  let sourceMem = _.find(allSourceMem, (sm) => sm.id === mine.id);
+  if (!sourceMem) {
+    sourceMem = <SourceMemory>{ id: mine.id, container: undefined, link: undefined };
+    allSourceMem.push(sourceMem);
+  }
+
+  if (sourceMem.link) {
+    mine._link = Game.getObjectById<StructureLink>(sourceMem.link) ?? undefined;
+  }
+  if (sourceMem.container) {
+    mine._container = Game.getObjectById<StructureContainer>(sourceMem.container) ?? undefined;
+  }
+
   if (!mine._container || !mine._link) {
     const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
     sites.push(...find_mine_construction(mine));
     for (const site of sites) {
       if (!mine._link && site.structureType === STRUCTURE_LINK) {
         mine._link = site;
-        if (mine._link instanceof StructureLink) {
-          mine._link._isSink = false;
-        }
       }
       else if (!mine._container && (site.structureType === STRUCTURE_CONTAINER)) {
         mine._container = site;
       }
     }
   }
+
+  if (mine._link instanceof StructureLink) {
+    mine._link._isSink = false;
+  }
+
+  // Update storage
+  sourceMem.link = mine._link?.id;
+  sourceMem.container = mine._container?.id;
 }
 
 export default class BusinessEnergyMining implements Business.Model {
@@ -312,11 +336,11 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobHarvest(mine, this._priority));
 
       if (link) {
-        jobs.push(new JobUnload(link, this._priority));
+        jobs.push(new JobUnload(link, RESOURCE_ENERGY, this._priority));
       }
 
       if (container) {
-        jobs.push(new JobUnload(container, this._priority - 2));
+        jobs.push(new JobUnload(container, undefined, this._priority - 2));
         jobs.push(new JobDrop(container, this._priority - 3));
       }
     }
@@ -355,16 +379,12 @@ export default class BusinessEnergyMining implements Business.Model {
     if ((employees.length == 0) || (!mine._link && !mine._container)) {
       // When no employees, link and container, use contractors for harvesting.
       jobs.push(new JobHarvest(mine));
-
-      if (link) {
-        jobs.push(new JobUnload(link));
-      }
     }
 
     if (container) {
       // Always use a contractor to clear the container
       if (container.available()) {
-        const pickup = new JobPickup(container, pickup_priority(container));
+        const pickup = new JobPickup(container, RESOURCE_ENERGY, pickup_priority(container));
         jobs.push(pickup);
       }
     }

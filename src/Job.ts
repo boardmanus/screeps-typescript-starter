@@ -22,7 +22,6 @@ export interface Model {
   efficiency(worker: Creep): number;
   completion(worker?: Creep): number;
   work(worker: Creep): Operation[];
-  satisfiesPrerequisite(prerequisite: Prerequisite): boolean;
   baseWorkerBody(): BodyPartConstant[];
 }
 

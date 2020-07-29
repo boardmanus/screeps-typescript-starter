@@ -358,19 +358,19 @@ export default class BusinessCloning implements Business.Model {
       (e) => e.freeSpace() > 0),
       (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
       5),
-      (e) => new JobUnload(e, extPriority));
+      (e) => new JobUnload(e, RESOURCE_ENERGY, extPriority));
 
     if (extJobs.length < 5) {
       const spawnPriority = 3 + (1.0 - roomHealth) * this._priority;
       const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
         (s) => s.freeSpace() > 0),
-        (s) => new JobUnload(s, spawnPriority));
+        (s) => new JobUnload(s, RESOURCE_ENERGY, spawnPriority));
       extJobs.push(...spawnJobs);
     }
 
     const pickupJobs: JobPickup[] = _.map(_.filter(this._spawns,
       (s) => { const r = s.recycler(); return r ? r.available() : false }),
-      (s) => new JobPickup(s.recycler() ?? s, this._priority));
+      (s) => new JobPickup(s.recycler() ?? s, undefined, this._priority));
 
     const recycle = new JobRecycle(this._spawns[0]);
 

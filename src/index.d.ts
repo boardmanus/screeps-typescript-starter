@@ -3,8 +3,8 @@ interface RoomPosition {
 }
 
 interface RoomObject {
-  available(resource?: ResourceConstant): number;
-  freeSpace(resource?: ResourceConstant): number;
+  available(resource?: ResourceType): number;
+  freeSpace(resource?: ResourceType): number;
   holding(): number;
   capacity(): number;
 }

@@ -13,7 +13,11 @@ const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
 const MAX_BUILD_JOBS = 5;
 const MAX_REPAIR_JOBS = 5;
-const WORK_PER_EMPLOYEE = 100000;
+const WORK_PER_EMPLOYEE = 50000;
+
+const MAX_RAMPART_WALL = 1000000;
+const MAX_RCL = 8;
+
 
 export function construction_priority(site: ConstructionSite): number {
   const energyAvail = site.room?.energyCapacityAvailable ?? 0;
@@ -30,6 +34,7 @@ export function construction_priority(site: ConstructionSite): number {
 function damage_ratio(site: Structure): number {
   return (1.0 - site.hits / site.hitsMax);
 }
+
 function wall_rampart_desired_hits(room: Room): number {
   const c = room.controller;
   if (!c) {
@@ -37,12 +42,9 @@ function wall_rampart_desired_hits(room: Room): number {
   }
 
   const progress = c.progress / c.progressTotal;
-  const rcl = c.level;
-  const prevRcl = Math.max(rcl - 1, 2);
-  const dHits = RAMPART_HITS_MAX[rcl] - RAMPART_HITS_MAX[prevRcl];
-  const maxHits = RAMPART_HITS_MAX[rcl] + progress * dHits;
+  const rcl = c.level + progress;
 
-  return maxHits / 30.0;
+  return MAX_RAMPART_WALL * rcl / MAX_RCL;
 }
 
 function wall_rampart_damage_ratio(wr: Structure): number {
@@ -89,14 +91,12 @@ function worker_repair_filter(site: Structure): boolean {
   const healthRatio = site.hits / site.hitsMax;
   let badHealth;
 
-  const rcl = site.room.controller?.level ?? 0;
-
   switch (site.structureType) {
     case STRUCTURE_WALL:
-      badHealth = (rcl < 3) || (site.hits / 3000000 < 0.2);
+      badHealth = (site.hits / wall_rampart_desired_hits(site.room) < 0.7);
       break;
     case STRUCTURE_RAMPART:
-      badHealth = (rcl < 3) || (healthRatio < 0.2);
+      badHealth = (site.hits / wall_rampart_desired_hits(site.room) < 0.7);
       break;
     case STRUCTURE_ROAD:
       badHealth = healthRatio < 0.5;
@@ -171,15 +171,9 @@ export default class BusinessConstruction implements Business.Model {
       (s) => !(s instanceof StructureWall) && !(s instanceof StructureRampart)),
       (s) => s.hitsMax - s.hits);
 
-    let desiredEmployees = Math.trunc(workRequired / WORK_PER_EMPLOYEE);
+    let desiredEmployees = Math.ceil(workRequired / WORK_PER_EMPLOYEE);
     log.debug(`${this}: ${desiredEmployees} desired construction employees (${workRequired}/${WORK_PER_EMPLOYEE})`)
 
-    if (desiredEmployees == 0) {
-
-      if (this._repairJobs.length >= 5 && this._repairJobs[4].priority() > 5) {
-        desiredEmployees = 1;
-      }
-    }
     return employees.length < desiredEmployees;
   }
 

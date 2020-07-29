@@ -3,14 +3,11 @@ import * as Job from "Job";
 import JobHarvest from 'JobHarvest';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
-import JobRepair from 'JobRepair';
-import JobBuild from 'JobBuild';
 import JobDrop from 'JobDrop';
 import Worker from 'Worker';
 import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
-import { RSA_PKCS1_PADDING } from 'constants';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
@@ -21,18 +18,19 @@ const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOV
 const IDEAL_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY, WORK, CARRY, MOVE];
 
 function is_mineral_structure(mine: Mineral): (s: Structure) => boolean {
-  return (s) => ((s.structureType == STRUCTURE_EXTRACTOR) && mine.pos === s.pos)
-    || ((s.structureType == STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1));
+  return (s) => {
+    return (s.structureType == STRUCTURE_EXTRACTOR) || (s.structureType == STRUCTURE_CONTAINER);
+  }
 }
 
 function find_mine_structures(mine: Mineral): AnyStructure[] {
-  return mine.room?.find(FIND_STRUCTURES, {
-    filter: (s: Structure) => is_mineral_structure(mine)
+  return mine.pos.findInRange(FIND_STRUCTURES, 1, {
+    filter: is_mineral_structure(mine)
   }) ?? [];
 }
 
 function find_mine_construction(mine: Mineral): ConstructionSite[] {
-  return mine.room?.find(FIND_CONSTRUCTION_SITES, {
+  return mine.pos.findInRange(FIND_CONSTRUCTION_SITES, 1, {
     filter: is_mineral_structure(mine)
   }) ?? [];
 }
@@ -49,10 +47,15 @@ function can_build_extractor(mine: Mineral): boolean {
     return false;
   }
 
+  if (mine._extractor) {
+    return false;
+  }
+
   return true;
 }
 
 function can_build_container(mine: Mineral): boolean {
+  log.debug(`${mine}: can_build_container: ${mine}`)
 
   const room = mine.room;
   const controller = room?.controller;
@@ -61,7 +64,7 @@ function can_build_container(mine: Mineral): boolean {
   }
 
   const rcl = controller.level;
-  if (controller.my && rcl < 3) {
+  if (controller.my && rcl < 6) {
     return false;
   }
 
@@ -78,6 +81,11 @@ function possible_container_sites(source: Mineral): RoomPosition[] {
     if (haveContainer) {
       return false;
     }
+
+    if (site.x < 3 || site.x > 46 || site.y < 3 || site.y > 46) {
+      return false;
+    }
+
     const terrain = site.look();
     for (const t of terrain) {
       switch (t.type) {
@@ -153,7 +161,6 @@ function pickup_priority(container: StructureContainer): number {
 
 function container_building_work(mine: Mineral): BuildingWork | undefined {
   const bestSite = best_container_site(mine)
-  log.debug(`${mine}: best_container_site=${bestSite}`)
   if (!bestSite) {
     return undefined;
   }
@@ -169,10 +176,10 @@ function update_mine(mine: Mineral): void {
     const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
     sites.push(...find_mine_construction(mine));
     for (const site of sites) {
-      if (!mine._container && (site.structureType === STRUCTURE_CONTAINER)) {
+      if (site.structureType === STRUCTURE_CONTAINER) {
         mine._container = site;
       }
-      else if (!mine._extractor && (site.structureType == STRUCTURE_EXTRACTOR)) {
+      else if (site.structureType == STRUCTURE_EXTRACTOR) {
         mine._extractor = site;
       }
     }
@@ -189,6 +196,8 @@ export default class BusinessMineralMining implements Business.Model {
   constructor(mine: Mineral, priority: number = 5) {
     this._priority = priority;
     this._mine = mine;
+
+    update_mine(this._mine);
   }
 
   id(): string {
@@ -204,11 +213,10 @@ export default class BusinessMineralMining implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return employees.length == 0;
+    return (employees.length == 0) && !(!this._mine.container() || !this._mine.extractor());
   }
 
   survey() {
-    update_mine(this._mine);
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
@@ -244,11 +252,12 @@ export default class BusinessMineralMining implements Business.Model {
 
     const extractor = mine.extractor();
     const container = mine.container();
-    if (mine.available() > 0 && container && extractor) {
+    log.debug(`${this}: ${mine} has ${extractor}, ${container}, ${mine.holding()} resources of ${mine.mineralType}`)
+    if (mine.holding() > 0 && container && extractor) {
       jobs.push(new JobHarvest(mine, this._priority));
 
       if (container.freeSpace()) {
-        jobs.push(new JobUnload(container, this._priority));
+        jobs.push(new JobUnload(container, mine.mineralType, this._priority));
       }
       else {
         jobs.push(new JobDrop(container, this._priority));
@@ -270,12 +279,8 @@ export default class BusinessMineralMining implements Business.Model {
 
     const container = mine.container();
 
-    if (container) {
-      // Always use a contractor to clear the container
-      if (container.available()) {
-        const pickup = new JobPickup(container, pickup_priority(container));
-        jobs.push(pickup);
-      }
+    if (container && container.holding()) {
+      jobs.push(new JobPickup(container, mine.mineralType, pickup_priority(container)));
     }
 
     return jobs;
