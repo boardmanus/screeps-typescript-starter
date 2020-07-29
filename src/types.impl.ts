@@ -32,13 +32,22 @@ RoomObject.prototype.capacity = function (): number {
 Resource.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.amount : 0;
 }
+Resource.prototype.capacity = function (): number {
+  return this.amount;
+}
 
 Tombstone.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.store_resource_amount(this.store, resource);
 }
+Tombstone.prototype.capacity = function (): number {
+  return this.store.getUsedCapacity();
+}
 
 Source.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.energy : 0;
+}
+Source.prototype.capacity = function (): number {
+  return this.energyCapacity;
 }
 Source.prototype.link = function (): StructureLink | undefined {
   return (this._link instanceof StructureLink) ? this._link : undefined;
@@ -49,6 +58,9 @@ Source.prototype.container = function (): StructureContainer | undefined {
 
 Mineral.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.mineralAmount : 0;
+}
+Mineral.prototype.capacity = function (): number {
+  return this.density;
 }
 Mineral.prototype.container = function (): StructureContainer | undefined {
   return (this._container instanceof StructureContainer) ? this._container : undefined;
@@ -64,6 +76,9 @@ StructureController.prototype.container = function (): StructureContainer | unde
 StructureExtension.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.limited_store_resource_amount(this.store, resource, RESOURCE_ENERGY);
 }
+StructureExtension.prototype.capacity = function (): number {
+  return this.store.getCapacity(RESOURCE_ENERGY);
+}
 StructureExtension.prototype.freeSpace = function (resource: ResourceType = 'all'): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.store.getFreeCapacity(RESOURCE_ENERGY) : 0;
 }
@@ -74,6 +89,9 @@ StructureExtension.prototype.capacity = function (): number {
 StructureLink.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.limited_store_resource_amount(this.store, resource, RESOURCE_ENERGY);
 }
+StructureLink.prototype.capacity = function (): number {
+  return this.store.getCapacity(RESOURCE_ENERGY);
+}
 StructureLink.prototype.freeSpace = function (resource: ResourceType = 'all'): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.store.getFreeCapacity(RESOURCE_ENERGY) : 0;
 }
@@ -83,6 +101,9 @@ StructureLink.prototype.capacity = function (): number {
 
 StructureSpawn.prototype.available = function (resource: ResourceType = 'all'): number {
   return u.limited_store_resource_amount(this.store, resource, RESOURCE_ENERGY);
+}
+StructureSpawn.prototype.capacity = function (): number {
+  return this.store.getCapacity(RESOURCE_ENERGY);
 }
 StructureSpawn.prototype.freeSpace = function (resource: ResourceType = 'all'): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.store.getFreeCapacity(RESOURCE_ENERGY) : 0;
@@ -124,7 +145,7 @@ StructureTower.prototype.freeSpace = function (resource: ResourceType = 'all'): 
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.store.getFreeCapacity(RESOURCE_ENERGY) : 0;
 }
 StructureTower.prototype.capacity = function (): number {
-  return this.store.getCapacity(RESOURCE_ENERGY) ?? 0;
+  return this.store.getCapacity(RESOURCE_ENERGY);
 }
 
 Creep.prototype.available = function (resource: ResourceType = 'all'): number {

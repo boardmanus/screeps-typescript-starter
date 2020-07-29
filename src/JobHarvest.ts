@@ -201,7 +201,7 @@ export default class JobHarvest implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    const emptiness: number = this._site.freeSpace() / this._site.capacity();
+    const emptiness: number = 1.0 - this._site.available() / this._site.capacity();
 
     if (worker) {
       const maxHolding = worker.capacity() - u.work_energy(worker, 2);

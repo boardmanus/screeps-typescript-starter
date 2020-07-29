@@ -213,7 +213,9 @@ export default class BusinessMineralMining implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return (employees.length == 0) && !(!this._mine.container() || !this._mine.extractor());
+    return ((employees.length == 0)
+      && !(!this._mine.container() || !this._mine.extractor())
+      && (this._mine.available(this._mine.mineralType) > 0));
   }
 
   survey() {
