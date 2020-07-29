@@ -75,8 +75,9 @@ type UnloadSite = StructureTerminal | StructureExtension | StructureSpawn | Stru
 type PickupSite = Resource | Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 type PickupStoreSite = Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 
-declare const RESOURCE_ALL: RESOURCE_ALL;
-declare const RESOURCE_MINERALS: RESOURCE_MINERALS;
-type RESOURCE_ALL = 'all';
-type RESOURCE_MINERALS = 'minerals';
-type ResourceType = ResourceConstant | RESOURCE_ENERGY | RESOURCE_ALL | RESOURCE_MINERALS;
+////declare const RESOURCE_ALL: ResourceType;
+//declare const RESOURCE_MINERALS: ResourceType;
+//type RESOURCE_ALL = 'all';
+//type RESOURCE_MINERALS = 'minerals';
+
+type ResourceType = ResourceConstant | 'all' | 'minerals';

@@ -336,7 +336,7 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobHarvest(mine, this._priority));
 
       if (this._mine.room.storage) {
-        jobs.push(new JobUnload(this._mine.room.storage, 'minerals', 9));
+        jobs.push(new JobUnload(this._mine.room.storage, u.RESOURCE_MINERALS, 9));
       }
 
       if (link) {
@@ -344,7 +344,7 @@ export default class BusinessEnergyMining implements Business.Model {
       }
 
       if (container) {
-        jobs.push(new JobUnload(container, 'all', this._priority - 2));
+        jobs.push(new JobUnload(container, u.RESOURCE_ALL, this._priority - 2));
         jobs.push(new JobDrop(container, this._priority - 3));
       }
     }
@@ -388,7 +388,7 @@ export default class BusinessEnergyMining implements Business.Model {
     if (container) {
       // Always use a contractor to clear the container
       if (container.available()) {
-        const pickup = new JobPickup(container, 'all', pickup_priority(container));
+        const pickup = new JobPickup(container, u.RESOURCE_ALL, pickup_priority(container));
         jobs.push(pickup);
       }
     }

@@ -21,20 +21,7 @@ function best_resource(worker: Creep, site: UnloadSite, resourceType: ResourceTy
     return RESOURCE_ENERGY;
   }
 
-  let resource: ResourceConstant;
-  switch (resourceType) {
-    case 'all':
-      resource = <ResourceConstant>_.max(Object.keys(worker.store), (r: ResourceConstant) => { return worker.store[r]; });
-      break;
-    case 'minerals':
-      const storedMinerals = _.intersection(Object.keys(worker.store), u.ALL_MINERALS);
-      resource = <ResourceConstant>_.max(storedMinerals, (r: ResourceConstant) => { return worker.store[r]; });
-      break;
-    default:
-      resource = <ResourceConstant>resourceType;
-  }
-
-  return resource;
+  return u.max_stored_resource(worker.store, resourceType);
 }
 
 function unload_at_site(job: JobUnload, worker: Creep): Operation {
@@ -163,6 +150,6 @@ Job.factory.addBuilder(JobUnload.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const site = <UnloadSite>Game.getObjectById(frags[3]);
   if (!site) return undefined;
-  const resource = (frags[2] === 'any') ? undefined : <ResourceConstant>frags[2];
+  const resource = <ResourceType>frags[2];
   return new JobUnload(site, resource);
 });

@@ -282,7 +282,7 @@ export default class BusinessMineralMining implements Business.Model {
     const container = mine.container();
 
     if (container && container.available() > 0) {
-      jobs.push(new JobPickup(container, 'all', pickup_priority(container)));
+      jobs.push(new JobPickup(container, u.RESOURCE_ALL, pickup_priority(container)));
     }
 
     return jobs;

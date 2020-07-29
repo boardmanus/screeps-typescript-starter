@@ -244,6 +244,10 @@ export default class BusinessBanking implements Business.Model {
     this._priority = priority;
     this._vault = vaultRoom.storage;
     this._remoteRooms = remoteRooms;
+
+    if (this._vault) {
+      update_vault(this._vault);
+    }
   }
 
   id(): string {
@@ -263,9 +267,6 @@ export default class BusinessBanking implements Business.Model {
   }
 
   survey() {
-    if (this._vault) {
-      update_vault(this._vault);
-    }
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
@@ -307,7 +308,7 @@ export default class BusinessBanking implements Business.Model {
     }
 
     if (vault.freeSpace() > 0) {
-      jobs.push(new JobUnload(vault, 'all', Math.max(0.1, energyRatio) * 1));
+      jobs.push(new JobUnload(vault, u.RESOURCE_ALL, Math.max(0.1, energyRatio) * 1));
     }
 
     const link = vault.link();

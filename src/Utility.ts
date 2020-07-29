@@ -1,8 +1,9 @@
 import { log } from "./ScrupsLogger";
 import { FunctionCache } from "./Cache";
 
-
 namespace u {
+  export const RESOURCE_ALL: ResourceType = 'all';
+  export const RESOURCE_MINERALS: ResourceType = 'minerals';
 
   export const FOREVER: number = 10e10;
 
@@ -328,15 +329,16 @@ namespace u {
 
   export function resource_matches_type(resource: ResourceConstant, type: ResourceType) {
     switch (type) {
-      case 'all': return true;
-      case 'minerals': return (_.indexOf(ALL_MINERALS, resource) != -1);
+      case u.RESOURCE_ALL: return true;
+      case u.RESOURCE_MINERALS: return (_.indexOf(ALL_MINERALS, resource) != -1);
       default: return resource === type;
     }
   }
+
   export function store_resource_amount(store: StoreDefinition, rType: ResourceType): number {
     switch (rType) {
-      case 'all': return store.getUsedCapacity();
-      case 'minerals': return _.sum(Object.keys(store), (r) => {
+      case u.RESOURCE_ALL: return store.getUsedCapacity();
+      case u.RESOURCE_MINERALS: return _.sum(Object.keys(store), (r) => {
         return (_.indexOf(ALL_MINERALS, r) != -1) ? store.getUsedCapacity(<ResourceConstant>r) : 0;
       });
       default: return store[<ResourceConstant>rType];
@@ -347,16 +349,19 @@ namespace u {
     return resource_matches_type(r, rType) ? store[r] : 0;
   }
 
+  export function stored_minerals(store: StoreDefinition): ResourceConstant[] {
+    return _.intersection(<ResourceConstant[]>Object.keys(store), u.ALL_MINERALS);
+  }
+
   export function max_stored_resource(store: StoreDefinition, resourceType: ResourceType): ResourceConstant {
 
     let resource: ResourceConstant;
     switch (resourceType) {
-      case 'all':
+      case u.RESOURCE_ALL:
         resource = <ResourceConstant>_.max(Object.keys(store), (r: ResourceConstant) => { return store[r]; });
         break;
-      case 'minerals':
-        const storedMinerals = _.intersection(Object.keys(store), ALL_MINERALS);
-        resource = <ResourceConstant>_.max(storedMinerals, (r: ResourceConstant) => { return store[r]; });
+      case u.RESOURCE_MINERALS:
+        resource = <ResourceConstant>_.max(stored_minerals(store), (r: ResourceConstant) => { return store[r]; });
         break;
       default:
         resource = <ResourceConstant>resourceType;
@@ -364,6 +369,8 @@ namespace u {
 
     return resource;
   }
+
+
 }
 
 export default u;

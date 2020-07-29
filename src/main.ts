@@ -1,3 +1,4 @@
+
 import { ErrorMapper } from "utils/ErrorMapper";
 import { King } from "./King";
 import { Operation } from "./Operation";
