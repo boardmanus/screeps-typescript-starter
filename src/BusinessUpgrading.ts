@@ -197,7 +197,7 @@ export default class BusinessUpgrading implements Business.Model {
 
     const container = controller.container();
     if (_.find(employees, (e) => !e.creep.spawning)) {
-      if (container && container.freeSpace() > 0) {
+      if (container && container.freeSpace() > 500) {
         const urgency = container.freeSpace() / container.capacity();
         jobs.push(new JobUnload(container, RESOURCE_ENERGY, urgency * 9));
       }

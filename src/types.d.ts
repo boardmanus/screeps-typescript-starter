@@ -5,6 +5,7 @@ interface CreepMemory {
   stuckCount: number | undefined;
   stalledCount: number | undefined;
   home: string | undefined;
+  lastJob: string | undefined;
 }
 
 interface SourceMemory {

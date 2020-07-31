@@ -18,6 +18,7 @@ import BusinessUpgrading from "BusinessUpgrading";
 import BusinessCloning from "BusinessCloning";
 import BusinessExploring from "BusinessExploring";
 import BusinessMineralMining from "BusinessMineralMining";
+import BusinessTrading from "BusinessTrading";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
@@ -126,6 +127,9 @@ export class Mayor {
 
     const cloningBusiness = new BusinessCloning(this._room);
     this._businessMap[cloningBusiness.id()] = cloningBusiness;
+
+    const tradingBusiness = new BusinessTrading(this._room);
+    this._businessMap[tradingBusiness.id()] = tradingBusiness;
 
     if (this._room.storage) {
       const banking = new BusinessBanking(this._room, this._remoteRooms);
@@ -323,7 +327,7 @@ export class Mayor {
     const room = this._room;
     const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, {
       filter: (s: AnyStructure) => {
-        return (s.structureType == STRUCTURE_TOWER) && s.freeSpace() > 0;
+        return (s.structureType == STRUCTURE_TOWER) && s.freeSpace() > 300;
       }
     });
     const foes = room.find(FIND_HOSTILE_CREEPS);

@@ -1,5 +1,6 @@
 import { log } from 'ScrupsLogger'
 import u from 'Utility';
+import * as Job from 'Job';
 
 RoomPosition.prototype.surroundingPositions = function (radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[] {
   const minx = Math.max(0, this.x - radius);
@@ -138,6 +139,16 @@ StructureStorage.prototype.link = function (): StructureLink | undefined {
   return (this._link instanceof StructureLink) ? this._link : undefined;
 }
 
+StructureTerminal.prototype.available = function (resource: ResourceType = u.RESOURCE_ALL): number {
+  return u.store_resource_amount(this.store, resource);
+}
+StructureTerminal.prototype.freeSpace = function (__?: ResourceType): number {
+  return this.store.getFreeCapacity();
+}
+StructureTerminal.prototype.capacity = function (): number {
+  return this.store.getCapacity();
+}
+
 StructureTower.prototype.available = function (resource: ResourceType = u.RESOURCE_ALL): number {
   return u.limited_store_resource_amount(this.store, resource, RESOURCE_ENERGY);
 }
@@ -163,8 +174,9 @@ Creep.prototype.setJob = function (job: string | undefined): void {
 Creep.prototype.isEmployed = function (): boolean {
   return (this._job ? true : false);
 }
-Creep.prototype.setLastJob = function (lastJob: Object): void {
+Creep.prototype.setLastJob = function (lastJob: Job.Model): void {
   this._lastJob = lastJob;
+  this.memory.lastJob = lastJob.id();
 }
 Creep.prototype.getLastJob = function (): Object | undefined {
   return this._lastJob;

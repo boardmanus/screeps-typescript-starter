@@ -18,7 +18,11 @@ export default class Boss implements Work {
       u.map_valid_creeps(memory.workers),
       (worker: Creep) => {
 
-        if (worker._job != undefined) {
+        if (worker.memory.lastJob) {
+          worker._lastJob = jobMap[worker.memory.lastJob];
+        }
+
+        if (worker._job) {
           log.error(`${worker}: already assigned to ${worker._job}! (not reassigning to ${job.id()})`);
           return false;
         }

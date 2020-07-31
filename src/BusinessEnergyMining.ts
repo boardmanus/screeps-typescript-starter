@@ -293,7 +293,7 @@ export default class BusinessEnergyMining implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return employees.length == 0;
+    return (employees.length == 0) && (this._mine.available() > 0);
   }
 
   survey() {
@@ -382,6 +382,7 @@ export default class BusinessEnergyMining implements Business.Model {
 
     if ((employees.length == 0) || (!mine._link && !mine._container)) {
       // When no employees, link and container, use contractors for harvesting.
+      log.debug(`${this}: adding harvest job cos ${employees.length} emps, ${mine._link} & ${mine._container}`)
       jobs.push(new JobHarvest(mine));
     }
 

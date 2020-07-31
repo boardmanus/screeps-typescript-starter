@@ -27,6 +27,15 @@ function best_resource(worker: Creep, site: UnloadSite, resourceType: ResourceTy
 function unload_at_site(job: JobUnload, worker: Creep): Operation {
   return () => {
     const site = job._site;
+
+    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
+    if (lastJob && lastJob.site() === job.site() && lastJob.type() === JobPickup.TYPE) {
+      log.error(`${job}: dropping off after picking up at same site!`)
+    }
+    else {
+      log.debug(`${job}: lastJob=${lastJob}`)
+    }
+
     Job.visualize(job, worker);
 
     const resource = best_resource(worker, site, job._resource);

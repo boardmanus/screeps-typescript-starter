@@ -1,12 +1,19 @@
 import { Operation } from "./Operation";
 import * as Job from "Job";
-import JobDrop from "JobDrop"
+import JobUnload from "JobUnload"
 import u from "./Utility"
 import { log } from './ScrupsLogger'
 
 
 function withdraw_from_site(job: JobPickup, worker: Creep, site: PickupStoreSite): Operation {
   return () => {
+    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
+    if (lastJob && lastJob.site() === job.site() && lastJob.type() === JobUnload.TYPE) {
+      log.error(`${job}: picking up after dropping off at same site!`)
+    }
+    else {
+      log.debug(`${job}: lastJob=${lastJob}`)
+    }
     Job.visualize(job, worker);
     const resource = u.max_stored_resource(site.store, job._resource);
     const available = site.available(resource);
@@ -109,9 +116,10 @@ export default class JobPickup implements Job.Model {
     // If the workers last job was dropping off at this site, then
     // reduce the efficiency of a pickup from the same place.
     const lastJob: Job.Model = <Job.Model>worker.getLastJob();
-    if (lastJob && (lastJob.site() === this._site) && (lastJob.type() == JobDrop.TYPE)) {
-      log.error(`${this}: ${worker} pickup from dropoff @ ${this._site} (e=0.01*${e})`)
-      return 0.01 * e;
+    if (lastJob && (lastJob.site() === this._site) && (lastJob.type() == JobUnload.TYPE)) {
+      //log.error(`${this}: ${worker} pickup from dropoff @ ${this._site} (e=0.01*${e})`)
+      //return 0.01 * e;
+      return 0.0;
     }
 
     return e;

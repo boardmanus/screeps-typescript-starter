@@ -137,9 +137,6 @@ function find_extractor_routes(room: Room): RoomPosition[] {
 
   return paths;
 }
-//function get_road_padding(room : Room) : RoomPosition[] {
-//  const sites = room.find()
-//}
 
 function look_for_road_filter(l: LookAtResult): boolean {
   if (l.type == LOOK_STRUCTURES) {
@@ -204,101 +201,6 @@ function possible_road_sites(room: Room, ceos: Executive[], numAllowed: number):
 
   const towerRoutes = select_road_sites(room, numAllowed, 'towers', 13, find_tower_routes);
   return towerRoutes;
-}
-
-function possible_lab_sites(spawn: StructureSpawn, numExtensions: number): RoomPosition[] {
-  let radius = 1;
-  let sites: RoomPosition[] = [];
-  while (sites.length < numExtensions && radius++ < 5) {
-    const viableSites = spawn.pos.surroundingPositions(radius, (site: RoomPosition) => {
-      if ((site.x % 2) != (site.y % 2)) {
-        return false;
-      }
-
-      const terrain = site.look();
-      return _.reduce(terrain, (a: boolean, t: LookAtResult): boolean => {
-        switch (t.type) {
-          case LOOK_CONSTRUCTION_SITES:
-          case LOOK_STRUCTURES:
-            return false;
-          case LOOK_TERRAIN:
-            if (t.terrain === 'wall') return false;
-            break;
-          default:
-            break;
-        }
-        return a;
-      },
-        true);
-    });
-    sites = sites.concat(viableSites);
-  }
-  log.info(`found ${sites.length} viable extensions sites ${sites}`);
-  return sites;
-}
-
-function find_site<S extends Structure>(obj: RoomObject, type: StructureConstant, radius: number): S | undefined {
-  let site: Structure | undefined = undefined;
-  const viableSites = obj.pos.surroundingPositions(radius, (pos: RoomPosition): boolean => {
-    if (site) return false;
-    const structures = pos.lookFor(LOOK_STRUCTURES);
-    for (const s of structures) {
-      site = (s && s.structureType == type) ? s : undefined;
-      if (site) return true;
-    }
-    return false;
-  });
-
-  return site;
-}
-
-function possible_container_sites(source: RoomObject): RoomPosition[] {
-  let haveContainer: boolean = false;
-  const viableSites = source.pos.surroundingPositions(1, (site: RoomPosition): boolean => {
-    if (haveContainer) {
-      return false;
-    }
-    const terrain = site.look();
-    for (const t of terrain) {
-      switch (t.type) {
-        case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_CONTAINER) {
-            haveContainer = true;
-          }
-          return false;
-        case LOOK_STRUCTURES:
-          if (t.structure && t.structure.structureType == STRUCTURE_CONTAINER) {
-            haveContainer = true;
-          }
-          return false;
-        case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
-            return false;
-          }
-          break;
-        default:
-          break;
-      }
-    }
-    return true;
-  });
-
-  if (haveContainer) {
-    return [];
-  }
-
-  log.info(`found ${viableSites.length} viable container sites ${viableSites}`);
-  const room = source.room;
-  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
-    const emptyPositions = u.find_empty_surrounding_positions(site);
-    let val = -emptyPositions.length;
-    if (room && room.storage) {
-      val += 1 / site.getRangeTo(room.storage);
-    }
-    return val;
-  });
-
-  return _.take(sortedSites, 1);
 }
 
 function possible_tower_sites(protectionSite: RoomObject): RoomPosition[] {

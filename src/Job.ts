@@ -60,7 +60,7 @@ function jobMoveTo(job: Model, worker: Creep, pos: RoomPosition | RoomObject, ra
 
     const stalled = (stalledCount > 3);
     const ignoreCreeps = (stalledCount == 0);
-    const reusePath = stalled ? 0 : 50;
+    const reusePath = stalled ? 0 : ignoreCreeps ? 5 : 50;
     style.lineStyle = ignoreCreeps ? "dashed" : "solid";
 
     if (stalled) {
