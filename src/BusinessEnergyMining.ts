@@ -275,7 +275,7 @@ export default class BusinessEnergyMining implements Business.Model {
   private readonly _priority: number;
   readonly _mine: Source;
 
-  constructor(mine: Source, priority: number = 5) {
+  constructor(mine: Source, priority: number = 6) {
     this._priority = priority;
     this._mine = mine;
   }

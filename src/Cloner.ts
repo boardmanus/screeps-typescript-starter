@@ -177,12 +177,6 @@ export class Cloner implements Expert {
       return [];
     }
 
-    log.debug(`${this}: ${bosses.length} contract jobs, ${this._numWorkers} workers...`)
-    if (lazyWorkers.length > 0) {
-      log.debug(`${this}: not cloning => ${lazyWorkers.length} lazy workers present`);
-      return [];
-    }
-
     const availableEnergy = this._room.energyAvailable;
     const totalEnergy = this._room.energyCapacityAvailable;
     if (availableEnergy < 100) {
@@ -192,7 +186,7 @@ export class Cloner implements Expert {
 
     // Start specializing after links have been established.
     const [vacantCeos, usefulCeos] = _.partition(ceos, (ceo) => ceo.needsEmployee());
-    const ceosWithVacancies = _.sortBy(vacantCeos, (ceo) => ceo.priority());
+    const ceosWithVacancies = _.sortBy(vacantCeos, (ceo) => -ceo.priority());
     if (ceosWithVacancies.length) {
       log.info(`${this}: ${ceosWithVacancies.length} ceo's with vacancies`);
       const ceo = ceosWithVacancies[0];
@@ -200,6 +194,12 @@ export class Cloner implements Expert {
       if (employeeBody.length > 0) {
         return [new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, ceo)];
       }
+    }
+
+    log.debug(`${this}: ${bosses.length} contract jobs, ${this._numWorkers} workers...`)
+    if (lazyWorkers.length > 0) {
+      log.debug(`${this}: not cloning => ${lazyWorkers.length} lazy workers present`);
+      return [];
     }
 
     const [harvesters, others1] = _.partition(usefulCeos, (ceo) => ceo.business instanceof BusinessEnergyMining);

@@ -58,7 +58,7 @@ Source.prototype.container = function (): StructureContainer | undefined {
 }
 
 Mineral.prototype.available = function (resource: ResourceType = u.RESOURCE_ALL): number {
-  return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.mineralAmount : 0;
+  return u.resource_matches_type(this.mineralType, resource) ? this.mineralAmount : 0;
 }
 Mineral.prototype.capacity = function (): number {
   return this.density;

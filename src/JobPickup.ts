@@ -11,9 +11,7 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: PickupStoreSite
     if (lastJob && lastJob.site() === job.site() && lastJob.type() === JobUnload.TYPE) {
       log.error(`${job}: picking up after dropping off at same site!`)
     }
-    else {
-      log.debug(`${job}: lastJob=${lastJob}`)
-    }
+
     Job.visualize(job, worker);
     const resource = u.max_stored_resource(site.store, job._resource);
     const available = site.available(resource);

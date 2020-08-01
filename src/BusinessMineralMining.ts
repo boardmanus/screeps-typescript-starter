@@ -14,8 +14,8 @@ type BuildingSpec = {
   pos: RoomPosition
 };
 
-const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY];
-const IDEAL_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY, WORK, CARRY, MOVE];
+const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, WORK, WORK, MOVE, CARRY];
+const IDEAL_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, MOVE, CARRY, WORK, CARRY, MOVE];
 
 function is_mineral_structure(mine: Mineral): (s: Structure) => boolean {
   return (s) => {

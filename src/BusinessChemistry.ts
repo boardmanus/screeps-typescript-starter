@@ -5,63 +5,129 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 
-interface Frag {
-  start: number, end: number
+interface Pos {
+  x: number,
+  y: number
 };
 
-function possible_lab_sites(terminal: StructureTerminal): RoomPosition[] {
-  const terrain = new Room.Terrain(terminal.room.name);
-  for (let x = 0; x < 50; ++x) {
-    let y1 = 0;
-    while (y1 < 50 && terrain.get(x, y1) == 2) {
-      ++y1;
-    }
-    let y2 = y1 + 1;
-    while (y2 < 50 && terrain.get(x, y2) == 2) {
-      ++y2;
-    }
-    const dy = y2 - y1;
-    if (dy >= 4) {
-
+function block_has_walls(terrain: RoomTerrain, x0: number, y0: number, size: number) {
+  for (let x = 0; x < size; ++x) {
+    for (let y = 0; y < size; ++y) {
+      if (terrain.get(x0 + x, y0 + y) == TERRAIN_MASK_WALL) {
+        return true;
+      }
     }
   }
-
-  const viableSites = terminal.pos.surroundingPositions(5, (site: RoomPosition) => {
-
-    const terrain = site.look();
-    return _.reduce(terrain, (a: boolean, t: LookAtResult): boolean => {
-      switch (t.type) {
-        case LOOK_CONSTRUCTION_SITES:
-        case LOOK_STRUCTURES:
-          return false;
-        case LOOK_TERRAIN:
-          if (t.terrain === 'wall') return false;
-          break;
-        default:
-          break;
-      }
-      return a;
-    },
-      true);
-  });
-
-  return viableSites;
+  return false;
 }
 
+function block_has_structures(room: Room, x0: number, y0: number, size: number) {
+  return room.lookForAtArea(LOOK_STRUCTURES, y0, x0, y0 + size, x0 + size, true).length != 0;
+}
 
-function lab_building_work(terminal: StructureTerminal): BuildingWork[] {
-  const viableSites = possible_lab_sites(terminal);
-  log.info(`${terminal}: ${viableSites.length} viable lab sites`);
-  if (viableSites.length == 0) {
+// \\[][]..
+// []\\[][]
+// [][]\\[]
+// ..[][]\\
+const LAB_PLACEMENTS: Pos[] = [
+  { x: 1, y: 0 },
+  { x: 2, y: 0 },
+  { x: 2, y: 1 },
+  { x: 0, y: 1 },
+  { x: 0, y: 2 },
+  { x: 1, y: 2 },
+  { x: 3, y: 1 },
+  { x: 3, y: 2 },
+  { x: 1, y: 3 },
+  { x: 2, y: 3 }
+];
+
+function possible_lab_block_sites(terminal: StructureTerminal): RoomPosition[] {
+  const room = terminal.room;
+  const roomName = room.name;
+  const terrain = new Room.Terrain(roomName);
+  const sites: RoomPosition[] = [];
+  for (let x = 0; x < 46; ++x) {
+    for (let y = 0; y < 46; ++y) {
+      if (!block_has_walls(terrain, x, y, 4)
+        && !block_has_structures(room, x, y, 4)) {
+        const pos = room.getPositionAt(x, y);
+        if (pos) sites.push(pos);
+      }
+    }
+  }
+  return sites;
+}
+
+function num_allowed_labs(room: Room): number {
+  const rcl = room.controller?.level ?? 0;
+  return (CONTROLLER_STRUCTURES.lab[rcl]);
+}
+function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
+  const terminal = room.terminal;
+  if (!terminal) {
     return [];
   }
 
-  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
-    const emptyPositions = u.find_empty_surrounding_positions(site);
-    return -emptyPositions.length;
+  let bestPos: RoomPosition;
+  const buildings: BuildingWork[] = [];
+
+  if (labs.length == 0) {
+    const viableSites = possible_lab_block_sites(terminal);
+    log.info(`${terminal}: ${viableSites.length} viable lab sites`);
+    if (viableSites.length == 0) {
+      return [];
+    }
+
+    const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
+      return site.getRangeTo(terminal.pos);
+    });
+
+    const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'dashed', stroke: 'purple' };
+    let i = 0;
+    for (const site of sortedSites) {
+      style.opacity = (i == 0) ? 1.0 : 0.5 - i / sortedSites.length / 2;
+      room.visual.circle(site.x + 1.5, site.y + 1.5, style);
+      ++i;
+    }
+
+    bestPos = sortedSites[0];
+
+    for (let r = 0; r < 4; ++r) {
+      const pos = room.getPositionAt(bestPos.x + r, bestPos.y + r);
+      if (pos) {
+        buildings.push(new BuildingWork(room, pos, STRUCTURE_ROAD));
+      }
+    }
+  }
+  else {
+    bestPos = room.getPositionAt(labs[0].pos.x - 1, labs[0].pos.y) ?? labs[0].pos;
+  }
+
+  const pstyle: PolyStyle = { fill: 'transparent', stroke: 'purple', lineStyle: 'dashed' };
+  room.visual.rect(bestPos.x - 0.5, bestPos.y - 0.5, 4, 4, pstyle)
+
+  const lstyle: LineStyle = { color: 'purple', lineStyle: 'dashed' };
+  room.visual.line(bestPos.x - 0.5, bestPos.y - 0.5, bestPos.x + 3.5, bestPos.y + 3.5, lstyle);
+
+  const numAllowedLabs = num_allowed_labs(room);
+  for (let l = labs.length; l < numAllowedLabs; ++l) {
+    const pos = room.getPositionAt(bestPos.x + LAB_PLACEMENTS[l].x, bestPos.y + LAB_PLACEMENTS[l].y);
+    if (pos) {
+      buildings.push(new BuildingWork(room, pos, STRUCTURE_LAB));
+    }
+  }
+  const roadStyle: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'purple' };
+  const labStyle: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'white' };
+  _.each(buildings, (b) => {
+    room.visual.circle(b.site.x, b.site.y, (b.type == STRUCTURE_ROAD) ? roadStyle : labStyle);
   });
 
-  return [new BuildingWork(terminal.room, sortedSites[0], STRUCTURE_LAB)];
+  return buildings;
+}
+
+function can_build_labs(room: Room, labs: StructureLab[], cs: ConstructionSite[]) {
+  return room.terminal && num_allowed_labs(room) > labs.length + cs.length;
 }
 
 function update_labs(labs: StructureLab[]): void {
@@ -75,11 +141,13 @@ export default class BusinessChemistry implements Business.Model {
   private readonly _room: Room;
   private readonly _priority: number;
   private readonly _labs: StructureLab[];
+  private readonly _labConstruction: ConstructionSite[];
 
   constructor(chemistryRoom: Room, priority: number = 5) {
     this._room = chemistryRoom;
     this._priority = priority;
-    this._labs = chemistryRoom.find<StructureLab>(FIND_MY_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_LAB });;
+    this._labConstruction = chemistryRoom.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType == STRUCTURE_LAB });
+    this._labs = chemistryRoom.find<StructureLab>(FIND_MY_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_LAB });
 
     if (this._labs.length) {
       update_labs(this._labs);
@@ -126,8 +194,8 @@ export default class BusinessChemistry implements Business.Model {
 
     const work: BuildingWork[] = [];
 
-    if (this._room.terminal) {
-      work.push(...lab_building_work(this._room.terminal))
+    if (can_build_labs(this._room, this._labs, this._labConstruction)) {
+      work.push(...lab_building_work(this._room, this._labs))
     }
 
     return work;

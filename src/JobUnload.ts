@@ -5,6 +5,7 @@ import { log } from './ScrupsLogger'
 import JobPickup from "JobPickup";
 
 function is_energy_only(site: UnloadSite): boolean {
+  if (site instanceof Creep) return false;
   switch (site.structureType) {
     case STRUCTURE_STORAGE:
     case STRUCTURE_TERMINAL:
@@ -31,9 +32,6 @@ function unload_at_site(job: JobUnload, worker: Creep): Operation {
     const lastJob: Job.Model = <Job.Model>worker.getLastJob();
     if (lastJob && lastJob.site() === job.site() && lastJob.type() === JobPickup.TYPE) {
       log.error(`${job}: dropping off after picking up at same site!`)
-    }
-    else {
-      log.debug(`${job}: lastJob=${lastJob}`)
     }
 
     Job.visualize(job, worker);
@@ -97,7 +95,7 @@ export default class JobUnload implements Job.Model {
 
     const available = worker.available(this._resource);
     const free = this._site.freeSpace(this._resource);
-    if (available == 0 || free == 0) {
+    if (available == 0 || free == 0 || worker === this._site) {
       return 0.0;
     }
 
@@ -134,11 +132,13 @@ export default class JobUnload implements Job.Model {
     const freespace = this._site.freeSpace(this._resource);
     if (freespace == 0
       || ((this._site instanceof StructureTower)
-        && (freespace <= TOWER_ENERGY_COST))) {
+        && (freespace <= TOWER_ENERGY_COST))
+      || ((this._site instanceof Creep)
+        && (freespace <= 50))) {
       return 1.0;
     }
 
-    if (worker && (worker.available(this._resource) == 0)) {
+    if (worker && ((worker.available(this._resource) == 0) || (worker === this._site))) {
       return 1.0;
     }
 

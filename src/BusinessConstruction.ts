@@ -6,6 +6,7 @@ import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
+import JobUnload from 'JobUnload';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, MOVE, CARRY];
@@ -126,7 +127,7 @@ export default class BusinessConstruction implements Business.Model {
   private readonly _buildJobs: JobBuild[];
   private readonly _allConstructionSites: ConstructionSite[];
 
-  constructor(controller: StructureController, remoteRooms: Room[], priority: number = 5) {
+  constructor(controller: StructureController, remoteRooms: Room[], priority: number = 4) {
     this._priority = priority;
     this._controller = controller;
     this._remoteRooms = remoteRooms;
@@ -171,7 +172,7 @@ export default class BusinessConstruction implements Business.Model {
       (s) => !(s instanceof StructureWall) && !(s instanceof StructureRampart)),
       (s) => s.hitsMax - s.hits);
 
-    let desiredEmployees = Math.ceil(workRequired / WORK_PER_EMPLOYEE);
+    let desiredEmployees = Math.min(3, Math.ceil(workRequired / WORK_PER_EMPLOYEE));
     log.debug(`${this}: ${desiredEmployees} desired construction employees (${workRequired}/${WORK_PER_EMPLOYEE})`)
 
     return employees.length < desiredEmployees;
@@ -196,7 +197,16 @@ export default class BusinessConstruction implements Business.Model {
   }
 
   contractJobs(employees: Worker[]): Job.Model[] {
-    return this._allJobs;
+    const contracts = [...this._allJobs];
+
+    _.each(employees, (worker) => {
+      if (!worker.creep.spawning
+        && worker.creep.freeSpace() > 100
+        && worker.job()?.type() === JobBuild.TYPE) {
+        contracts.push(new JobUnload(worker.creep, RESOURCE_ENERGY));
+      }
+    });
+    return contracts;
   }
 
   buildings(): BuildingWork[] {

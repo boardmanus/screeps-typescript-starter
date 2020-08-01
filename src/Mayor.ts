@@ -19,6 +19,7 @@ import BusinessCloning from "BusinessCloning";
 import BusinessExploring from "BusinessExploring";
 import BusinessMineralMining from "BusinessMineralMining";
 import BusinessTrading from "BusinessTrading";
+import BusinessChemistry from "BusinessChemistry";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
@@ -130,6 +131,11 @@ export class Mayor {
 
     const tradingBusiness = new BusinessTrading(this._room);
     this._businessMap[tradingBusiness.id()] = tradingBusiness;
+
+    if (this._room.terminal) {
+      const chemBusiness = new BusinessChemistry(this._room);
+      this._businessMap[chemBusiness.id()] = chemBusiness;
+    }
 
     if (this._room.storage) {
       const banking = new BusinessBanking(this._room, this._remoteRooms);
