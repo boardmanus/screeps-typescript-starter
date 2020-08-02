@@ -8,7 +8,7 @@ import u from 'Utility';
 import { log } from 'ScrupsLogger';
 
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
 const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
@@ -132,7 +132,7 @@ function vault_building_work(room: Room): BuildingWork[] {
     possible_storage_sites(room),
     (rp: RoomPosition): number => { return -storage_site_viability(rp, room); }),
     1),
-    (rp) => new BuildingWork(room, rp, STRUCTURE_STORAGE));
+    (rp) => new BuildingWork(rp, STRUCTURE_STORAGE));
 }
 
 function can_build_link(vault: StructureStorage): boolean {
@@ -196,7 +196,7 @@ function link_building_work(vault: StructureStorage): BuildingWork[] {
     return -emptyPositions.length;
   });
 
-  return [new BuildingWork(vault.room, sortedSites[0], STRUCTURE_LINK)];
+  return [new BuildingWork(sortedSites[0], STRUCTURE_LINK)];
 }
 
 function update_vault(vault: StructureStorage): void {

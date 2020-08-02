@@ -20,11 +20,16 @@ import BusinessExploring from "BusinessExploring";
 import BusinessMineralMining from "BusinessMineralMining";
 import BusinessTrading from "BusinessTrading";
 import BusinessChemistry from "BusinessChemistry";
+import BusinessStripMining from "BusinessStripMining";
+import BusinessDefend from "BusinessDefend";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
     memory,
-    (boss: BossMemory): Boss | undefined => { return Boss.fromMemory(boss, jobMap); });
+    (memory: BossMemory): Boss | undefined => {
+      const boss = Boss.fromMemory(memory, jobMap);
+      return boss;
+    });
 }
 
 function map_valid_executives(memory: ExecutiveMemory[], businessMap: Business.Map): Executive[] {
@@ -119,6 +124,11 @@ export class Mayor {
         const mining = new BusinessEnergyMining(source);
         this._businessMap[mining.id()] = mining;
       });
+
+      _.each(room.find(FIND_DEPOSITS), (deposit) => {
+        const mining = new BusinessStripMining(deposit);
+        this._businessMap[mining.id()] = mining;
+      });
     }
 
     _.each(room.find(FIND_MINERALS), (mineral) => {
@@ -128,6 +138,9 @@ export class Mayor {
 
     const cloningBusiness = new BusinessCloning(this._room);
     this._businessMap[cloningBusiness.id()] = cloningBusiness;
+
+    const defendingBusiness = new BusinessDefend(this._room, []);
+    this._businessMap[defendingBusiness.id()] = defendingBusiness;
 
     const tradingBusiness = new BusinessTrading(this._room);
     this._businessMap[tradingBusiness.id()] = tradingBusiness;
@@ -174,9 +187,8 @@ export class Mayor {
       this.transferEnergy());
 
     log.info(`${this}: ${allWork.length} units of work created`);
-    return _.sortBy(allWork, (work: Work): number => {
-      return work.priority();
-    });
+    _.each(allWork, (w) => log.debug(`${w}`));
+    return _.sortBy(allWork, (work) => -work.priority());
   }
 
   private transferEnergy(): Work[] {
@@ -230,7 +242,6 @@ export class Mayor {
       ..._.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
       ...this.pickupJobs(),
       ...this.unloadJobs(),
-      //...this.mineralJobs(),
       ...this._architect.schedule(),
       ...this._cloner.schedule(),
       ...this._caretaker.schedule()];
@@ -269,19 +280,7 @@ export class Mayor {
     const employed = _.flatten(_.map(this._bosses, (b) => b.workers()));
     _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
   }
-  /*
-    mineralJobs(): Job.Model[] {
 
-      const mineralJobs: Job.Model[] = _.map<Mineral, Job.Model>(
-        this._room.find(FIND_MINERALS, { filter: (m: Mineral) => { return m.pos.lookFor(LOOK_STRUCTURES).length > 0; } }),
-        (mineral: Mineral): Job.Model => {
-          return new JobHarvest(mineral);
-        });
-
-      log.info(`${this} scheduling ${mineralJobs.length} mineral harvest jobs...`);
-      return mineralJobs;
-    }
-  */
   pickupJobs(): Job.Model[] {
     const room = this._room;
     const allRooms = [room, ...this._remoteRooms];
@@ -300,6 +299,16 @@ export class Mayor {
         });
     }));
     _.each(tombstoneJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
+
+    const ruinJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
+      return _.map(room.find(FIND_RUINS,
+        { filter: (r) => r.available() > 0 }),
+        (r) => {
+          const resource = <ResourceConstant>_.max(Object.keys(r.store), (rc: ResourceConstant) => { return r.store[rc]; });
+          return new JobPickup(r, resource, 5);
+        });
+    }));
+    _.each(ruinJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
     const linkers: StructureStorage[] = [];
     const storage = room.storage;
@@ -324,7 +333,7 @@ export class Mayor {
       return null;
     });
 
-    const jobs = scavengeJobs.concat(linkJobs, tombstoneJobs);
+    const jobs = scavengeJobs.concat(linkJobs, tombstoneJobs, ruinJobs);
     log.info(`${this} scheduling ${jobs.length} pickup jobs...`);
     return jobs;
   }

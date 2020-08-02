@@ -4,15 +4,16 @@ import { log } from './ScrupsLogger';
 import u from "./Utility";
 
 
-type HarvestSite = Source | Mineral;
+type HarvestSite = Source | Mineral | Deposit;
 
 /**
  * Gets the worker to pickup resources from the job site.
  * @param {Creep} worker to perform the repairSite
  * @return {boolean} whether the worker did something useful
  */
-function harvest_energy_from_site(job: JobHarvest, worker: Creep): Operation {
+function harvest_from_site(job: JobHarvest, worker: Creep): Operation {
   return () => {
+    log.debug(`${job}: ${worker} about to harvest...`)
     const site = job._site;
     Job.visualize(job, worker);
     const container = site._container;
@@ -106,8 +107,8 @@ function is_energy_harvesting_satisfied(source: Source, workers: Creep[]): boole
   return remainingEnergy <= 0;
 }
 
-function is_mineral_harvesting_satisfied(mineral: Mineral, workers: Creep[]): boolean {
-  if (mineral.mineralAmount == 0) {
+function is_mineral_harvesting_satisfied(mineral: Mineral | Deposit, workers: Creep[]): boolean {
+  if (mineral.available() == 0) {
     return true;
   }
   return workers.length >= 1;
@@ -178,7 +179,7 @@ export default class JobHarvest implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (worker.freeSpace() == 0 || this._site.available() == 0) {
+    if (worker.freeSpace() <= u.work_energy(worker, 2) || this._site.available() == 0) {
       return 0.0;
     }
 
@@ -201,15 +202,21 @@ export default class JobHarvest implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    const emptiness: number = 1.0 - this._site.available() / this._site.capacity();
+    const avail: number = this._site.available();
+    if (avail == 0) {
+      return 1.0;
+    }
 
     if (worker) {
       const maxHolding = worker.capacity() - u.work_energy(worker, 2);
-      const fullness = worker.available() / maxHolding;
-      return Math.min(1.0, Math.max(emptiness, fullness));
+      log.debug(`${this}: completion: mh=${worker.capacity()}-${u.work_energy(worker, 2)}=${maxHolding}, f=${worker.available()}/${maxHolding}`)
+      if (worker.available() >= maxHolding) {
+        return 1.0;
+      }
+      return worker.available() / maxHolding;
     }
 
-    return emptiness;
+    return 1.0 - avail / this._site.capacity();
   }
 
   work(worker: Creep): Operation[] {
@@ -217,7 +224,7 @@ export default class JobHarvest implements Job.Model {
       return [];
     }
 
-    return [harvest_energy_from_site(this, worker)];
+    return [harvest_from_site(this, worker)];
   }
 }
 

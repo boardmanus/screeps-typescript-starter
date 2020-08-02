@@ -43,7 +43,7 @@ function clone_a_worker(work: CloningWork): Operation {
       case ERR_RCL_NOT_ENOUGH:
       case ERR_BUSY:
       default:
-        log.warning(`${work}: failed to spawn creep ${work.name}:${work.body} (${u.errstr(res)})`);
+        log.warning(`${work}: failed to spawn creep ${work.name}:${work.body} (cost=${u.body_cost(work.body)}, re=${work.site.room.energyAvailable}) (${u.errstr(res)})`);
         break;
       case OK:
         log.info(`${work}: started to clone ${work.name}:${work.body}`);
@@ -57,8 +57,8 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
-const MAX_HEAVY_WORKERS = 4;
-const MAX_WORKERS = 5;
+const MAX_HEAVY_WORKERS = 6;
+const MAX_WORKERS = 8;
 const MAX_WORKER_ENERGY = 1500;
 
 class CloningWork implements Work {
@@ -215,8 +215,8 @@ export class Cloner implements Expert {
       return [];
     }
 
-    const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : MAX_WORKER_ENERGY;
-
+    //const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : MAX_WORKER_ENERGY;
+    const energyToUse = availableEnergy;
     const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, energyToUse));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);

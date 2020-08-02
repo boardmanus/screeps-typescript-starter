@@ -33,6 +33,11 @@ interface Mineral {
   extractor(): StructureExtractor | undefined;
 }
 
+interface Deposit {
+  _container: StructureContainer | ConstructionSite | undefined;
+  container(): StructureContainer | undefined;
+}
+
 interface StructureStorage {
   _link: StructureLink | ConstructionSite | undefined;
   link(): StructureLink | undefined;

@@ -8,17 +8,24 @@ import { log } from './ScrupsLogger'
 const MAX_RAMPART_WALL = 1000000;
 const MAX_RCL = 8;
 
+function tower_power(tower: StructureTower, site: RoomObject, max: number): number {
+  const d = tower.pos.getRangeTo(site);
+  if (d <= TOWER_OPTIMAL_RANGE) {
+    return max;
+  }
+  else if (d >= TOWER_FALLOFF_RANGE) {
+    return max / 4;
+  }
+
+  return max / 4 + (3 * max / 4) * (TOWER_FALLOFF_RANGE - d) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE);
+}
+
+function attack_power(tower: StructureTower, site: Creep): number {
+  return tower_power(tower, site, TOWER_POWER_ATTACK);
+}
 
 function repair_power(tower: StructureTower, site: Structure): number {
-  const d = tower.pos.getRangeTo(site);
-  if (d <= 5) {
-    return TOWER_POWER_REPAIR;
-  }
-  else if (d >= 20) {
-    return 150;
-  }
-
-  return 150 + (TOWER_POWER_REPAIR - 150) * (20 - d) / (20 - 5)
+  return tower_power(tower, site, TOWER_POWER_REPAIR);
 }
 
 function damage_ratio(site: Structure): number {
@@ -210,7 +217,12 @@ export class Caretaker implements Expert {
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
         if (f) {
-          work.push(new TowerDefenseWork(t, f));
+          const damage = attack_power(t, f);
+          const shield = u.creep_shield_power(f);
+          log.debug(`${this}: ${t} >> ${f} => (${damage} - ${shield} = ${damage - shield})`)
+          if (damage > shield) {
+            work.push(new TowerDefenseWork(t, f));
+          }
         }
       }
 

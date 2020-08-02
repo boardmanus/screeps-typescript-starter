@@ -66,7 +66,7 @@ function terminal_building_work(room: Room): BuildingWork[] {
     room.visual.circle(site.x, site.y, style);
     ++i;
   }
-  return [new BuildingWork(room, sortedSites[0], STRUCTURE_TERMINAL)];
+  return [new BuildingWork(sortedSites[0], STRUCTURE_TERMINAL)];
 }
 
 function update_terminal(terminal: StructureTerminal): void {

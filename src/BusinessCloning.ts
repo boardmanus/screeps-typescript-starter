@@ -8,7 +8,7 @@ import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import u from 'Utility';
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
+const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
 const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
@@ -91,6 +91,11 @@ function find_new_recycle_sites(spawns: StructureSpawn[], exts: StructureExtensi
 
   const mainSpawn = spawns[0];
   if (mainSpawn._recycler) {
+    return [];
+  }
+
+  const rcl = mainSpawn.room.controller?.level ?? 0;
+  if (rcl < 4) {
     return [];
   }
 
@@ -353,7 +358,7 @@ export default class BusinessCloning implements Business.Model {
 
     const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
     log.debug(`${this}: roomHealth=${roomHealth}`)
-    const extPriority = 4 + (1.0 - roomHealth) * this._priority;
+    const extPriority = 6 + (1.0 - roomHealth) * this._priority;
     const extJobs: JobUnload[] = _.map(_.take(_.sortBy(_.filter(this._extensions,
       (e) => e.freeSpace() > 0),
       (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
@@ -361,7 +366,7 @@ export default class BusinessCloning implements Business.Model {
       (e) => new JobUnload(e, RESOURCE_ENERGY, extPriority));
 
     if (extJobs.length < 5) {
-      const spawnPriority = 3 + (1.0 - roomHealth) * this._priority;
+      const spawnPriority = 5 + (1.0 - roomHealth) * this._priority;
       const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
         (s) => s.freeSpace() > 0),
         (s) => new JobUnload(s, RESOURCE_ENERGY, spawnPriority));
@@ -386,21 +391,21 @@ export default class BusinessCloning implements Business.Model {
       find_new_ext_building_sites(this._spawns, this._extensions),
       (pos) => {
         log.info(`${this}: creating new building work ${this._room} @ ${pos}`)
-        return new BuildingWork(this._room, pos, STRUCTURE_EXTENSION);
+        return new BuildingWork(pos, STRUCTURE_EXTENSION);
       });
 
     const recycleWork = _.map(
       find_new_recycle_sites(this._spawns, this._extensions),
       (pos) => {
         log.info(`${this}: creating new recycle container work @ ${pos}`);
-        return new BuildingWork(this._room, pos, STRUCTURE_CONTAINER);
+        return new BuildingWork(pos, STRUCTURE_CONTAINER);
       });
 
     const storageWork: BuildingWork[] = _.map(
       find_new_storage_sites(this._spawns[0]),
       (pos) => {
         log.info(`${this}: creating new storage work @ ${pos}`);
-        return new BuildingWork(this._room, pos, STRUCTURE_STORAGE);
+        return new BuildingWork(pos, STRUCTURE_STORAGE);
       });
 
     return [...extWork, ...recycleWork, ...storageWork];

@@ -70,6 +70,10 @@ export default class JobRecycle implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
+    if (worker.memory.superfluous) {
+      return 1.0;
+    }
+
     if (!worker.ticksToLive || worker.ticksToLive > TTL_NEARLY_DEAD) {
       return 0.0;
     }

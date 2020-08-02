@@ -77,7 +77,7 @@ export default class JobScout implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    if (!worker.pos.inRangeTo(this._site.pos, 0)) {
+    if (!worker.spawning && !worker.pos.inRangeTo(this._site.pos, 0)) {
       return [scout_at_site(this, worker)];
     }
     return [];

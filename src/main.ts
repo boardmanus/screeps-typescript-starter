@@ -45,6 +45,11 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   log.info(`About to perform ${operations.length} operations`);
   _.each(operations, (op: Operation): void => {
-    op();
+    try {
+      op();
+    }
+    catch (e) {
+      log.error(`${op}: ${e}`)
+    }
   });
 });

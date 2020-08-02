@@ -1,0 +1,97 @@
+import * as Business from 'Business';
+import * as Job from "Job";
+import JobAttack from 'JobAttack';
+import Worker from 'Worker';
+import u from 'Utility';
+import { BuildingWork } from 'Architect';
+import { log } from 'ScrupsLogger';
+import JobRecycle from 'JobRecycle';
+
+type StripMine = Mineral | Deposit;
+
+const DEFENDER_EMPLOYEE_BODY: BodyPartConstant[] = [
+  TOUGH, TOUGH, TOUGH, ATTACK, ATTACK, ATTACK, ATTACK, ATTACK, ATTACK, ATTACK,
+  MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE
+];
+
+
+export default class BusinessDefend implements Business.Model {
+
+  static readonly TYPE: string = 'def';
+
+  private readonly _priority: number;
+  readonly _room: Room;
+  readonly _remoteRooms: Room[];
+  readonly _attackers: Creep[];
+  readonly _recyclers: StructureSpawn[];
+
+  constructor(room: Room, remoteRooms: Room[], priority: number = 7) {
+    this._priority = priority;
+    this._room = room;
+    this._remoteRooms = remoteRooms;
+
+    this._recyclers = room.find(FIND_MY_SPAWNS, { filter: (s) => s.isActive && s.recycler() });
+
+    this._attackers = room.find(FIND_HOSTILE_CREEPS);
+
+
+  }
+
+  id(): string {
+    return Business.id(BusinessDefend.TYPE, this._room.name);
+  }
+
+  toString(): string {
+    return this.id();
+  }
+
+  priority(): number {
+    return this._priority;
+  }
+
+  needsEmployee(employees: Worker[]): boolean {
+    return false;
+    //return (employees.length < this._attackers.length);
+  }
+
+  survey() {
+  }
+
+  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
+    return DEFENDER_EMPLOYEE_BODY;
+  }
+
+  permanentJobs(): Job.Model[] {
+
+    const jobs: Job.Model[] = [];
+
+    log.debug(`${this}: ${this._room} has ${this._attackers.length} attackers!`);
+
+    _.each(this._attackers, (a) => jobs.push(new JobAttack(a, this._priority)));
+
+    if (this._recyclers.length > 0) {
+      jobs.push(new JobRecycle(this._recyclers[0]));
+    }
+
+    return jobs;
+  }
+
+  contractJobs(employees: Worker[]): Job.Model[] {
+    return []
+  }
+
+  buildings(): BuildingWork[] {
+    return []
+  }
+}
+
+Business.factory.addBuilder(BusinessDefend.TYPE, (id: string): Business.Model | undefined => {
+  const frags = id.split('-');
+  const room = <Room>Game.rooms[frags[2]];
+  if (!room) {
+    return undefined;
+  }
+  return new BusinessDefend(room, []);
+});
+
+

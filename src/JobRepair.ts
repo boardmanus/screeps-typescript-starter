@@ -88,8 +88,8 @@ export default class JobRepair implements Job.Model {
 
   efficiency(worker: Creep): number {
 
-    const available = worker.available();
-    if (available == 0 || this._site.hits >= this._site.hitsMax) {
+    const available = worker.available(RESOURCE_ENERGY);
+    if (available == 0 || this._site.hits >= 0.95 * this._site.hitsMax) {
       return 0.0;
     }
 
@@ -138,7 +138,12 @@ export default class JobRepair implements Job.Model {
       return c;
     }
 
-    return Math.max(c, 1.0 - worker.available(RESOURCE_ENERGY) / worker.capacity());
+    const available = worker.available(RESOURCE_ENERGY);
+    if (available == 0) {
+      return 1.0;
+    }
+
+    return Math.max(c, 1.0 - available / worker.capacity());
   }
 
   baseWorkerBody(): BodyPartConstant[] {

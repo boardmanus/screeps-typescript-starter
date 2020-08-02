@@ -102,7 +102,7 @@ function best_container_site(controller: StructureController): RoomPosition | un
 function container_building_work(controller: StructureController): BuildingWork | undefined {
   const site = best_container_site(controller);
   if (site) {
-    return new BuildingWork(controller.room, site, STRUCTURE_CONTAINER)
+    return new BuildingWork(site, STRUCTURE_CONTAINER)
   }
   return undefined;
 }

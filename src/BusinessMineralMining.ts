@@ -168,7 +168,7 @@ function container_building_work(mine: Mineral): BuildingWork | undefined {
   if (!room) {
     return undefined;
   }
-  return new BuildingWork(room, bestSite, STRUCTURE_CONTAINER)
+  return new BuildingWork(bestSite, STRUCTURE_CONTAINER)
 }
 
 function update_mine(mine: Mineral): void {
@@ -305,7 +305,7 @@ export default class BusinessMineralMining implements Business.Model {
     }
 
     if (!mine._extractor && can_build_extractor(mine)) {
-      work.push(new BuildingWork(room, mine.pos, STRUCTURE_EXTRACTOR));
+      work.push(new BuildingWork(mine.pos, STRUCTURE_EXTRACTOR));
     }
 
     if (work.length) {

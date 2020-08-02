@@ -57,6 +57,27 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
   }
 }
 
+function transfer_from_site(job: JobPickup, worker: Creep, site: Creep): Operation {
+  return () => {
+    Job.visualize(job, worker);
+    const resource = u.max_stored_resource(site.store, job._resource);
+    let res: number = site.transfer(worker, resource);
+    switch (res) {
+      case OK:
+        // Finished job.
+        log.info(`${job}: ${site} transferred ${resource} to ${worker}`);
+        break;
+      case ERR_NOT_IN_RANGE: {
+        Job.moveTo(job, worker, 1);
+        break;
+      }
+      default:
+        log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
+        break;
+    }
+  }
+}
+
 export default class JobPickup implements Job.Model {
 
   static readonly TYPE = 'pickup';
@@ -156,6 +177,9 @@ export default class JobPickup implements Job.Model {
   work(worker: Creep): Operation[] {
     if (this._site instanceof Resource) {
       return [pickup_at_site(this, worker, this._site)];
+    }
+    else if (this._site instanceof Creep) {
+      return [transfer_from_site(this, worker, this._site)];
     }
     else {
       return [withdraw_from_site(this, worker, this._site)];

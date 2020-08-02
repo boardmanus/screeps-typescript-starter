@@ -317,10 +317,10 @@ export class BuildingWork implements Work {
   readonly type: BuildableStructureConstant;
   readonly room: Room;
 
-  constructor(room: Room, pos: RoomPosition, type: BuildableStructureConstant) {
+  constructor(pos: RoomPosition, type: BuildableStructureConstant) {
     this.site = pos
     this.type = type;
-    this.room = room;
+    this.room = Game.rooms[pos.roomName];
   }
 
   id() {
@@ -341,9 +341,12 @@ export class BuildingWork implements Work {
         log.error(`${this}: ${this.type} site undefined!`)
         return;
       }
-      else {
-        log.info(`${this}: ${this.type} site=${this.site}`)
+
+      if (!this.room) {
+        log.warning(`${this}: ${this.site} room not visible!`);
+        return;
       }
+
       const res = this.room.createConstructionSite(this.site.x, this.site.y, this.type);
       switch (res) {
         case OK:
@@ -463,7 +466,7 @@ export class Architect implements Expert {
 
     return _.map(towerPositions, (pos: RoomPosition): Work => {
       log.info(`${this}: creating new tower build work at ${pos} ...`);
-      return new BuildingWork(room, pos, STRUCTURE_TOWER);
+      return new BuildingWork(pos, STRUCTURE_TOWER);
     });
   }
   /*
@@ -519,7 +522,7 @@ export class Architect implements Expert {
         return undefined;
       }
       log.info(`${this}: creating new road build work ${roadRoom} ... ${pos}`)
-      return new BuildingWork(roadRoom, pos, STRUCTURE_ROAD);
+      return new BuildingWork(pos, STRUCTURE_ROAD);
     });
   }
 

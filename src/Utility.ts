@@ -62,25 +62,25 @@ namespace u {
     }
 
     const body: BodyPartConstant[] = [...bodyBase];
-    funds -= minCost;
+    let remainingFunds = funds - minCost;
 
     let outOfFunds = false;
     do {
       for (const b of bodyTemplate) {
         const partCost = BODYPART_COST[b];
 
-        outOfFunds = (partCost > funds);
+        outOfFunds = (partCost > remainingFunds);
         if (outOfFunds) {
           break;
         }
 
         body.push(b);
-        funds -= partCost;
+        remainingFunds -= partCost;
       }
     }
     while (!outOfFunds);
 
-    log.info(`generate_body: newBody = ${body} = ${body_cost(body)} => remainingFunds = ${funds}`);
+    log.info(`generate_body: newBody = ${body} = ${body_cost(body)} => availFunds=${funds}, remainingFunds = ${remainingFunds}`);
     return body;
   }
 
@@ -152,7 +152,7 @@ namespace u {
     }
   }
 
-  export type Site = Creep | Structure | Resource | Tombstone | Source | Mineral | ConstructionSite;
+  export type Site = Creep | Structure | Resource | Tombstone | Ruin | Source | Mineral | Deposit | ConstructionSite;
 
   const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
   export function get_path(from: Site, to: Site): RoomPosition[] {
@@ -370,7 +370,18 @@ namespace u {
     return resource;
   }
 
-
+  export function creep_shield_power(creep: Creep): number {
+    const numHealParts = _.sum(creep.body, (b) => {
+      if (b.type != HEAL) {
+        return 0;
+      }
+      if (b.boost) {
+        return BOOSTS.heal[b.boost].heal;
+      }
+      return 1.0;
+    });
+    return numHealParts * HEAL_POWER;
+  }
 }
 
 export default u;

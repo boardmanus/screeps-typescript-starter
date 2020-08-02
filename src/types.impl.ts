@@ -44,6 +44,13 @@ Tombstone.prototype.capacity = function (): number {
   return this.store.getUsedCapacity();
 }
 
+Ruin.prototype.available = function (resource: ResourceType = u.RESOURCE_ALL): number {
+  return u.store_resource_amount(this.store, resource);
+}
+Ruin.prototype.capacity = function (): number {
+  return this.store.getUsedCapacity();
+}
+
 Source.prototype.available = function (resource: ResourceType = u.RESOURCE_ALL): number {
   return u.resource_matches_type(RESOURCE_ENERGY, resource) ? this.energy : 0;
 }
@@ -54,6 +61,21 @@ Source.prototype.link = function (): StructureLink | undefined {
   return (this._link instanceof StructureLink) ? this._link : undefined;
 }
 Source.prototype.container = function (): StructureContainer | undefined {
+  return (this._container instanceof StructureContainer) ? this._container : undefined;
+}
+
+Deposit.prototype.available = function (resource: ResourceType = u.RESOURCE_ALL): number {
+  if (!u.resource_matches_type(this.depositType, resource)) {
+    return 0;
+  }
+
+  const amount = (this.ticksToDecay > 1000) ? 1000 : this.ticksToDecay;
+  return amount;
+}
+Deposit.prototype.capacity = function (): number {
+  return 1000;
+}
+Deposit.prototype.container = function (): StructureContainer | undefined {
   return (this._container instanceof StructureContainer) ? this._container : undefined;
 }
 

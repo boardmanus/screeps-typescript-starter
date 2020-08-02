@@ -6,6 +6,7 @@ interface CreepMemory {
   stalledCount: number | undefined;
   home: string | undefined;
   lastJob: string | undefined;
+  superfluous: boolean | undefined;
 }
 
 interface SourceMemory {
@@ -73,8 +74,8 @@ interface Memory {
 
 
 type UnloadSite = Creep | StructureTerminal | StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
-type PickupSite = Resource | Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
-type PickupStoreSite = Tombstone | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
+type PickupSite = Creep | Resource | Tombstone | Ruin | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
+type PickupStoreSite = Tombstone | Ruin | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 
 ////declare const RESOURCE_ALL: ResourceType;
 //declare const RESOURCE_MINERALS: ResourceType;

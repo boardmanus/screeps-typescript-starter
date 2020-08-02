@@ -96,7 +96,7 @@ function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
     for (let r = 0; r < 4; ++r) {
       const pos = room.getPositionAt(bestPos.x + r, bestPos.y + r);
       if (pos) {
-        buildings.push(new BuildingWork(room, pos, STRUCTURE_ROAD));
+        buildings.push(new BuildingWork(pos, STRUCTURE_ROAD));
       }
     }
   }
@@ -114,7 +114,7 @@ function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
   for (let l = labs.length; l < numAllowedLabs; ++l) {
     const pos = room.getPositionAt(bestPos.x + LAB_PLACEMENTS[l].x, bestPos.y + LAB_PLACEMENTS[l].y);
     if (pos) {
-      buildings.push(new BuildingWork(room, pos, STRUCTURE_LAB));
+      buildings.push(new BuildingWork(pos, STRUCTURE_LAB));
     }
   }
   const roadStyle: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'purple' };

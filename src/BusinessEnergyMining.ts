@@ -219,11 +219,11 @@ function container_building_work(source: Source): BuildingWork | undefined {
   if (!bestSite) {
     return undefined;
   }
-  return new BuildingWork(source.room, bestSite, STRUCTURE_CONTAINER)
+  return new BuildingWork(bestSite, STRUCTURE_CONTAINER)
 }
 
 function link_building_work(source: Source): BuildingWork {
-  return new BuildingWork(source.room, best_link_pos(source), STRUCTURE_LINK)
+  return new BuildingWork(best_link_pos(source), STRUCTURE_LINK)
 }
 
 function update_mine(mine: Source): void {
@@ -345,7 +345,7 @@ export default class BusinessEnergyMining implements Business.Model {
 
       if (container) {
         jobs.push(new JobUnload(container, u.RESOURCE_ALL, this._priority - 2));
-        jobs.push(new JobDrop(container, this._priority - 3));
+        //jobs.push(new JobDrop(container, this._priority - 3));
       }
     }
 
