@@ -30,7 +30,7 @@ export default class Boss implements Work {
         if (job.completion(worker) >= 1.0) {
           log.debug(`${job.id()}: complete!`);
           worker.setLastJob(job);
-          worker.setJob(undefined);
+          worker.setJob();
           return false;
         }
 

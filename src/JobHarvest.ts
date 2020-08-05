@@ -13,7 +13,6 @@ type HarvestSite = Source | Mineral | Deposit;
  */
 function harvest_from_site(job: JobHarvest, worker: Creep): Operation {
   return () => {
-    log.debug(`${job}: ${worker} about to harvest...`)
     const site = job._site;
     Job.visualize(job, worker);
     const container = site._container;
@@ -209,7 +208,6 @@ export default class JobHarvest implements Job.Model {
 
     if (worker) {
       const maxHolding = worker.capacity() - u.work_energy(worker, 2);
-      log.debug(`${this}: completion: mh=${worker.capacity()}-${u.work_energy(worker, 2)}=${maxHolding}, f=${worker.available()}/${maxHolding}`)
       if (worker.available() >= maxHolding) {
         return 1.0;
       }

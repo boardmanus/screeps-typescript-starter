@@ -190,9 +190,14 @@ Creep.prototype.freeSpace = function (__?: ResourceType): number {
 Creep.prototype.capacity = function (): number {
   return this.store.getCapacity();
 }
-Creep.prototype.setJob = function (job?: Object): void {
-  this.setLastJob(this._job);
+Creep.prototype.setJob = function (job?: Job.Model): void {
   this._job = job;
+  if (job) {
+    this.memory.job = job.id();
+  }
+  else {
+    delete this.memory.job;
+  }
 }
 Creep.prototype.isEmployed = function (): boolean {
   return (this._job ? true : false);
