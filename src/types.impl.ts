@@ -3,10 +3,10 @@ import u from 'Utility';
 import * as Job from 'Job';
 
 RoomPosition.prototype.surroundingPositions = function (radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[] {
-  const minx = Math.max(0, this.x - radius);
-  const maxx = Math.min(this.x + radius, 50);
-  const miny = Math.max(0, this.y - radius);
-  const maxy = Math.min(this.y + radius, 50);
+  const minx = Math.max(1, this.x - radius);
+  const maxx = Math.min(this.x + radius, 48);
+  const miny = Math.max(1, this.y - radius);
+  const maxy = Math.min(this.y + radius, 48);
   const positions = [];
   for (let x = minx; x <= maxx; ++x) {
     for (let y = miny; y <= maxy; ++y) {
@@ -190,15 +190,21 @@ Creep.prototype.freeSpace = function (__?: ResourceType): number {
 Creep.prototype.capacity = function (): number {
   return this.store.getCapacity();
 }
-Creep.prototype.setJob = function (job: string | undefined): void {
+Creep.prototype.setJob = function (job?: Object): void {
+  this.setLastJob(this._job);
   this._job = job;
 }
 Creep.prototype.isEmployed = function (): boolean {
   return (this._job ? true : false);
 }
-Creep.prototype.setLastJob = function (lastJob: Job.Model): void {
+Creep.prototype.setLastJob = function (lastJob?: Job.Model): void {
   this._lastJob = lastJob;
-  this.memory.lastJob = lastJob.id();
+  if (lastJob) {
+    this.memory.lastJob = lastJob.id();
+  }
+  else {
+    delete this.memory.lastJob;
+  }
 }
 Creep.prototype.getLastJob = function (): Object | undefined {
   return this._lastJob;

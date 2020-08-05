@@ -19,6 +19,18 @@ namespace u {
       []);
   }
 
+  export function map_valid_dict<T, U>(objs: { [id: string]: T }, f: (obj: T) => U | undefined | null): U[] {
+    if (!objs) return [];
+    return _.reduce(
+      objs,
+      (accum: U[], inObj: T): U[] => {
+        const outObj: U | undefined | null = f(inObj);
+        if (outObj) accum.push(outObj);
+        return accum;
+      },
+      []);
+  }
+
   export function map_valid_creeps(creepIds: string[]): Creep[] {
     return map_valid(
       creepIds,

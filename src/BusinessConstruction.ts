@@ -33,7 +33,7 @@ export function construction_priority(site: ConstructionSite): number {
 
 
 function damage_ratio(site: Structure): number {
-  return (1.0 - site.hits / site.hitsMax);
+  return (1.0 - site.hits / desired_hits(site));
 }
 
 function wall_rampart_desired_hits(room: Room): number {
@@ -48,8 +48,12 @@ function wall_rampart_desired_hits(room: Room): number {
   return MAX_RAMPART_WALL * rcl / MAX_RCL;
 }
 
-function wall_rampart_damage_ratio(wr: Structure): number {
-  return 1.0 - wr.hits / wall_rampart_desired_hits(wr.room);
+function desired_hits(site: Structure) {
+  switch (site.structureType) {
+    case STRUCTURE_WALL:
+    case STRUCTURE_RAMPART: return wall_rampart_desired_hits(site.room);
+    default: return site.hitsMax;
+  }
 }
 
 function road_repair_priority(road: StructureRoad): number {
@@ -65,12 +69,12 @@ function rampart_repair_priority(rampart: StructureRampart): number {
     && (rampart.hits < 2 * RAMPART_DECAY_AMOUNT)) {
     return 9;
   }
-  const damageRatio = wall_rampart_damage_ratio(rampart);
+  const damageRatio = damage_ratio(rampart);
   return 2 * damageRatio;
 }
 
 function wall_repair_priority(wall: StructureWall): number {
-  const damageRatio = wall_rampart_damage_ratio(wall);
+  const damageRatio = damage_ratio(wall);
   return 2 * damageRatio;
 }
 
@@ -89,16 +93,10 @@ function worker_repair_filter(site: Structure): boolean {
     return false;
   }
 
-  const healthRatio = site.hits / site.hitsMax;
+  const healthRatio = site.hits / desired_hits(site);
   let badHealth;
 
   switch (site.structureType) {
-    case STRUCTURE_WALL:
-      badHealth = (site.hits / wall_rampart_desired_hits(site.room) < 0.7);
-      break;
-    case STRUCTURE_RAMPART:
-      badHealth = (site.hits / wall_rampart_desired_hits(site.room) < 0.7);
-      break;
     case STRUCTURE_ROAD:
       badHealth = healthRatio < 0.5;
       break;

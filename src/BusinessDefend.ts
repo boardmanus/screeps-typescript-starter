@@ -15,6 +15,27 @@ const DEFENDER_EMPLOYEE_BODY: BodyPartConstant[] = [
 ];
 
 
+function tower_power(tower: StructureTower, site: RoomObject, max: number): number {
+  const d = tower.pos.getRangeTo(site);
+  if (d <= TOWER_OPTIMAL_RANGE) {
+    return max;
+  }
+  else if (d >= TOWER_FALLOFF_RANGE) {
+    return max / 4;
+  }
+
+  return max / 4 + (3 * max / 4) * (TOWER_FALLOFF_RANGE - d) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE);
+}
+
+function attack_power(tower: StructureTower, site: Creep): number {
+  return tower_power(tower, site, TOWER_POWER_ATTACK);
+}
+
+function repair_power(tower: StructureTower, site: Structure): number {
+  return tower_power(tower, site, TOWER_POWER_REPAIR);
+}
+
+
 export default class BusinessDefend implements Business.Model {
 
   static readonly TYPE: string = 'def';

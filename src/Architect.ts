@@ -442,7 +442,7 @@ export class Architect implements Expert {
     }
 
     const exits = room.find(FIND_EXIT);
-    const towerPositions = _.take(_.sortBy(_.flatten(_.map(
+    const allTowerPositions = _.sortBy(_.flatten(_.map(
       protectionSites,
       (obj: RoomObject): RoomPosition[] => {
         return possible_tower_sites(obj);
@@ -460,13 +460,21 @@ export class Architect implements Expert {
 
         // Want to be a nice compromise of close to an exit, but far from another tower.
         return exitCloseness / towerCloseness;
-      }),
-      allowedNumTowers - numTowers);
+      });
 
+    const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'dashed', stroke: 'purple' };
+    let i = 0;
+    for (const site of allTowerPositions) {
+      style.opacity = (i == 0) ? 1.0 : 0.5 - i / allTowerPositions.length / 2;
+      room.visual.circle(site.x + 1.5, site.y + 1.5, style);
+      ++i;
+    }
 
-    return _.map(towerPositions, (pos: RoomPosition): Work => {
-      log.info(`${this}: creating new tower build work at ${pos} ...`);
-      return new BuildingWork(pos, STRUCTURE_TOWER);
+    const towerPositions = _.take(allTowerPositions, allowedNumTowers - numTowers);
+
+  return _.map(towerPositions, (pos: RoomPosition): Work => {
+    log.info(`${this}: creating new tower build work at ${pos} ...`);
+    return new BuildingWork(pos, STRUCTURE_TOWER);
     });
   }
   /*

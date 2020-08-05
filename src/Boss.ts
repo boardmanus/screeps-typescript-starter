@@ -35,7 +35,7 @@ export default class Boss implements Work {
         }
 
         //log.debug(`${job.id()}: not complete ${worker.id}`);
-        worker.setJob(job.id());
+        worker.setJob(job);
         return true;
       });
 
@@ -57,7 +57,7 @@ export default class Boss implements Work {
     this.job = job;
     this._workers = workers || [];
 
-    _.each(this._workers, (worker: Creep) => { worker.setJob(job.id()); });
+    _.each(this._workers, (worker: Creep) => { worker.setJob(job); });
   }
 
   id(): string {
@@ -102,7 +102,7 @@ export default class Boss implements Work {
       return;
     }
     log.debug(`${this}: assigning worker ${worker}: p-${this.priority()}, e-${this.job.efficiency(worker)}`);
-    worker.setJob(this.job.id());
+    worker.setJob(this.job);
     this._workers.push(worker);
   }
 }

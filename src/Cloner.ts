@@ -215,8 +215,7 @@ export class Cloner implements Expert {
       return [];
     }
 
-    //const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : MAX_WORKER_ENERGY;
-    const energyToUse = availableEnergy;
+    const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : totalEnergy - 50;
     const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, energyToUse));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);

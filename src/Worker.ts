@@ -35,17 +35,17 @@ export default class Worker implements Work {
     if (job) {
       if (job.completion(worker) < 1.0) {
         //log.debug(`${this}: ${job.id()} in progress by ${worker.id}`);
-        worker.setJob(job.id());
+        worker.setJob(job);
       }
       else {
         log.debug(`${this}: ${job.id()} completed by ${worker}`);
         this._job = undefined;
-        worker.setJob(undefined);
+        worker.setJob();
         worker.setLastJob(job);
       }
     }
     else {
-      worker.setJob(undefined);
+      worker.setJob();
     }
   }
 
@@ -79,6 +79,6 @@ export default class Worker implements Work {
   assignJob(job: Job.Model) {
     this._job = job;
     //log.debug(`${this}: assigning job ${job}`);
-    this.creep.setJob(this._job.id());
+    this.creep.setJob(this._job);
   }
 }

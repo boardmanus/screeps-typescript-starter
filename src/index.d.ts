@@ -11,9 +11,9 @@ interface RoomObject {
 interface Creep {
   _job: Object | undefined;
   _lastJob: Object | undefined;
-  setJob(job: string | undefined): void;
+  setJob(job?: Object): void;
+  setLastJob(lastJob?: Object): void;
   isEmployed(): boolean;
-  setLastJob(lastJob: Object): void;
   getLastJob(): Object | undefined;
 }
 
