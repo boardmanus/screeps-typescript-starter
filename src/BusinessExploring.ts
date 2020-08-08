@@ -29,7 +29,14 @@ export default class BusinessExploring implements Business.Model {
     this._room = room;
 
     const flagPrefix = `${BusinessExploring.FLAG_PREFIX}${room.name}:`;
-    this._flags = _.filter(Game.flags, (f) => f.name.startsWith(flagPrefix));
+    this._flags = _.filter(Game.flags, (f) => {
+      let valid = f.name.startsWith(flagPrefix);
+      if (valid && f.room && (f.room.find(FIND_MY_SPAWNS).length > 0)) {
+        f.remove();
+        valid = false;
+      }
+      return valid;
+    });
     this._remoteRooms = u.map_valid(_.filter(this._flags, (f) => f.room && f.room.name != room.name), (f) => f.room);
     log.debug(`${this}: flags=${this._flags}`)
   }

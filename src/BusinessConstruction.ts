@@ -21,9 +21,11 @@ const MAX_RCL = 8;
 
 
 export function construction_priority(site: ConstructionSite): number {
-  const energyAvail = site.room?.energyCapacityAvailable ?? 0;
   switch (site.structureType) {
-    case STRUCTURE_EXTENSION: return (energyAvail > 1000) ? 3 : 6;
+    case STRUCTURE_EXTENSION:
+      const energyAvail = site.room?.energyCapacityAvailable ?? 0;
+      return (energyAvail > 1000) ? 3 : 6;
+    case STRUCTURE_SPAWN: return 6;
     case STRUCTURE_STORAGE: return 3;
     case STRUCTURE_CONTAINER: return 2;
     default: break;

@@ -10,7 +10,6 @@ export default class Factory<T> {
 
   build(id: string): T | undefined {
     const builder = this._builders[this.builderId(id)];
-    log.debug(`${this}: building ${id}`)
     return builder(id);
   }
 

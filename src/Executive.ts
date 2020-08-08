@@ -68,8 +68,11 @@ export default class Executive implements Work {
     this._resumes = [];
 
     if (resumes && resumes.length > 0) {
-      //log.debug(`${this}: resumes=${resumes}`)
-      this._employees.push(...map_valid_resumes(resumes));
+      const newRecruits = map_valid_resumes(resumes);
+      _.each(newRecruits, (w) => {
+        this._employees.push(w);
+        w.creep.memory.business = this.business.id();
+      });
     }
   }
 
@@ -100,6 +103,7 @@ export default class Executive implements Work {
   addEmployee(creep: Creep) {
     if (!_.find(this._employees, (worker) => worker.creep.id == creep.id)) {
       this._employees.push(new Worker(creep));
+      creep.memory.business = this.business.id();
     }
   }
 

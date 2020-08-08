@@ -22,6 +22,7 @@ import BusinessTrading from "BusinessTrading";
 import BusinessChemistry from "BusinessChemistry";
 import BusinessStripMining from "BusinessStripMining";
 import BusinessDefend from "BusinessDefend";
+import BusinessColonizing from "BusinessColonizing";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
@@ -106,7 +107,16 @@ export class Mayor {
     this._caretaker = new Caretaker(room);
     this._cloner = new Cloner(room);
     this._bosses = [];
-    this._allCreeps = _.filter(Game.creeps, (c) => !c.spawning && (!c.memory.home || c.memory.home == room.name));
+    this._allCreeps = _.filter(Game.creeps, (c) => {
+      if (c.spawning) {
+        return false;
+      }
+      if (c.memory.home) {
+        return c.memory.home == room.name;
+      }
+      return (c.room.name === room.name);
+    });
+
     this._redundantBosses = [];
     this._lazyWorkers = [];
 
@@ -114,9 +124,12 @@ export class Mayor {
     this._businessMap = {};
 
     const exploring = new BusinessExploring(this._room);
+    this._remoteRooms = exploring.remoteRooms();
     this._businessMap[exploring.id()] = exploring;
 
-    this._remoteRooms = exploring.remoteRooms();
+    const colonizing = new BusinessColonizing(this._room);
+    this._businessMap[colonizing.id()] = colonizing;
+
 
     const rooms = [this._room, ...this._remoteRooms];
     for (const room of rooms) {
@@ -139,7 +152,7 @@ export class Mayor {
     const cloningBusiness = new BusinessCloning(this._room);
     this._businessMap[cloningBusiness.id()] = cloningBusiness;
 
-    const defendingBusiness = new BusinessDefend(this._room, []);
+    const defendingBusiness = new BusinessDefend(this._room, this._remoteRooms);
     this._businessMap[defendingBusiness.id()] = defendingBusiness;
 
     const tradingBusiness = new BusinessTrading(this._room);
@@ -187,7 +200,6 @@ export class Mayor {
       this.transferEnergy());
 
     log.info(`${this}: ${allWork.length} units of work created`);
-    _.each(allWork, (w) => log.debug(`${w}`));
     return _.sortBy(allWork, (work) => -work.priority());
   }
 
@@ -350,6 +362,7 @@ export class Mayor {
       const p = (foes.length) ? 10 : (s.freeSpace() / s.capacity() * 5);
       return new JobUnload(s, RESOURCE_ENERGY, p);
     });
+
     const jobs: JobUnload[] = unloadJobs;
     log.info(`${this} scheduling ${jobs.length} unload jobs (${jobs})...`);
     return jobs;

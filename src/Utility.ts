@@ -100,8 +100,8 @@ namespace u {
     return body.length * CREEP_SPAWN_TIME;
   }
 
-  export function find_nearby_attackers(obj: RoomObject): Creep[] {
-    return obj.pos.findInRange(FIND_HOSTILE_CREEPS, 5, {
+  export function find_nearby_attackers(obj: RoomObject, distance: number = 5): Creep[] {
+    return obj.pos.findInRange(FIND_HOSTILE_CREEPS, distance, {
       filter: (creep: Creep) => {
         return ((creep.getActiveBodyparts(ATTACK) > 0)
           || (creep.getActiveBodyparts(RANGED_ATTACK) > 0));
@@ -393,6 +393,22 @@ namespace u {
       return 1.0;
     });
     return numHealParts * HEAL_POWER;
+  }
+
+
+  export function block_has_walls(terrain: RoomTerrain, x0: number, y0: number, size: number) {
+    for (let x = 0; x < size; ++x) {
+      for (let y = 0; y < size; ++y) {
+        if (terrain.get(x0 + x, y0 + y) == TERRAIN_MASK_WALL) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  export function block_has_structures(room: Room, x0: number, y0: number, size: number) {
+    return room.lookForAtArea(LOOK_STRUCTURES, y0, x0, y0 + size, x0 + size, true).length != 0;
   }
 }
 

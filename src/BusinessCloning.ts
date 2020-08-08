@@ -296,7 +296,6 @@ function find_new_storage_sites(spawn: StructureSpawn): RoomPosition[] {
 }
 
 
-
 export default class BusinessCloning implements Business.Model {
 
   static readonly TYPE: string = 'clone';
@@ -306,6 +305,7 @@ export default class BusinessCloning implements Business.Model {
   private readonly _spawns: StructureSpawn[];
   private readonly _extensions: StructureExtension[];
   private readonly _workerHealthRatio: number;
+  private readonly _unloadJobs: Job.Model[];
 
   constructor(room: Room, priority: number = 5) {
     this._priority = priority;
@@ -317,6 +317,25 @@ export default class BusinessCloning implements Business.Model {
     const nearlyDeadWorkers = _.filter(creeps, (c) => c.ticksToLive && c.ticksToLive < 200).length;
     const maxWorkers = 8;
     this._workerHealthRatio = (creeps.length - nearlyDeadWorkers) / maxWorkers;
+
+    const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
+    log.debug(`${this}: roomHealth=${roomHealth}`)
+    const extPriority = 6 + (1.0 - roomHealth) * this._priority;
+    const extJobs: JobUnload[] = _.map(_.take(_.sortBy(_.filter(this._extensions,
+      (e) => e.freeSpace() > 0),
+      (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
+      5),
+      (e) => new JobUnload(e, RESOURCE_ENERGY, extPriority));
+
+    if (extJobs.length < 5) {
+      const spawnPriority = 5 + (1.0 - roomHealth) * this._priority;
+      const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
+        (s) => s.freeSpace() > 0),
+        (s) => new JobUnload(s, RESOURCE_ENERGY, spawnPriority));
+      extJobs.push(...spawnJobs);
+    }
+
+    this._unloadJobs = extJobs;
   }
 
   id(): string {
@@ -351,35 +370,31 @@ export default class BusinessCloning implements Business.Model {
   }
 
   permanentJobs(): Job.Model[] {
-    return [];
+    const jobs: Job.Model[] = [];
+    /*
+    const storage = this._room.storage;
+    if (storage) {
+      jobs.push(new JobPickup(storage));
+    }*/
+    jobs.push(...this._unloadJobs);
+    return jobs;
   }
 
   contractJobs(employees: Worker[]): Job.Model[] {
 
-    const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
-    log.debug(`${this}: roomHealth=${roomHealth}`)
-    const extPriority = 6 + (1.0 - roomHealth) * this._priority;
-    const extJobs: JobUnload[] = _.map(_.take(_.sortBy(_.filter(this._extensions,
-      (e) => e.freeSpace() > 0),
-      (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
-      5),
-      (e) => new JobUnload(e, RESOURCE_ENERGY, extPriority));
-
-    if (extJobs.length < 5) {
-      const spawnPriority = 5 + (1.0 - roomHealth) * this._priority;
-      const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
-        (s) => s.freeSpace() > 0),
-        (s) => new JobUnload(s, RESOURCE_ENERGY, spawnPriority));
-      extJobs.push(...spawnJobs);
-    }
+    const extJobs = this._unloadJobs;
 
     const pickupJobs: JobPickup[] = _.map(_.filter(this._spawns,
       (s) => { const r = s.recycler(); return r?.available() ?? false }),
       (s) => new JobPickup(s.recycler() ?? s, u.RESOURCE_ALL, this._priority));
 
-    const recycle = new JobRecycle(this._spawns[0]);
+    const contracts: Job.Model[] = [...extJobs, ...pickupJobs];
 
-    const contracts = [recycle, ...extJobs, ...pickupJobs];
+    if (this._spawns.length > 0) {
+      const recycle = new JobRecycle(this._spawns[0]);
+      contracts.push(recycle);
+    }
+
     log.debug(`${this}: ${contracts.length} contracts (${extJobs.length} exts)`)
 
     return contracts;
@@ -401,12 +416,12 @@ export default class BusinessCloning implements Business.Model {
         return new BuildingWork(pos, STRUCTURE_CONTAINER);
       });
 
-    const storageWork: BuildingWork[] = _.map(
+    const storageWork: BuildingWork[] = (this._spawns.length) ? _.map(
       find_new_storage_sites(this._spawns[0]),
       (pos) => {
         log.info(`${this}: creating new storage work @ ${pos}`);
         return new BuildingWork(pos, STRUCTURE_STORAGE);
-      });
+      }) : [];
 
     return [...extWork, ...recycleWork, ...storageWork];
   }

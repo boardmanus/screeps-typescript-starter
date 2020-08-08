@@ -64,8 +64,8 @@ function can_build_link(source: Source): boolean {
 
   const rcl = source.room.controller?.level ?? 0;
   const links = u.find_building_sites(source.room, STRUCTURE_LINK);
-  const allowedNumContainers = CONTROLLER_STRUCTURES.container[rcl];
-  if ((allowedNumContainers - links.length) < 1) {
+  const allowedNumLinks = CONTROLLER_STRUCTURES.link[rcl];
+  if ((allowedNumLinks - links.length) < 1) {
     return false;
   }
 

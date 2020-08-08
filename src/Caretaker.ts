@@ -105,7 +105,7 @@ class TowerRepairWork implements Work {
   }
 
   id() {
-    return `work-repair-tower-${this.tower.pos.x}-${this.tower.pos.y}`;
+    return `work-tower-repair-${this.tower.pos.x}-${this.tower.pos.y}`;
   }
 
   toString(): string {
@@ -125,6 +125,43 @@ class TowerRepairWork implements Work {
           break;
         default:
           log.error(`${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
+          break;
+      }
+    }];
+  }
+}
+
+class TowerHealWork implements Work {
+
+  readonly tower: StructureTower;
+  readonly site: Creep;
+
+  constructor(tower: StructureTower, site: Creep) {
+    this.tower = tower;
+    this.site = site;
+  }
+
+  id() {
+    return `work-tower-heal-${this.site.name}`;
+  }
+
+  toString(): string {
+    return this.id();
+  }
+
+  priority(): number {
+    return 0;
+  }
+
+  work(): Operation[] {
+    return [() => {
+      const res = this.tower.heal(this.site);
+      switch (res) {
+        case OK:
+          log.info(`${this}: ${this.tower} healed ${this.site}`);
+          break;
+        default:
+          log.error(`${this}: ${this.tower} failed to heal ${this.site} (${u.errstr(res)})`);
           break;
       }
     }];
@@ -239,8 +276,10 @@ export class Caretaker implements Expert {
       }
     });
 
-    log.debug(`${this}: ${repairSites.length} repair sites`)
-    if (repairSites.length == 0) {
+    const healSites = room.find(FIND_MY_CREEPS, { filter: (c) => c.hits < c.hitsMax && ((c.ticksToLive ?? 0) > 500) });
+
+    log.debug(`${this}: ${repairSites.length} repair sites, ${healSites.length} heal sites`)
+    if (repairSites.length == 0 && healSites.length == 0) {
       return [];
     }
 
@@ -253,7 +292,9 @@ export class Caretaker implements Expert {
       });
 
       log.debug(`Top 5 ${t} Repair Sites:`)
-      _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${repair_power(t, s)}`))
+      _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${repair_power(t, s)}`));
+
+      _.each(healSites, (h) => work.push(new TowerHealWork(t, h)));
 
       log.info(`${this}: creating new tower repair work ${t} => ${sortedSites[0]} ...`)
       work.push(new TowerRepairWork(t, sortedSites[0]));

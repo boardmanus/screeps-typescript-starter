@@ -263,7 +263,7 @@ export default class BusinessBanking implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return employees.length < Math.max(1, Math.sqrt(this._remoteRooms.length));
+    return employees.length < Math.max(3, this._remoteRooms.length + 1);
   }
 
   survey() {

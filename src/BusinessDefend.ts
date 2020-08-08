@@ -35,6 +35,9 @@ function repair_power(tower: StructureTower, site: Structure): number {
   return tower_power(tower, site, TOWER_POWER_REPAIR);
 }
 
+function attacker_priority(attacker: Creep): number {
+  return 5;
+}
 
 export default class BusinessDefend implements Business.Model {
 
@@ -54,8 +57,7 @@ export default class BusinessDefend implements Business.Model {
     this._recyclers = room.find(FIND_MY_SPAWNS, { filter: (s) => s.isActive && s.recycler() });
 
     this._attackers = room.find(FIND_HOSTILE_CREEPS);
-
-
+    this._attackers.push(..._.flatten(_.map(remoteRooms, (room) => room.find(FIND_HOSTILE_CREEPS))));
   }
 
   id(): string {
@@ -71,7 +73,7 @@ export default class BusinessDefend implements Business.Model {
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return false;
+    return this._attackers.length > 0 && employees.length == 0;
     //return (employees.length < this._attackers.length);
   }
 
@@ -88,12 +90,12 @@ export default class BusinessDefend implements Business.Model {
 
     log.debug(`${this}: ${this._room} has ${this._attackers.length} attackers!`);
 
-    _.each(this._attackers, (a) => jobs.push(new JobAttack(a, this._priority)));
-
-    if (this._recyclers.length > 0) {
-      jobs.push(new JobRecycle(this._recyclers[0]));
-    }
-
+    _.each(this._attackers, (a) => jobs.push(new JobAttack(a, attacker_priority(a))));
+    /*
+        if (this._recyclers.length > 0) {
+          jobs.push(new JobRecycle(this._recyclers[0]));
+        }
+    */
     return jobs;
   }
 

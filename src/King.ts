@@ -12,7 +12,7 @@ export class King {
     let myRooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
     let controller = (myRooms.length) ? myRooms[0].controller : undefined;
     this._name = controller?.owner?.username ?? "of-nothing";
-    this._mayors = _.map(myRooms, (room: Room): Mayor => { return new Mayor(room); });
+    this._mayors = _.map(_.filter(myRooms, (room) => room.find(FIND_MY_SPAWNS).length > 0), (room) => new Mayor(room));
     log.info(`${this}: ${this._mayors.length} mayors`);
   }
 

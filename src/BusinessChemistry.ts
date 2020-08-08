@@ -10,20 +10,6 @@ interface Pos {
   y: number
 };
 
-function block_has_walls(terrain: RoomTerrain, x0: number, y0: number, size: number) {
-  for (let x = 0; x < size; ++x) {
-    for (let y = 0; y < size; ++y) {
-      if (terrain.get(x0 + x, y0 + y) == TERRAIN_MASK_WALL) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-function block_has_structures(room: Room, x0: number, y0: number, size: number) {
-  return room.lookForAtArea(LOOK_STRUCTURES, y0, x0, y0 + size, x0 + size, true).length != 0;
-}
 
 // \\[][]..
 // []\\[][]
@@ -49,8 +35,8 @@ function possible_lab_block_sites(terminal: StructureTerminal): RoomPosition[] {
   const sites: RoomPosition[] = [];
   for (let x = 0; x < 46; ++x) {
     for (let y = 0; y < 46; ++y) {
-      if (!block_has_walls(terrain, x, y, 4)
-        && !block_has_structures(room, x, y, 4)) {
+      if (!u.block_has_walls(terrain, x, y, 4)
+        && !u.block_has_structures(room, x, y, 4)) {
         const pos = room.getPositionAt(x, y);
         if (pos) sites.push(pos);
       }
