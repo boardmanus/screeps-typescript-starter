@@ -1,5 +1,6 @@
 import * as Business from 'Business';
 import * as Job from "Job";
+import * as Monarchy from "Monarchy";
 import JobHarvest from 'JobHarvest';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
@@ -163,15 +164,27 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
     for (const t of terrain) {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_LINK) {
-            haveLink = true;
+          switch (t.constructionSite!.structureType) {
+            case STRUCTURE_LINK:
+              haveLink = true;
+              return false;
+            case STRUCTURE_ROAD:
+              break;
+            default:
+              return false;
           }
-          return false;
+          break;
         case LOOK_STRUCTURES:
-          if (t.structure && t.structure.structureType == STRUCTURE_LINK) {
-            haveLink = true;
+          switch (t.structure!.structureType) {
+            case STRUCTURE_LINK:
+              haveLink = true;
+              return false;
+            case STRUCTURE_ROAD:
+              break;
+            default:
+              return false;
           }
-          return false;
+          break;
         case LOOK_TERRAIN:
           if (t.terrain == 'wall') {
             return false;
@@ -194,9 +207,6 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
   const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
     const emptyPositions = u.find_empty_surrounding_positions(site);
     let val = -emptyPositions.length;
-    if (room.storage) {
-      val += 1 / site.getRangeTo(room.storage);
-    }
     return val;
   });
 
@@ -292,6 +302,15 @@ export default class BusinessEnergyMining implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    const controller = this._mine.room.controller;
+    if (!controller) {
+      return false;
+    }
+    const rcl = controller.level;
+    return rcl < 4;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     return (employees.length == 0) && (this._mine.available() > 0);
   }
@@ -323,10 +342,17 @@ export default class BusinessEnergyMining implements Business.Model {
 
   permanentJobs(): Job.Model[] {
     const mine: Source = this._mine;
-    const attackers = u.find_nearby_attackers(mine);
-    if (attackers.length > 0) {
-      log.warning(`${this}: [${attackers}] near mine - no permanent jobs!`);
-      return [];
+    if (!mine.room.controller?.my) {
+      if (mine.room.find(FIND_HOSTILE_CREEPS).length > 0) {
+        return [];
+      }
+    }
+    else {
+      const attackers = u.find_nearby_attackers(mine);
+      if (attackers.length > 0) {
+        log.warning(`${this}: [${attackers}] near mine - no permanent jobs!`);
+        return [];
+      }
     }
 
     const jobs: Job.Model[] = [];

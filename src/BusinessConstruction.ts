@@ -7,6 +7,7 @@ import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
 import JobUnload from 'JobUnload';
+import JobDismantle from 'JobDismantle';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, MOVE, CARRY];
@@ -15,10 +16,6 @@ const MAX_CLONE_ENERGY = 2000;
 const MAX_BUILD_JOBS = 5;
 const MAX_REPAIR_JOBS = 5;
 const WORK_PER_EMPLOYEE = 50001;
-
-const MAX_RAMPART_WALL = 1000000;
-const MAX_RCL = 8;
-
 
 export function construction_priority(site: ConstructionSite): number {
   switch (site.structureType) {
@@ -35,27 +32,7 @@ export function construction_priority(site: ConstructionSite): number {
 
 
 function damage_ratio(site: Structure): number {
-  return (1.0 - site.hits / desired_hits(site));
-}
-
-function wall_rampart_desired_hits(room: Room): number {
-  const c = room.controller;
-  if (!c) {
-    return 0;
-  }
-
-  const progress = c.progress / c.progressTotal;
-  const rcl = c.level + progress;
-
-  return MAX_RAMPART_WALL * rcl / MAX_RCL;
-}
-
-function desired_hits(site: Structure) {
-  switch (site.structureType) {
-    case STRUCTURE_WALL:
-    case STRUCTURE_RAMPART: return wall_rampart_desired_hits(site.room);
-    default: return site.hitsMax;
-  }
+  return (1.0 - site.hits / u.desired_hits(site));
 }
 
 function road_repair_priority(road: StructureRoad): number {
@@ -95,7 +72,7 @@ function worker_repair_filter(site: Structure): boolean {
     return false;
   }
 
-  const healthRatio = site.hits / desired_hits(site);
+  const healthRatio = site.hits / u.desired_hits(site);
   let badHealth;
 
   switch (site.structureType) {
@@ -125,6 +102,7 @@ export default class BusinessConstruction implements Business.Model {
   private readonly _allJobs: Job.Model[];
   private readonly _repairJobs: JobRepair[];
   private readonly _buildJobs: JobBuild[];
+  private readonly _dismantleJobs: JobDismantle[];
   private readonly _allConstructionSites: ConstructionSite[];
 
   constructor(controller: StructureController, remoteRooms: Room[], priority: number = 4) {
@@ -132,7 +110,21 @@ export default class BusinessConstruction implements Business.Model {
     this._controller = controller;
     this._remoteRooms = remoteRooms;
 
-    const rooms = [this._controller.room, ...this._remoteRooms];
+    const room = this._controller.room;
+
+    this._dismantleJobs = _.map(u.map_valid(room.find(FIND_FLAGS,
+      { filter: (f) => f.name.startsWith('dismantle') }),
+      (f) => {
+        const s = room.lookForAt(LOOK_STRUCTURES, f.pos);
+        if (s.length == 0) {
+          f.remove();
+          return undefined;
+        }
+        return s[0];
+      }),
+      (site) => new JobDismantle(site));
+
+    const rooms = [room, ...this._remoteRooms];
 
     this._allConstructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
 
@@ -141,16 +133,17 @@ export default class BusinessConstruction implements Business.Model {
       (job) => -job.priority()), MAX_BUILD_JOBS);
 
     const repairSites = _.flatten(_.map(rooms, (room) => room.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
+
     this._repairJobs = _.take(_.sortBy(_.map(repairSites,
       (site) => new JobRepair(site, repair_priority(site))),
       (job) => -job.priority()), MAX_REPAIR_JOBS);
 
-    this._allJobs = [...this._buildJobs, ...this._repairJobs];
+    this._allJobs = [...this._buildJobs, ...this._repairJobs, ...this._dismantleJobs];
 
-    log.debug(`Top 5 Buiding Jobs:`);
-    _.each(_.take(this._buildJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
-    log.debug(`Top 5 Repair Jobs:`);
-    _.each(_.take(this._repairJobs, 5), (j) => log.debug(`${j}: ${j.site()}, p=${j.priority()}`))
+    log.info(`Top 5 Buiding Jobs:`);
+    _.each(this._buildJobs, (j) => log.info(`${j}: ${j.site()}, p=${j.priority()}`))
+    log.info(`Top 5 Repair Jobs:`);
+    _.each(this._repairJobs, (j) => log.info(`${j}: ${j.site()}, p=${j.priority()}`))
   }
 
   id(): string {
@@ -163,6 +156,11 @@ export default class BusinessConstruction implements Business.Model {
 
   priority(): number {
     return this._priority;
+  }
+
+  canRequestEmployee(): boolean {
+    const rcl = this._controller.level ?? 0;
+    return rcl < 4;
   }
 
   needsEmployee(employees: Worker[]): boolean {
@@ -202,7 +200,7 @@ export default class BusinessConstruction implements Business.Model {
     _.each(employees, (worker) => {
       if (!worker.creep.spawning
         && worker.creep.freeSpace() > 100
-        && worker.job()?.type() === JobBuild.TYPE) {
+        && (worker.job()?.type() === JobBuild.TYPE)) {
         contracts.push(new JobUnload(worker.creep, RESOURCE_ENERGY));
       }
     });

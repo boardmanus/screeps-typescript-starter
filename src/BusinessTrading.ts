@@ -103,6 +103,10 @@ export default class BusinessTrading implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     return false;
   }

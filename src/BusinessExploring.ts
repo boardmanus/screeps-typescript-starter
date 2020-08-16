@@ -57,6 +57,10 @@ export default class BusinessExploring implements Business.Model {
     return this._remoteRooms;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     return this._flags.length > employees.length;
   }

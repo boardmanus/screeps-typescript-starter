@@ -62,7 +62,7 @@ namespace u {
   export const MIN_BODY_COST = body_cost(MIN_BODY);
 
   export function body_cost(parts: BodyPartConstant[]): number {
-    return _.sum(parts, (c: BodyPartConstant): number => { return BODYPART_COST[c]; });
+    return _.sum(parts, (c) => BODYPART_COST[c]);
   }
 
   export function generate_body(bodyBase: BodyPartConstant[], bodyTemplate: BodyPartConstant[], funds: number): BodyPartConstant[] {
@@ -181,7 +181,7 @@ namespace u {
   }
 
   export function work_energy(worker: Creep, maxEnergyPerPart: number): number {
-    return _.sum(worker.body, (b) => (b.type == WORK) ? maxEnergyPerPart : 0);
+    return worker.getActiveBodyparts(WORK) * maxEnergyPerPart;
   }
 
   export function movement_time(weight: number, moveParts: number, path: RoomPosition[]) {
@@ -409,6 +409,29 @@ namespace u {
 
   export function block_has_structures(room: Room, x0: number, y0: number, size: number) {
     return room.lookForAtArea(LOOK_STRUCTURES, y0, x0, y0 + size, x0 + size, true).length != 0;
+  }
+
+
+  const MAX_RAMPART_WALL = 1000000;
+  const MAX_RCL = 8;
+  function wall_rampart_desired_hits(room: Room): number {
+    const c = room.controller;
+    if (!c) {
+      return 0;
+    }
+
+    const progress = c.progress / c.progressTotal;
+    const rcl = c.level + progress;
+
+    return MAX_RAMPART_WALL * rcl / MAX_RCL;
+  }
+
+  export function desired_hits(site: Structure) {
+    switch (site.structureType) {
+      case STRUCTURE_WALL:
+      case STRUCTURE_RAMPART: return wall_rampart_desired_hits(site.room);
+      default: return site.hitsMax;
+    }
   }
 }
 

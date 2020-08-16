@@ -152,6 +152,10 @@ export default class BusinessChemistry implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     return false;
   }

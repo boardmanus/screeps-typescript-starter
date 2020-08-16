@@ -4,7 +4,7 @@ import u from "./Utility"
 import { log } from "lib/logger/log";
 
 
-function build_site(job: JobBuild, worker: Creep) {
+function dismantle_site(job: JobDismantle, worker: Creep) {
   return () => {
     const site = job._site;
     Job.visualize(job, worker);
@@ -14,42 +14,42 @@ function build_site(job: JobBuild, worker: Creep) {
       return;
     }
 
-    let res: number = worker.build(site);
+    let res: number = worker.dismantle(site);
     switch (res) {
       case OK:
-        log.info(`${job}: ${worker} built stuff at ${site}`);
+        log.info(`${job}: ${worker} dismantled stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
+        const range = (site.pos.roomName == worker.pos.roomName) ? 1 : 0;
         res = Job.moveTo(job, worker, range);
         break;
       default:
-        log.warning(`${job}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
+        log.warning(`${job}: ${worker} failed while dismantling at ${site} (${u.errstr(res)})`);
         break;
     }
   }
 }
 
-export default class JobBuild implements Job.Model {
+export default class JobDismantle implements Job.Model {
 
-  static readonly TYPE = 'build';
+  static readonly TYPE = 'dismantle';
 
-  //private _state : BuildState;
-  readonly _site: ConstructionSite;
+  //private _state : DismantleState;
+  readonly _site: Structure;
   readonly _priority: number;
 
-  constructor(site: ConstructionSite, priority: number = 5) {
+  constructor(site: Structure, priority: number = 5) {
 
     this._site = site;
     this._priority = priority;
   }
 
   id(): string {
-    return `job-${JobBuild.TYPE}-${this._site.id}`;
+    return `job-${JobDismantle.TYPE}-${this._site.id}`;
   }
 
   type(): string {
-    return JobBuild.TYPE;
+    return JobDismantle.TYPE;
   }
 
   toString(): string {
@@ -61,11 +61,11 @@ export default class JobBuild implements Job.Model {
   }
 
   say(): string {
-    return '⚒️';
+    return '🪓';
   }
 
   styleColour(): string {
-    return 'yellow';
+    return 'red';
   }
 
   priority(workers?: Creep[]): number {
@@ -75,32 +75,33 @@ export default class JobBuild implements Job.Model {
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    const energy = _.sum(workers, (w) => w.available(RESOURCE_ENERGY));
-    const energyRequired = (this._site.progressTotal - this._site.progress) / (BUILD_POWER);
-    return energy >= energyRequired;
+    return workers.length > 0;
   }
 
   efficiency(worker: Creep): number {
     // Calculate the efficiency for working, and then
     // multiply by the ratio available.
     // This should allow fuller workers to be chosen more.
-    const available = worker.available(RESOURCE_ENERGY);
-    if (available == 0) {
+    const free = worker.freeSpace(RESOURCE_ENERGY);
+    if (free == 0) {
       return 0.0;
     }
 
-    const capacity = worker.capacity();
-    const ratio = available / capacity;
-    return ratio * u.work_efficiency(worker, this._site, available, BUILD_POWER);
+    const numWorkParts = worker.getActiveBodyparts(WORK);
+    if (numWorkParts < 4) {
+      return 0;
+    }
+
+    return u.work_efficiency(worker, this._site, free, 0.25);
   }
 
   completion(worker?: Creep): number {
-    const completion = this._site.progress / this._site.progressTotal;
-    if (!worker || completion == 1.0) {
+    const completion = this._site.hits / this._site.hitsMax;
+    if (!worker || completion >= 1.0) {
       return completion;
     }
 
-    return 1.0 - worker.available(RESOURCE_ENERGY) / worker.capacity();
+    return 1.0 - worker.freeSpace(RESOURCE_ENERGY) / worker.capacity();
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -108,14 +109,14 @@ export default class JobBuild implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    return [build_site(this, worker)];
+    return [dismantle_site(this, worker)];
   }
 }
 
 
-Job.factory.addBuilder(JobBuild.TYPE, (id: string): Job.Model | undefined => {
+Job.factory.addBuilder(JobDismantle.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
-  const site = <ConstructionSite>Game.getObjectById(frags[2]);
+  const site = <Structure>Game.getObjectById(frags[2]);
   if (!site) return undefined;
-  return new JobBuild(site);
+  return new JobDismantle(site);
 });

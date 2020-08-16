@@ -350,6 +350,10 @@ export default class BusinessCloning implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     return employees.length == 0;
   }
@@ -416,14 +420,7 @@ export default class BusinessCloning implements Business.Model {
         return new BuildingWork(pos, STRUCTURE_CONTAINER);
       });
 
-    const storageWork: BuildingWork[] = (this._spawns.length) ? _.map(
-      find_new_storage_sites(this._spawns[0]),
-      (pos) => {
-        log.info(`${this}: creating new storage work @ ${pos}`);
-        return new BuildingWork(pos, STRUCTURE_STORAGE);
-      }) : [];
-
-    return [...extWork, ...recycleWork, ...storageWork];
+    return [...extWork, ...recycleWork];
   }
 }
 

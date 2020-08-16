@@ -1,5 +1,6 @@
 import { Expert } from "./Expert";
 import * as Job from "Job";
+import * as Monarchy from "Monarchy";
 import { Work } from "./Work";
 import { Operation } from "./Operation";
 import Executive from "Executive";
@@ -47,9 +48,16 @@ function clone_a_worker(work: CloningWork): Operation {
         break;
       case OK:
         log.info(`${work}: started to clone ${work.name}:${work.body}`);
-        if (work.ceo) {
-          log.info(`${work}: got ${work.name} resume for employee of ${work.ceo}`);
-          work.ceo.addEmployeeResume(work.name)
+        if (work.req) {
+          log.info(`${work}: got ${work.name} resume for employee of ${work.req.ceo}`);
+          let memory: CreepMemory = Memory.creeps[work.name];
+          if (!memory) {
+            memory = <CreepMemory>{};
+            Memory.creeps[work.name] = memory;
+          }
+          memory.home = work.req.home.name;
+          memory.business = work.req.ceo.business.id()
+          work.req.ceo.addEmployeeResume(work.name)
         }
         break;
     }
@@ -66,13 +74,13 @@ class CloningWork implements Work {
   readonly site: StructureSpawn;
   readonly name: string;
   readonly body: BodyPartConstant[];
-  readonly ceo: Executive | undefined;
+  readonly req: Monarchy.CloneRequest | undefined;
 
-  constructor(site: StructureSpawn, name: string, body: BodyPartConstant[], ceo?: Executive) {
+  constructor(site: StructureSpawn, name: string, body: BodyPartConstant[], req?: Monarchy.CloneRequest) {
     this.site = site;
     this.name = name;
     this.body = body;
-    this.ceo = ceo;
+    this.req = req;
   }
 
   id() {
@@ -115,6 +123,7 @@ export class Cloner implements Expert {
   private _currentWorkers: Creep[];
   private _numWorkers: number;
   private _maxWorkers: number;
+  private _requests: CloningWork[];
 
   private getUniqueCreepName(business?: Business.Model): string {
     return `${business?.id() ?? this._room.name}-${this._uniqueId++}`;
@@ -126,6 +135,7 @@ export class Cloner implements Expert {
     this._currentWorkers = this._room.find(FIND_MY_CREEPS);
     this._numWorkers = this._currentWorkers.length;
     this._maxWorkers = 0;
+    this._requests = [];
   }
 
   id(): string {
@@ -169,6 +179,25 @@ export class Cloner implements Expert {
     return r;
   }
 
+  cloneRequest(request: Monarchy.CloneRequest): boolean {
+    const spawners = _.filter(get_spawners(this._room), (s) => !s.spawning);
+    if (spawners.length == 0) {
+      return false
+    }
+
+    const availableEnergy = this._room.energyAvailable;
+    const totalEnergy = this._room.energyCapacityAvailable;
+    const ceo = request.ceo;
+    const employeeBody = ceo.employeeBody(availableEnergy, totalEnergy);
+    if (employeeBody.length > 0) {
+      log.error(`${this}: clone request accepted! ${request.home}:${request.ceo}`);
+      this._requests.push(new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, request));
+      return true;
+    }
+
+    return true;
+  }
+
   clone(ceos: Executive[], bosses: Boss[], lazyWorkers: Creep[], allCreeps: Creep[]): Work[] {
 
     const spawners = _.filter(get_spawners(this._room), (s) => !s.spawning);
@@ -192,8 +221,14 @@ export class Cloner implements Expert {
       const ceo = ceosWithVacancies[0];
       const employeeBody = ceo.employeeBody(availableEnergy, totalEnergy);
       if (employeeBody.length > 0) {
-        return [new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, ceo)];
+        const req: Monarchy.CloneRequest = { home: this._room, ceo: ceo };
+        return [new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, req)];
       }
+    }
+
+    if (this._requests.length > 0) {
+      log.error(`${this}: ${this._requests.length} cloning requests`);
+      return _.sortBy(this._requests, (r) => -1 * (r.req?.ceo.priority() ?? 0));
     }
 
     log.debug(`${this}: ${bosses.length} contract jobs, ${this._numWorkers} workers...`)
@@ -215,7 +250,7 @@ export class Cloner implements Expert {
       return [];
     }
 
-    const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : totalEnergy - 50;
+    const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : totalEnergy;
     const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, energyToUse));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);

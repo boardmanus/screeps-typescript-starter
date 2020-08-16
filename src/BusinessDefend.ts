@@ -72,6 +72,10 @@ export default class BusinessDefend implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     return this._attackers.length > 0 && employees.length == 0;
     //return (employees.length < this._attackers.length);

@@ -41,7 +41,7 @@ function wall_rampart_desired_hits(room: Room): number {
   const progress = c.progress / c.progressTotal;
   const rcl = c.level + progress;
 
-  return MAX_RAMPART_WALL * rcl / MAX_RCL;
+  return (MAX_RAMPART_WALL / (MAX_RCL * MAX_RCL)) * (rcl * rcl);
 }
 
 function wall_rampart_damage_ratio(wr: Structure): number {
@@ -87,6 +87,10 @@ function tower_repair_filter(tower: StructureTower[], site: Structure, minPriori
 
   const repairPriority = repair_priority(site);
   if (repairPriority < minPriority) {
+    return false;
+  }
+  const flags = site.room.lookForAt(LOOK_FLAGS, site);
+  if (_.find(flags, (f) => f.name.startsWith('dismantle'))) {
     return false;
   }
 

@@ -8,6 +8,7 @@ export interface Model {
   priority(): number;
   survey(): void;
   needsEmployee(employees: Worker[]): boolean;
+  canRequestEmployee(): boolean;
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];
   permanentJobs(): Job.Model[];
   contractJobs(employees: Worker[]): Job.Model[];

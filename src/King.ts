@@ -2,17 +2,21 @@ import { Work } from "./Work"
 import { Mayor } from "./Mayor"
 import { Operation } from "./Operation"
 import { log } from './ScrupsLogger'
+import * as Monarchy from 'Monarchy'
 
-export class King {
+export class King implements Monarchy.Model {
+
+  static readonly TYPE = 'king';
 
   private _mayors: Mayor[];
   private _name: string;
+  private _rooms: Room[];
 
   constructor() {
-    let myRooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
-    let controller = (myRooms.length) ? myRooms[0].controller : undefined;
+    this._rooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
+    let controller = (this._rooms.length) ? this._rooms[0].controller : undefined;
     this._name = controller?.owner?.username ?? "of-nothing";
-    this._mayors = _.map(_.filter(myRooms, (room) => room.find(FIND_MY_SPAWNS).length > 0), (room) => new Mayor(room));
+    this._mayors = _.map(_.filter(this._rooms, (room) => room.find(FIND_MY_SPAWNS).length > 0), (room) => new Mayor(this, room));
     log.info(`${this}: ${this._mayors.length} mayors`);
   }
 
@@ -20,6 +24,25 @@ export class King {
     return `king-${this._name}`
   }
 
+  type(): string {
+    return King.TYPE;
+  }
+
+  rooms(): Room[] {
+    return this._rooms;
+  }
+
+  parent(): Monarchy.Model | undefined {
+    return undefined;
+  }
+
+  cloneRequest(request: Monarchy.CloneRequest): boolean {
+    // Eventually... Find closest room to the request
+    return _.find(this._mayors, (m) => {
+      const res = m.cloneRequest(request);
+      return res;
+    }) ? true : false;
+  }
 
   toString(): string {
     return this.id();

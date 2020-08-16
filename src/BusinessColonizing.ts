@@ -105,14 +105,14 @@ export default class BusinessColonizing implements Business.Model {
     const flagPrefix = `${BusinessColonizing.FLAG_PREFIX}${room.name}:`;
     this._flags = _.filter(Game.flags, (f) => {
       let valid = f.name.startsWith(flagPrefix);
-      if (valid && f.room?.controller?.my) {
+      if (valid && f.room?.controller?.my && (u.find_num_building_sites(room, STRUCTURE_SPAWN) > 0)) {
         f.remove();
         valid = false;
       }
       return valid;
     });
     this._colonizationRooms = u.map_valid(_.filter(this._flags, (f) => f.room && f.room.name != room.name), (f) => f.room);
-    log.debug(`${this}: flags=${this._flags}`)
+    log.error(`${this}: flags=${this._flags}`)
   }
 
   id(): string {
@@ -129,6 +129,10 @@ export default class BusinessColonizing implements Business.Model {
 
   colonizationRooms(): Room[] {
     return this._colonizationRooms;
+  }
+
+  canRequestEmployee(): boolean {
+    return false;
   }
 
   needsEmployee(employees: Worker[]): boolean {

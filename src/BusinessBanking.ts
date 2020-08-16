@@ -36,7 +36,8 @@ function can_build_vault(room: Room): boolean {
   }
 
   const rcl = room.controller?.level ?? 0;
-  return (rcl >= 4);
+  const numStorage = CONTROLLER_STRUCTURES.storage[rcl];
+  return numStorage > 0;
 }
 
 function possible_storage_sites(room: Room): RoomPosition[] {
@@ -54,9 +55,15 @@ function possible_storage_sites(room: Room): RoomPosition[] {
       for (const t of terrain) {
         switch (t.type) {
           case LOOK_CONSTRUCTION_SITES:
-            return t.constructionSite?.structureType != STRUCTURE_ROAD;
+            if (t.constructionSite?.structureType != STRUCTURE_ROAD) {
+              return false;
+            }
+            break;
           case LOOK_STRUCTURES:
-            return t.constructionSite?.structureType != STRUCTURE_ROAD;
+            if (t.structure?.structureType != STRUCTURE_ROAD) {
+              return false;
+            }
+            break;
           case LOOK_TERRAIN:
             if (t.terrain == 'wall') {
               return false;
@@ -78,31 +85,42 @@ function storage_site_viability(pos: RoomPosition, room: Room): number {
   const spacialViability = _.reduce(
     pos.surroundingPositions(1),
     (a: number, p: RoomPosition): number => {
-
       const terrain = p.look();
       let viability = 1;
       for (const t of terrain) {
         switch (t.type) {
           case LOOK_SOURCES:
           case LOOK_MINERALS:
-            viability = 0;
-            break;
+            return -2;
           case LOOK_CONSTRUCTION_SITES:
-            if (t.constructionSite && !u.is_passible_structure(t.constructionSite)) {
-              viability = 0;
+            if (t.constructionSite) {
+              if (!u.is_passible_structure(t.constructionSite)) {
+                return -1;
+              }
+              else if (t.constructionSite.structureType == STRUCTURE_ROAD) {
+                viability += 0.5;
+              }
+              else {
+                viability -= 0.5;
+              }
             }
             break;
           case LOOK_STRUCTURES:
-            if (t.structure && !u.is_passible_structure(t.structure)) {
-              viability = 0;
+            if (t.structure) {
+              if (!u.is_passible_structure(t.structure)) {
+                return -1;
+              }
+              else if (t.structure.structureType == STRUCTURE_ROAD) {
+                viability += 0.5;
+              }
+              else {
+                viability -= 0.5;
+              }
             }
             break;
           case LOOK_TERRAIN:
             if (t.terrain == 'wall') {
-              return 0;
-            }
-            else if (t.terrain == 'swamp') {
-              viability *= 1.0;
+              return -1;
             }
             break;
           default:
@@ -120,7 +138,7 @@ function storage_site_viability(pos: RoomPosition, room: Room): number {
   const locationalViability = _.min(_.map(
     spawners,
     (s: StructureSpawn): number => {
-      return pos.getRangeTo(s);
+      return pos.findPathTo(s).length;
     }));
 
   // Want positions with lots of space around, and closer to spawns
@@ -128,18 +146,31 @@ function storage_site_viability(pos: RoomPosition, room: Room): number {
 }
 
 function vault_building_work(room: Room): BuildingWork[] {
-  return _.map(_.take(_.sortBy(
-    possible_storage_sites(room),
-    (rp: RoomPosition): number => { return -storage_site_viability(rp, room); }),
-    1),
-    (rp) => new BuildingWork(rp, STRUCTURE_STORAGE));
+  const possibleSites = possible_storage_sites(room);
+  const sortedSites = _.sortBy(possibleSites, (rp) => -storage_site_viability(rp, room));
+
+  const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'purple' };
+  let i = 0;
+  for (const site of sortedSites) {
+    if (i++ == 0) continue;
+    style.opacity = (0.25 - (i / sortedSites.length) / 4);
+    room.visual.circle(site.x, site.y, style);
+  }
+
+  const bestSites = _.take(sortedSites, 1);
+  const bestStyle: CircleStyle = { fill: 'green', radius: 0.6, lineStyle: 'solid', stroke: 'green' };
+  for (const site of bestSites) {
+    room.visual.circle(site.x, site.y, bestStyle);
+  }
+
+  return _.map(bestSites, (rp) => new BuildingWork(rp, STRUCTURE_STORAGE));
 }
 
 function can_build_link(vault: StructureStorage): boolean {
   const rcl = vault.room.controller?.level ?? 0;
-  const links = u.find_building_sites(vault.room, STRUCTURE_LINK);
+  const numLinks = u.find_num_building_sites(vault.room, STRUCTURE_LINK);
   const allowedNumLinks = CONTROLLER_STRUCTURES.link[rcl];
-  return (allowedNumLinks - links.length) > 0;
+  return (allowedNumLinks - numLinks) > 0;
 }
 
 function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
@@ -156,15 +187,21 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
     for (const t of terrain) {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_LINK) {
+          if (t.constructionSite!.structureType == STRUCTURE_LINK) {
             haveLink = true;
           }
-          return false;
+          else if (t.constructionSite!.structureType != STRUCTURE_ROAD) {
+            return false;
+          }
+          break;
         case LOOK_STRUCTURES:
-          if (t.structure && t.structure.structureType == STRUCTURE_LINK) {
+          if (t.structure!.structureType == STRUCTURE_LINK) {
             haveLink = true;
           }
-          return false;
+          else if (t.structure!.structureType != STRUCTURE_ROAD) {
+            return false;
+          }
+          break;
         case LOOK_TERRAIN:
           if (t.terrain == 'wall') {
             return false;
@@ -262,8 +299,12 @@ export default class BusinessBanking implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
-    return employees.length < Math.max(3, this._remoteRooms.length + 1);
+    return employees.length < Math.min(3, this._remoteRooms.length + 1);
   }
 
   survey() {

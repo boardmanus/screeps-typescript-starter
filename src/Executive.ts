@@ -96,6 +96,10 @@ export default class Executive implements Work {
     return this.business.needsEmployee(this._employees);
   }
 
+  canRequestEmployee(): boolean {
+    return this.needsEmployee() && this.business.canRequestEmployee();
+  }
+
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
     return this.business.employeeBody(availEnergy, maxEnergy);
   }

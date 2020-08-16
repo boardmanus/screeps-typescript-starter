@@ -1,3 +1,8 @@
+
+interface Room {
+  _cache: any | undefined;
+}
+
 interface RoomPosition {
   surroundingPositions(radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[];
 }

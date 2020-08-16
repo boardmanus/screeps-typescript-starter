@@ -3,6 +3,7 @@ import { Caretaker } from "./Caretaker";
 import { Cloner } from "./Cloner";
 import * as Job from "Job";
 import * as Business from "Business";
+import * as Monarchy from "Monarchy";
 import { Work } from "./Work";
 import JobPickup from "JobPickup";
 import JobUnload from "JobUnload";
@@ -23,6 +24,8 @@ import BusinessChemistry from "BusinessChemistry";
 import BusinessStripMining from "BusinessStripMining";
 import BusinessDefend from "BusinessDefend";
 import BusinessColonizing from "BusinessColonizing";
+import Room$ from "RoomCache";
+import { RoomCache } from "RoomCache";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
@@ -85,8 +88,12 @@ class TransferWork implements Work {
   }
 }
 
-export class Mayor {
+export class Mayor implements Monarchy.Model {
 
+  static readonly TYPE = 'mayor';
+
+  private _roomCache: RoomCache;
+  private _king: Monarchy.Model;
   private _room: Room;
   private _remoteRooms: Room[];
   private _architect: Architect;
@@ -100,7 +107,9 @@ export class Mayor {
   private _allCreeps: Creep[];
   private _lazyWorkers: Creep[];
 
-  constructor(room: Room) {
+  constructor(king: Monarchy.Model, room: Room) {
+    this._roomCache = new RoomCache(room);
+    this._king = king;
     this._room = room;
     this._remoteRooms = [];
     this._architect = new Architect(room);
@@ -133,7 +142,7 @@ export class Mayor {
 
     const rooms = [this._room, ...this._remoteRooms];
     for (const room of rooms) {
-      _.each(room.find(FIND_SOURCES), (source) => {
+      _.each(this._roomCache.sources, (source) => {
         const mining = new BusinessEnergyMining(source);
         this._businessMap[mining.id()] = mining;
       });
@@ -163,12 +172,10 @@ export class Mayor {
       this._businessMap[chemBusiness.id()] = chemBusiness;
     }
 
-    if (this._room.storage) {
+    if (this._room.controller?.my) {
       const banking = new BusinessBanking(this._room, this._remoteRooms);
       this._businessMap[banking.id()] = banking;
-    }
 
-    if (this._room.controller?.my) {
       const upgrading = new BusinessUpgrading(this._room.controller);
       this._businessMap[upgrading.id()] = upgrading;
 
@@ -183,8 +190,31 @@ export class Mayor {
     return `mayor-${this._room.name}`;
   }
 
+  type(): string {
+    return Mayor.TYPE;
+  }
+
+  parent(): Monarchy.Model {
+    return this._king;
+  }
+
+  cloneRequest(request: Monarchy.CloneRequest): boolean {
+    if (request.home == this._room) {
+      return false;
+    }
+    return this._cloner.cloneRequest(request)
+  }
+
   toString(): string {
     return this.id();
+  }
+
+  room(): Room {
+    return this._room;
+  }
+
+  rooms(): Room[] {
+    return [this._room, ...this._remoteRooms];
   }
 
   work(): Work[] {
@@ -242,6 +272,13 @@ export class Mayor {
     this._caretaker.survey();
     this._cloner.survey();
 
+
+    _.each(this._executives, (ceo) => {
+      if (ceo.canRequestEmployee()) {
+        this._king.cloneRequest({ home: this._room, ceo: ceo })
+      }
+    });
+
     const unmannedBusinesses = _.filter(this._businessMap, (b) => _.every(this._executives, (e) => e.business.id() != b.id()))
     const newExecutives = _.map(unmannedBusinesses, (b) => new Executive(b));
     log.debug(`${this}: ${this._executives.length} executives after survey (${this._executives.length} old, ${newExecutives.length} new)`);
@@ -298,11 +335,13 @@ export class Mayor {
     const allRooms = [room, ...this._remoteRooms];
 
     const scavengeJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
+      if (room != this._room && room.find(FIND_HOSTILE_CREEPS).length > 0) { return [] }
       return _.map(room.find(FIND_DROPPED_RESOURCES), (r: Resource) => new JobPickup(r, r.resourceType, 7));
     }));
-    _.each(scavengeJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
+    _.each(scavengeJobs, (t) => log.error(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
     const tombstoneJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
+      if (room != this._room && room.find(FIND_HOSTILE_CREEPS).length > 0) { return [] }
       return _.map(room.find(FIND_TOMBSTONES,
         { filter: (t) => t.available() > 0 }),
         (t) => {

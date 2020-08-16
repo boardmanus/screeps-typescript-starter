@@ -49,6 +49,10 @@ export default class BusinessStripMining implements Business.Model {
     return this._priority;
   }
 
+  canRequestEmployee(): boolean {
+    return false;
+  }
+
   needsEmployee(employees: Worker[]): boolean {
     log.debug(`${this}: ${this._mine} has ${this._mine.available()}`)
     return ((employees.length == 0)
