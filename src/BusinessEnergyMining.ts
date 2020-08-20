@@ -304,7 +304,7 @@ export default class BusinessEnergyMining implements Business.Model {
 
   canRequestEmployee(): boolean {
     const controller = this._mine.room.controller;
-    if (!controller) {
+    if (!controller || !controller.my) {
       return false;
     }
     const rcl = controller.level;

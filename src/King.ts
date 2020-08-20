@@ -3,6 +3,7 @@ import { Mayor } from "./Mayor"
 import { Operation } from "./Operation"
 import { log } from './ScrupsLogger'
 import * as Monarchy from 'Monarchy'
+import { RoomCache } from "RoomCache"
 
 export class King implements Monarchy.Model {
 
@@ -13,6 +14,7 @@ export class King implements Monarchy.Model {
   private _rooms: Room[];
 
   constructor() {
+    _.each(Game.rooms, (room) => new RoomCache(room));
     this._rooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
     let controller = (this._rooms.length) ? this._rooms[0].controller : undefined;
     this._name = controller?.owner?.username ?? "of-nothing";

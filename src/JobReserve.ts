@@ -6,7 +6,7 @@ import { log } from './ScrupsLogger'
 const TTL_NEARLY_DEAD: number = 200;
 const TTL_RECYCLE_TIME: number = 30;
 
-function claim_at_site(job: JobClaim, worker: Creep): Operation {
+function reserve_at_site(job: JobReserve, worker: Creep): Operation {
   return () => {
     Job.visualize(job, worker);
 
@@ -15,26 +15,30 @@ function claim_at_site(job: JobClaim, worker: Creep): Operation {
       return;
     }
 
-    let res: number = worker.claimController(job._site);
+    const controller: StructureController = job._site;
+    let res: number = worker.reserveController(controller);
     switch (res) {
       case OK:
         // Finished job.
-        log.info(`${job}: ${worker} claimed ${job._site}`);
+        log.info(`${job}: ${worker} reserved ${controller}`);
+        if (controller.sign?.username !== worker.owner.username) {
+          worker.signController(controller, 'All your base are belong to us!');
+        }
         break;
       case ERR_NOT_IN_RANGE: {
         res = Job.moveTo(job, worker, 1);
         break;
       }
       default:
-        log.error(`${job}: unexpected error while ${worker} tried claiming ${job._site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} tried reserving ${job._site} (${u.errstr(res)})`);
         break;
     }
   }
 }
 
-export default class JobClaim implements Job.Model {
+export default class JobReserve implements Job.Model {
 
-  static readonly TYPE = 'claim';
+  static readonly TYPE = 'reserve';
 
   readonly _site: StructureController | Flag;
   readonly _priority: number;
@@ -45,11 +49,11 @@ export default class JobClaim implements Job.Model {
   }
 
   id(): string {
-    return `job-${JobClaim.TYPE}-${this._site.pos.roomName}`;
+    return `job-${JobReserve.TYPE}-${this._site.pos.roomName}`;
   }
 
   type(): string {
-    return JobClaim.TYPE;
+    return JobReserve.TYPE;
   }
 
   toString(): string {
@@ -69,7 +73,7 @@ export default class JobClaim implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    // Claimers should hold nothing
+    // Reserveers should hold nothing
     if (worker.available() != 0
       || worker.getActiveBodyparts(CLAIM) == 0) {
       return 0.0;
@@ -92,12 +96,19 @@ export default class JobClaim implements Job.Model {
   }
 
   completion(worker?: Creep): number {
-    // A claim is never finished.
     if (this._site instanceof Flag) {
       return 0.0;
     }
 
-    return this._site.my ? 1.0 : 0.0;
+    if (!this._site.reservation) {
+      return 0.0;
+    }
+
+    //if (this._site.reservation.username !== Game.rooms[0].controller?.owner?.username) {
+    //  return 0.0;
+    //}
+
+    return this._site.reservation.ticksToEnd / CONTROLLER_RESERVE_MAX;
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -106,16 +117,16 @@ export default class JobClaim implements Job.Model {
 
   work(worker: Creep): Operation[] {
     if (!worker.spawning && !worker.pos.inRangeTo(this._site.pos, 0)) {
-      return [claim_at_site(this, worker)];
+      return [reserve_at_site(this, worker)];
     }
     return [];
   }
 }
 
 
-Job.factory.addBuilder(JobClaim.TYPE, (id: string): Job.Model | undefined => {
+Job.factory.addBuilder(JobReserve.TYPE, (id: string): Job.Model | undefined => {
   const frags = id.split('-');
   const room = Game.rooms[frags[2]];
   if (!room || !room.controller) return undefined;
-  return new JobClaim(room.controller);
+  return new JobReserve(room.controller);
 });

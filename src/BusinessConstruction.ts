@@ -8,6 +8,7 @@ import u from 'Utility';
 import { log } from 'ScrupsLogger';
 import JobUnload from 'JobUnload';
 import JobDismantle from 'JobDismantle';
+import Room$ from 'RoomCache';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, MOVE, CARRY];
@@ -24,6 +25,7 @@ export function construction_priority(site: ConstructionSite): number {
       return (energyAvail > 1000) ? 3 : 6;
     case STRUCTURE_SPAWN: return 6;
     case STRUCTURE_STORAGE: return 3;
+    case STRUCTURE_EXTRACTOR: return 3;
     case STRUCTURE_CONTAINER: return 2;
     default: break;
   }
@@ -126,7 +128,8 @@ export default class BusinessConstruction implements Business.Model {
 
     const rooms = [room, ...this._remoteRooms];
 
-    this._allConstructionSites = _.flatten(_.map(rooms, (room) => room.find(FIND_MY_CONSTRUCTION_SITES, { filter: worker_construction_filter })));
+    this._allConstructionSites = _.flatten(_.map(rooms,
+      (room) => _.filter(Room$(room).constructionSites, worker_construction_filter)));
 
     this._buildJobs = _.take(_.sortBy(_.map(this._allConstructionSites,
       (site) => new JobBuild(site, construction_priority(site))),

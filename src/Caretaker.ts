@@ -8,25 +8,6 @@ import { log } from './ScrupsLogger'
 const MAX_RAMPART_WALL = 1000000;
 const MAX_RCL = 8;
 
-function tower_power(tower: StructureTower, site: RoomObject, max: number): number {
-  const d = tower.pos.getRangeTo(site);
-  if (d <= TOWER_OPTIMAL_RANGE) {
-    return max;
-  }
-  else if (d >= TOWER_FALLOFF_RANGE) {
-    return max / 4;
-  }
-
-  return max / 4 + (3 * max / 4) * (TOWER_FALLOFF_RANGE - d) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE);
-}
-
-function attack_power(tower: StructureTower, site: Creep): number {
-  return tower_power(tower, site, TOWER_POWER_ATTACK);
-}
-
-function repair_power(tower: StructureTower, site: Structure): number {
-  return tower_power(tower, site, TOWER_POWER_REPAIR);
-}
 
 function damage_ratio(site: Structure): number {
   return (1.0 - site.hits / site.hitsMax);
@@ -89,12 +70,13 @@ function tower_repair_filter(tower: StructureTower[], site: Structure, minPriori
   if (repairPriority < minPriority) {
     return false;
   }
+
   const flags = site.room.lookForAt(LOOK_FLAGS, site);
   if (_.find(flags, (f) => f.name.startsWith('dismantle'))) {
     return false;
   }
 
-  const power: number = _.max(_.map(tower, (t: StructureTower): number => { return repair_power(t, site); }));
+  const power: number = _.max(_.map(tower, (t) => u.tower_repair_power(t.pos.getRangeTo(site))));
   return site.hitsMax - site.hits > power;
 }
 
@@ -258,7 +240,7 @@ export class Caretaker implements Expert {
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
         if (f) {
-          const damage = attack_power(t, f);
+          const damage = u.tower_attack_power(t.pos.getRangeTo(f));
           const shield = u.creep_shield_power(f);
           log.debug(`${this}: ${t} >> ${f} => (${damage} - ${shield} = ${damage - shield})`)
           if (damage > shield) {
@@ -292,11 +274,11 @@ export class Caretaker implements Expert {
       if (t.available(RESOURCE_ENERGY) < TOWER_CAPACITY / 3) continue;
 
       const sortedSites = _.sortBy(repairSites, (s: Structure) => {
-        return -repair_priority(s) * repair_power(t, s);
+        return -repair_priority(s) * u.tower_repair_power(t.pos.getRangeTo(s));
       });
 
       log.debug(`Top 5 ${t} Repair Sites:`)
-      _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${repair_power(t, s)}`));
+      _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${u.tower_repair_power(t.pos.getRangeTo(s))}`));
 
       _.each(healSites, (h) => work.push(new TowerHealWork(t, h)));
 

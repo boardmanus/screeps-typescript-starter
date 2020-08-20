@@ -19,7 +19,6 @@ function map_valid_resumes(resumes: string[]): Worker[] {
 function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
 
   const viableJobs = _.filter(jobs, (job) => job.efficiency(creep) > 0);
-
   const workableJobs = _.filter(viableJobs, (job) => {
     const workers: Creep[] = _.map(_.filter(busyWorkers, (w) => job.id() == w.job()?.id()), (w) => w.creep);
     return !job.isSatisfied(workers);

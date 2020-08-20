@@ -101,6 +101,10 @@ namespace u {
   }
 
   export function find_nearby_attackers(obj: RoomObject, distance: number = 5): Creep[] {
+    if (!obj.room) {
+      return [];
+    }
+
     return obj.pos.findInRange(FIND_HOSTILE_CREEPS, distance, {
       filter: (creep: Creep) => {
         return ((creep.getActiveBodyparts(ATTACK) > 0)
@@ -254,7 +258,7 @@ namespace u {
   }
 
   export function creep_work_time(worker: Creep, energy: number, maxEnergyPerPart: number): number {
-    const numWorkerParts = _.sum(worker.body, (b) => (b.type == WORK) ? 1 : 0);
+    const numWorkerParts = worker.getActiveBodyparts(WORK);
     if (numWorkerParts == 0) {
       return FOREVER;
     }
@@ -433,6 +437,26 @@ namespace u {
       default: return site.hitsMax;
     }
   }
+
+  export function tower_power(range: number, max: number): number {
+    if (range <= TOWER_OPTIMAL_RANGE) {
+      return max;
+    }
+    else if (range >= TOWER_FALLOFF_RANGE) {
+      return max / 4;
+    }
+
+    return max / 4 + (3 * max / 4) * (TOWER_FALLOFF_RANGE - range) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE);
+  }
+
+  export function tower_attack_power(range: number): number {
+    return tower_power(range, TOWER_POWER_ATTACK);
+  }
+
+  export function tower_repair_power(range: number): number {
+    return tower_power(range, TOWER_POWER_REPAIR);
+  }
+
 }
 
 export default u;

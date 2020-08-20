@@ -25,7 +25,6 @@ import BusinessStripMining from "BusinessStripMining";
 import BusinessDefend from "BusinessDefend";
 import BusinessColonizing from "BusinessColonizing";
 import Room$ from "RoomCache";
-import { RoomCache } from "RoomCache";
 
 function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
   return u.map_valid(
@@ -92,7 +91,6 @@ export class Mayor implements Monarchy.Model {
 
   static readonly TYPE = 'mayor';
 
-  private _roomCache: RoomCache;
   private _king: Monarchy.Model;
   private _room: Room;
   private _remoteRooms: Room[];
@@ -108,7 +106,6 @@ export class Mayor implements Monarchy.Model {
   private _lazyWorkers: Creep[];
 
   constructor(king: Monarchy.Model, room: Room) {
-    this._roomCache = new RoomCache(room);
     this._king = king;
     this._room = room;
     this._remoteRooms = [];
@@ -142,7 +139,7 @@ export class Mayor implements Monarchy.Model {
 
     const rooms = [this._room, ...this._remoteRooms];
     for (const room of rooms) {
-      _.each(this._roomCache.sources, (source) => {
+      _.each(Room$(room).sources, (source) => {
         const mining = new BusinessEnergyMining(source);
         this._businessMap[mining.id()] = mining;
       });
@@ -271,7 +268,6 @@ export class Mayor implements Monarchy.Model {
     this._architect.survey();
     this._caretaker.survey();
     this._cloner.survey();
-
 
     _.each(this._executives, (ceo) => {
       if (ceo.canRequestEmployee()) {

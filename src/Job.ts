@@ -28,10 +28,15 @@ export interface Model {
 export type Map = { [id: string]: Model };
 
 export function visualize(job: Model, worker: Creep, subSite?: RoomObject) {
+  const room = job.site().room;
+  if (!room) {
+    return;
+  }
+
   worker.say(job.say());
   const site = subSite ?? job.site();
   const siteStyle = <CircleStyle>{ opacity: 0.6, fill: 'transparent', radius: 0.55, lineStyle: 'dashed', stroke: job.styleColour() }
-  job.site().room?.visual.circle(site.pos.x, site.pos.y, siteStyle);
+  room.visual.circle(site.pos.x, site.pos.y, siteStyle);
 }
 
 function jobMoveTo(job: Model, worker: Creep, pos: RoomPosition | RoomObject, range: number, style: LineStyle): number {

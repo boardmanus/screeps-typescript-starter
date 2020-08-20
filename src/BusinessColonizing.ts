@@ -5,8 +5,11 @@ import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import u from 'Utility';
+import Room$ from 'RoomCache';
+import JobReserve from 'JobReserve';
 
-const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CLAIM];
+const CLAIMER_EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CLAIM];
+const RESERVER_EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CLAIM, CLAIM];
 
 function possible_spawn_sites(room: Room) {
   const roomName = room.name;
@@ -81,38 +84,51 @@ function can_build_spawn(room: Room): boolean {
   return true;
 }
 
+const OP_RESERVE = (1 << 0);
+const OP_CLAIM = (1 << 1);
 
 export default class BusinessColonizing implements Business.Model {
 
   static readonly TYPE: string = 'col';
-  static readonly FLAG_PREFIX: string = 'claim:';
+  static readonly CLAIM_FLAG_PREFIX: string = 'claim';
+  static readonly RESERVE_FLAG_PREFIX: string = 'reserve';
 
   static _claimerNum: number = 0;
-
-  static flag_name(room: Room): string {
-    return `${BusinessColonizing.FLAG_PREFIX}${room.name}:${BusinessColonizing._claimerNum++}`;
-  }
 
   private readonly _priority: number;
   private readonly _flags: Flag[];
   private readonly _room: Room;
-  private readonly _colonizationRooms: Room[];
+  private readonly _colonizationRooms: { [roomName: string]: { flag: Flag, ops: number } };
+  private _jobs: Job.Model[] | undefined;
 
   constructor(room: Room, priority: number = 5) {
     this._priority = priority;
     this._room = room;
 
-    const flagPrefix = `${BusinessColonizing.FLAG_PREFIX}${room.name}:`;
-    this._flags = _.filter(Game.flags, (f) => {
-      let valid = f.name.startsWith(flagPrefix);
-      if (valid && f.room?.controller?.my && (u.find_num_building_sites(room, STRUCTURE_SPAWN) > 0)) {
+    const claimFlagPrefix = `${room.name}:${BusinessColonizing.CLAIM_FLAG_PREFIX}:`;
+    const reserveFlagPrefix = `${room.name}:${BusinessColonizing.RESERVE_FLAG_PREFIX}:`;
+    this._colonizationRooms = {};
+
+    this._flags = _.filter(Room$(room).ownedFlags, (f) => {
+      if (f.room && ((f.room.find(FIND_MY_SPAWNS).length > 0) || !f.room.controller)) {
         f.remove();
-        valid = false;
+        return false;
       }
-      return valid;
+
+      const croom = this._colonizationRooms[f.pos.roomName] ?? { flag: f, ops: 0 };
+      if (f.name.startsWith(claimFlagPrefix)) {
+        croom.ops |= OP_CLAIM;
+      }
+      if (f.name.startsWith(reserveFlagPrefix)) {
+        croom.ops |= OP_RESERVE;
+      }
+
+      if (croom.ops != 0) {
+        this._colonizationRooms[f.pos.roomName] = croom;
+      }
+
+      return croom.ops != 0;
     });
-    this._colonizationRooms = u.map_valid(_.filter(this._flags, (f) => f.room && f.room.name != room.name), (f) => f.room);
-    log.error(`${this}: flags=${this._flags}`)
   }
 
   id(): string {
@@ -127,32 +143,71 @@ export default class BusinessColonizing implements Business.Model {
     return this._priority;
   }
 
-  colonizationRooms(): Room[] {
-    return this._colonizationRooms;
-  }
-
   canRequestEmployee(): boolean {
     return false;
   }
 
   needsEmployee(employees: Worker[]): boolean {
-    return this._flags.length > employees.length;
+    const keys = Object.keys(this._colonizationRooms);
+    if (keys.length < employees.length) {
+      return false;
+    }
+
+    const requiredEmployees = _.sum(keys, (key) => {
+      const cr = this._colonizationRooms[key];
+      const controller = cr.flag.room?.controller;
+      if ((cr.ops & OP_CLAIM) || !controller) {
+        // If claiming, or controller state unknown, allow a
+        // new employee
+        return 1;
+      }
+
+      // If the reservation is less than 500, then we want to a reserver.
+      const reservationTime = (controller.reservation?.ticksToEnd ?? 0);
+      return (reservationTime < 500) ? 1 : 0;
+    });
+
+    return (requiredEmployees > employees.length);
   }
 
   survey() {
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
-    return EMPLOYEE_BODY_BASE;
+    if (_.find(this.permanentJobs(), (j) => j.type() == JobReserve.TYPE)) {
+      return RESERVER_EMPLOYEE_BODY_BASE;
+    }
+    return CLAIMER_EMPLOYEE_BODY_BASE;
   }
 
   permanentJobs(): Job.Model[] {
-    const controllers = _.filter(u.map_valid(this._flags, (f) => f.room?.controller),
-      (c) => !c.upgradeBlocked && !c.my);
+    return this._jobs ?? u.map_valid(Object.keys(this._colonizationRooms), (key) => {
+      const cr = this._colonizationRooms[key];
+      if (cr.ops & OP_CLAIM) {
+        const room = cr.flag.room;
+        if (!room) {
+          return new JobClaim(cr.flag);
+        }
 
-    const jobs = _.map(controllers, (c) => new JobClaim(c));
+        const controller = room.controller!;
+        if (controller.upgradeBlocked) {
+          return new JobReserve(controller);
+        }
 
-    return jobs;
+        return new JobClaim(controller);
+      }
+      else if (cr.ops & OP_RESERVE) {
+        const room = cr.flag.room;
+        if (!room) {
+          return new JobReserve(cr.flag);
+        }
+
+        const controller = room.controller!;
+        return new JobReserve(controller);
+      }
+
+      return undefined;
+    });
   }
 
   contractJobs(employees: Worker[]): Job.Model[] {
@@ -162,8 +217,8 @@ export default class BusinessColonizing implements Business.Model {
   buildings(): BuildingWork[] {
     const work: BuildingWork[] = [];
 
-    _.each(this._flags, (f) => {
-      const room = f.room;
+    _.each(this._colonizationRooms, (cr) => {
+      const room = cr.flag.room;
       if (room && can_build_spawn(room)) {
         work.push(...spawn_building_work(room));
       }
@@ -175,7 +230,6 @@ export default class BusinessColonizing implements Business.Model {
 Business.factory.addBuilder(BusinessColonizing.TYPE, (id: string): Business.Model | undefined => {
   const frags = id.split('-');
   const room = Game.rooms[frags[2]];
-  log.debug(`${BusinessColonizing.TYPE}: room=${room}(${frags[2]}) ${frags}`)
   if (!room) {
     return undefined;
   }
