@@ -408,8 +408,12 @@ export default class BusinessEnergyMining implements Business.Model {
 
     if ((employees.length == 0) || (!mine._link && !mine._container)) {
       // When no employees, link and container, use contractors for harvesting.
-      log.debug(`${this}: adding harvest job cos ${employees.length} emps, ${mine._link} & ${mine._container}`)
       jobs.push(new JobHarvest(mine));
+
+      if (link) {
+        // When no employees, allow contractors to chuck in the link
+        jobs.push(new JobUnload(link, RESOURCE_ENERGY))
+      }
     }
 
     if (container) {
