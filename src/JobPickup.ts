@@ -149,7 +149,7 @@ export default class JobPickup implements Job.Model {
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    const space = _.sum(workers, (w: Creep): number => { return w.freeSpace(this._resource); });
+    const space = _.sum(workers, (w) => w.freeSpace(this._resource));
     return this._site.available(this._resource) < space;
   }
 

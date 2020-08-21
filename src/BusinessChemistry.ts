@@ -66,7 +66,10 @@ function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
     }
 
     const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
-      return site.getRangeTo(terminal.pos);
+      const rangeTerminal = site.getRangeTo(terminal.pos);
+      const centerPos = room.getPositionAt(24, 24);
+      const rangeCenter = centerPos ? site.getRangeTo(centerPos) : 25;
+      return rangeTerminal * rangeTerminal + rangeCenter * rangeCenter;
     });
 
     const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'dashed', stroke: 'purple' };

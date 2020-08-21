@@ -9,6 +9,8 @@ import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import JobBuild from 'JobBuild';
+import JobReserve from 'JobReserve';
+import JobSign from 'JobSign';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, CARRY, WORK, WORK, WORK, WORK, WORK, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, WORK, WORK, WORK];
@@ -206,6 +208,10 @@ export default class BusinessUpgrading implements Business.Model {
 
 
     const jobs: Job.Model[] = [];
+
+    if (controller.sign?.username !== controller.owner?.username) {
+      jobs.push(new JobSign(controller, "MINE!"));
+    }
 
     const container = controller.container();
     if (container) {

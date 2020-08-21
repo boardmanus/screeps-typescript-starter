@@ -7,6 +7,7 @@ import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import u from 'Utility';
+import BusinessExploring from 'BusinessExploring';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -76,8 +77,9 @@ function find_new_ext_building_sites(spawns: StructureSpawn[], exts: StructureEx
 
   const desiredNumExtensions = allowedNumExtensions - numExtensions;
 
-  const extensionPos: RoomPosition[] = _.take(
+  const extensionPos: RoomPosition[] = _.take(_.sortBy(
     possible_extension_sites(mainSpawn, desiredNumExtensions),
+    (cs) => cs.findPathTo(mainSpawn).length),
     desiredNumExtensions);
 
   return extensionPos;
@@ -116,33 +118,34 @@ function find_new_recycle_sites(spawns: StructureSpawn[], exts: StructureExtensi
 
 function possible_extension_sites(spawn: StructureSpawn, numExtensions: number): RoomPosition[] {
   let radius = 1;
-  let sites: RoomPosition[] = [];
-  while (sites.length < numExtensions && radius++ < 5) {
-    const viableSites = spawn.pos.surroundingPositions(radius, (site: RoomPosition) => {
-      if ((site.x % 2) != (site.y % 2)) {
-        return false;
-      }
+  const viableSites = spawn.pos.surroundingPositions(10, (site: RoomPosition) => {
+    if ((site.x % 2) != (site.y % 2)) {
+      return false;
+    }
 
-      const terrain = site.look();
-      return _.reduce(terrain, (a: boolean, t: LookAtResult): boolean => {
-        switch (t.type) {
-          case LOOK_CONSTRUCTION_SITES:
-          case LOOK_STRUCTURES:
+    const terrain = site.look();
+    return _.reduce(terrain, (a: boolean, t: LookAtResult): boolean => {
+      switch (t.type) {
+        case LOOK_CONSTRUCTION_SITES:
+        case LOOK_STRUCTURES:
+          const type = t.constructionSite?.structureType ?? t.structure?.structureType;
+          if (type != STRUCTURE_ROAD) {
             return false;
-          case LOOK_TERRAIN:
-            if (t.terrain === 'wall') return false;
-            break;
-          default:
-            break;
-        }
-        return a;
-      },
-        true);
-    });
-    sites = sites.concat(viableSites);
-  }
-  log.info(`found ${sites.length} viable extensions sites ${sites}`);
-  return sites;
+          }
+          break;
+        case LOOK_TERRAIN:
+          if (t.terrain === 'wall') return false;
+          break;
+        default:
+          break;
+      }
+      return a;
+    },
+      true);
+  });
+
+  log.info(`found ${viableSites.length} viable extensions sites ${viableSites}`);
+  return viableSites;
 }
 
 function adjacent_positions(roomName: string, step: PathStep): RoomPosition[] {
@@ -317,6 +320,8 @@ export default class BusinessCloning implements Business.Model {
     const nearlyDeadWorkers = _.filter(creeps, (c) => c.ticksToLive && c.ticksToLive < 200).length;
     const maxWorkers = 8;
     this._workerHealthRatio = (creeps.length - nearlyDeadWorkers) / maxWorkers;
+
+    const numHarvesters = _.sum(creeps, (c) => c.name.startsWith(`${BusinessExploring.TYPE}`) ? 1 : 0);
 
     const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
     log.debug(`${this}: roomHealth=${roomHealth}`)

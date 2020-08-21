@@ -116,7 +116,7 @@ export default class JobReserve implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    if (!worker.spawning && !worker.pos.inRangeTo(this._site.pos, 0)) {
+    if (!worker.spawning) {
       return [reserve_at_site(this, worker)];
     }
     return [];

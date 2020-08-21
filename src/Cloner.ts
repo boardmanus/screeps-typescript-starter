@@ -65,8 +65,8 @@ function clone_a_worker(work: CloningWork): Operation {
 }
 
 const MIN_SAFE_WORKERS = 3;
-const MAX_HEAVY_WORKERS = 0;
-const MAX_WORKERS = 0;
+const MAX_HEAVY_WORKERS = 6;
+const MAX_WORKERS = 8;
 const MAX_WORKER_ENERGY = 1500;
 
 class CloningWork implements Work {
@@ -217,15 +217,16 @@ export class Cloner implements Expert {
     const [vacantCeos, usefulCeos] = _.partition(ceos, (ceo) => ceo.needsEmployee());
     const ceosWithVacancies = _.sortBy(vacantCeos, (ceo) => -ceo.priority());
     if (ceosWithVacancies.length) {
-      log.info(`${this}: ${ceosWithVacancies.length} ceo's with vacancies`);
       const ceo = ceosWithVacancies[0];
       const employeeBody = ceo.employeeBody(availableEnergy, totalEnergy);
+      log.info(`${this}: ${ceosWithVacancies.length} ceo's with vacancies (${ceo})`);
       if (employeeBody.length > 0) {
         const req: Monarchy.CloneRequest = { home: this._room, ceo: ceo };
         return [new CloningWork(spawners[0], this.getUniqueCreepName(ceo.business), employeeBody, req)];
       }
     }
 
+    log.info(`${this}: ${this._requests.length} requests`);
     if (this._requests.length > 0) {
       log.error(`${this}: ${this._requests.length} cloning requests`);
       return _.sortBy(this._requests, (r) => -1 * (r.req?.ceo.priority() ?? 0));
@@ -243,30 +244,30 @@ export class Cloner implements Expert {
     const [upgraders, fixers] = _.partition(others3, (ceo) => ceo.business instanceof BusinessUpgrading);
 
     const numScouts = _.sum(scouts, (s) => s.employees().length);
-    const numWorkers = allCreeps.length - harvesters.length - numScouts - upgraders.length;
+    const numWorkers = allCreeps.length - numScouts;
     const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS);
     if (numWorkers >= maxWorkers) {
       log.info(`${this}: not cloning => ${numWorkers} >= ${maxWorkers} workers (t<${allCreeps.length}> - h<${harvesters.length}> - s<${numScouts}> - u<${upgraders.length}>)`)
       return [];
     }
 
-    const energyToUse = (harvesters.length < 2 && numWorkers < 2) ? availableEnergy : totalEnergy;
+    const energyToUse = ((harvesters.length < 2 || numWorkers < MIN_SAFE_WORKERS) && numWorkers < MAX_WORKERS) ? availableEnergy : totalEnergy;
     const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, energyToUse));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);
       return [];
     }
-    /*
-        const cloneTime = u.time_to_spawn(creepBody);
-        const replaceableWorkers: Creep[] = this._room.find(FIND_MY_CREEPS, {
-          filter: (c) => !c.ticksToLive || c.ticksToLive <= cloneTime
-        });
 
-        if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
-          log.debug(`${this}: got enough workers (${this._numWorkers} - ${replaceableWorkers.length} >= ${this._maxWorkers}) - not cloning`);
-          return [];
-        }
-    */
+    const cloneTime = u.time_to_spawn(creepBody);
+    const replaceableWorkers: Creep[] = this._room.find(FIND_MY_CREEPS, {
+      filter: (c) => !c.ticksToLive || c.ticksToLive <= cloneTime
+    });
+
+    if (this._numWorkers - replaceableWorkers.length >= this._maxWorkers) {
+      log.debug(`${this}: got enough workers (${this._numWorkers} - ${replaceableWorkers.length} >= ${this._maxWorkers}) - not cloning`);
+      return [];
+    }
+
     return [new CloningWork(spawners[0], this.getUniqueCreepName(), creepBody)];
   }
 }
