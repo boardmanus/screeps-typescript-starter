@@ -190,6 +190,9 @@ Creep.prototype.freeSpace = function (__?: ResourceType): number {
 Creep.prototype.capacity = function (): number {
   return this.store.getCapacity();
 }
+Creep.prototype.isEmployed = function (): boolean {
+  return (this._job ? true : false);
+}
 Creep.prototype.setJob = function (job?: Job.Model): void {
   this._job = job;
   if (job) {
@@ -199,8 +202,8 @@ Creep.prototype.setJob = function (job?: Job.Model): void {
     delete this.memory.job;
   }
 }
-Creep.prototype.isEmployed = function (): boolean {
-  return (this._job ? true : false);
+Creep.prototype.getJob = function(): Job.Model | undefined {
+  return this._job;
 }
 Creep.prototype.setLastJob = function (lastJob?: Job.Model): void {
   this._lastJob = lastJob;
@@ -211,6 +214,6 @@ Creep.prototype.setLastJob = function (lastJob?: Job.Model): void {
     delete this.memory.lastJob;
   }
 }
-Creep.prototype.getLastJob = function (): Object | undefined {
+Creep.prototype.getLastJob = function (): Job.Model | undefined {
   return this._lastJob;
 }

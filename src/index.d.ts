@@ -14,12 +14,14 @@ interface RoomObject {
 }
 
 interface Creep {
-  _job: Object | undefined;
-  _lastJob: Object | undefined;
-  setJob(job?: Object): void;
-  setLastJob(lastJob?: Object): void;
+  _worker: any;
+  _job: any;
+  _lastJob: any;
   isEmployed(): boolean;
-  getLastJob(): Object | undefined;
+  setJob(job?: any): void;
+  getJob(): any;
+  setLastJob(lastJob?: any): void;
+  getLastJob(): any;
 }
 
 interface Source {

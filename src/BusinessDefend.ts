@@ -7,11 +7,9 @@ import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import JobRecycle from 'JobRecycle';
 
-type StripMine = Mineral | Deposit;
 
 const DEFENDER_EMPLOYEE_BODY: BodyPartConstant[] = [
-  TOUGH, TOUGH, TOUGH, ATTACK, ATTACK, ATTACK, ATTACK, ATTACK, ATTACK, ATTACK,
-  MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE
+  TOUGH, TOUGH, TOUGH, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK
 ];
 
 

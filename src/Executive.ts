@@ -105,8 +105,10 @@ export default class Executive implements Work {
 
   addEmployee(creep: Creep) {
     if (!_.find(this._employees, (worker) => worker.creep.id == creep.id)) {
-      this._employees.push(new Worker(creep));
+      const worker = new Worker(creep);
+      this._employees.push(worker);
       creep.memory.business = this.business.id();
+      creep._worker = worker;
     }
   }
 

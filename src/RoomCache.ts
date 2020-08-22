@@ -12,6 +12,7 @@ export class RoomCache {
   private _ramparts: StructureRampart[] | undefined;
   private _constructionSites: ConstructionSite[] | undefined;
   private _ownedFlags: Flag[] | undefined;
+  private _creeps: Creep[] | undefined;
 
   constructor(room: Room) {
     this.room = room;
@@ -43,6 +44,18 @@ export class RoomCache {
 
   get ownedFlags(): Flag[] {
     return this._ownedFlags ?? _.filter(Game.flags, (f) => f.name.startsWith(this.room.name));
+  }
+
+  get creeps(): Creep[] {
+    return this._creeps ?? _.filter(Game.creeps, (c) => {
+      if (c.spawning) {
+        return false;
+      }
+      if (c.memory.home) {
+        return c.memory.home == this.room.name;
+      }
+      return (c.room.name === this.room.name);
+    });
   }
 }
 

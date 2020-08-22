@@ -17,7 +17,7 @@ type BuildingSpec = {
   pos: RoomPosition
 };
 
-const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY];
+const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE];
 const IDEAL_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, MOVE, CARRY, WORK, CARRY, MOVE];
 
 function find_mine_structures(mine: Source): AnyStructure[] {
