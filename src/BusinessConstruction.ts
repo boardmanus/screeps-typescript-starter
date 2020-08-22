@@ -9,6 +9,8 @@ import { log } from 'ScrupsLogger';
 import JobUnload from 'JobUnload';
 import JobDismantle from 'JobDismantle';
 import Room$ from 'RoomCache';
+import { profile } from 'Profiler/Profiler'
+
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK, MOVE, CARRY, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [WORK, MOVE, CARRY];
@@ -94,6 +96,7 @@ function worker_construction_filter(site: Structure): boolean {
 }
 
 
+@profile
 export default class BusinessConstruction implements Business.Model {
 
   static readonly TYPE: string = 'cons';

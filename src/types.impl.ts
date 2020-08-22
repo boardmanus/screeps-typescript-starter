@@ -202,7 +202,7 @@ Creep.prototype.setJob = function (job?: Job.Model): void {
     delete this.memory.job;
   }
 }
-Creep.prototype.getJob = function(): Job.Model | undefined {
+Creep.prototype.getJob = function (): Job.Model | undefined {
   return this._job;
 }
 Creep.prototype.setLastJob = function (lastJob?: Job.Model): void {

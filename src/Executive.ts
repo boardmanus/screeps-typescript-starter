@@ -5,11 +5,7 @@ import { Work } from "./Work";
 import * as Business from "Business";
 import u from "./Utility";
 import { log } from './ScrupsLogger';
-
-
-function map_valid_workers(workerMem: WorkerMemory[]): Worker[] {
-  return u.map_valid(workerMem, (worker) => Worker.fromMemory(worker));
-}
+import { profile } from 'Profiler/Profiler'
 
 function map_valid_resumes(resumes: string[]): Worker[] {
   return _.map(u.map_valid(resumes, (resume) => Game.creeps[resume]), (creep) => new Worker(creep));
@@ -34,32 +30,12 @@ function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
 }
 
 
+@profile
 export default class Executive implements Work {
 
   readonly business: Business.Model;
   private _employees: Worker[];
   private _resumes: string[];
-
-  static fromMemory(memory: ExecutiveMemory, businessMap: Business.Map): Executive | undefined {
-    const business = businessMap[memory.business] ?? Business.factory.build(memory.business);
-    if (!business) {
-      return undefined;
-    }
-
-    const employees = map_valid_workers(memory.employees);
-    const resumes = memory.resumes;
-
-    return new Executive(business, employees, resumes);
-  }
-
-  toMemory(): ExecutiveMemory {
-    const memory = <ExecutiveMemory>{
-      business: this.business.id(),
-      employees: _.map(this._employees, (worker) => worker.toMemory()),
-      resumes: this._resumes
-    };
-    return memory;
-  }
 
   constructor(business: Business.Model, employees?: Worker[], resumes?: string[]) {
     this.business = business;
@@ -108,7 +84,6 @@ export default class Executive implements Work {
       const worker = new Worker(creep);
       this._employees.push(worker);
       creep.memory.business = this.business.id();
-      creep._worker = worker;
     }
   }
 
@@ -141,8 +116,8 @@ export default class Executive implements Work {
     for (const worker of lazyWorkers) {
       const bestJob = find_best_job(worker.creep, busyWorkers, jobs);
       if (bestJob) {
-        log.info(`${this}: assigning ${bestJob} to ${worker}`);
         worker.assignJob(bestJob);
+        log.info(`${this}: assigned ${bestJob} to ${worker}`);
       }
       else {
         log.warning(`${this}: no job for ${worker.creep}! (${jobs.length} possible)`)

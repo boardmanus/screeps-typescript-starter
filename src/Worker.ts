@@ -9,44 +9,10 @@ export default class Worker implements Work {
   readonly creep: Creep;
   private _job: Job.Model | undefined;
 
-  static fromMemory(memory: WorkerMemory): Worker | undefined {
-    const worker: Creep | null = Game.getObjectById(memory.worker);
-    if (!worker) {
-      return undefined;
-    }
-
-    const job = memory.job ? Job.factory.build(memory.job) : undefined;
-    //log.debug(`${worker}: ${memory.job} => ${job}`)
-    return new Worker(worker, job);
-  }
-
-  toMemory(): WorkerMemory {
-    const memory = <WorkerMemory>{
-      worker: this.creep.id,
-      job: this._job ? this._job.id() : undefined,
-    };
-    return memory;
-  }
-
-  constructor(worker: Creep, job?: Job.Model) {
+  constructor(worker: Creep) {
     this.creep = worker;
-    this._job = job;
-
-    if (job) {
-      if (job.completion(worker) < 1.0) {
-        //log.debug(`${this}: ${job.id()} in progress by ${worker.id}`);
-        worker.setJob(job);
-      }
-      else {
-        log.debug(`${this}: ${job.id()} completed by ${worker}`);
-        this._job = undefined;
-        worker.setJob();
-        worker.setLastJob(job);
-      }
-    }
-    else {
-      worker.setJob();
-    }
+    this._job = undefined;
+    worker._worker = this;
   }
 
   id(): string {
@@ -77,8 +43,7 @@ export default class Worker implements Work {
   }
 
   assignJob(job: Job.Model) {
-    this._job = job;
-    //log.debug(`${this}: assigning job ${job}`);
     this.creep.setJob(this._job);
+    this._job = job;
   }
 }

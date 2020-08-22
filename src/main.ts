@@ -5,6 +5,7 @@ import { Operation } from "./Operation";
 import { log } from './ScrupsLogger'
 import 'types.impl';
 import * as data from "../package.json";
+import * as Profiler from "Profiler/Profiler";
 
 
 // Any code written outside the `loop()` method is executed only when the
@@ -20,6 +21,7 @@ import * as data from "../package.json";
 log.info(`Scripts bootstrapped`);
 log.info(`Revision ID: ${(<any>data).version}`);
 
+global.Profiler = Profiler.init();
 
 export const loop = ErrorMapper.wrapLoop(() => {
 

@@ -7,6 +7,7 @@ import { log } from 'ScrupsLogger';
 import u from 'Utility';
 import Room$ from 'RoomCache';
 import JobReserve from 'JobReserve';
+import { profile } from 'Profiler/Profiler'
 
 const CLAIMER_EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CLAIM];
 const RESERVER_EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CLAIM, CLAIM];
@@ -87,6 +88,7 @@ function can_build_spawn(room: Room): boolean {
 const OP_RESERVE = (1 << 0);
 const OP_CLAIM = (1 << 1);
 
+@profile
 export default class BusinessColonizing implements Business.Model {
 
   static readonly TYPE: string = 'col';

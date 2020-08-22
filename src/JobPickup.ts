@@ -156,15 +156,17 @@ export default class JobPickup implements Job.Model {
   completion(worker?: Creep): number {
 
     const available = this._site.available(this._resource);
+    log.error(`${this}: ${worker} ${this._site}-avail=${this._site.available(this._resource)}`)
     if (available == 0) {
       return 1.0;
     }
 
     if (worker) {
+      log.error(`${this}: ${worker} fs=${worker.freeSpace(this._resource)}`)
       if (worker.freeSpace(this._resource) == 0) {
         return 1.0;
       }
-      return worker.available(this._resource) / worker.capacity();
+      return worker.available() / worker.capacity();
     }
 
     return 0.0;

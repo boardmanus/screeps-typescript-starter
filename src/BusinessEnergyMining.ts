@@ -11,6 +11,7 @@ import Worker from 'Worker';
 import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
+import { profile } from 'Profiler/Profiler'
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
@@ -278,6 +279,7 @@ function update_mine(mine: Source): void {
   sourceMem.container = mine._container?.id;
 }
 
+@profile
 export default class BusinessEnergyMining implements Business.Model {
 
   static readonly TYPE: string = 'em';

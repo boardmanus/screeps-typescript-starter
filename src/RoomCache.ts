@@ -20,42 +20,63 @@ export class RoomCache {
   }
 
   get sources(): Source[] {
-    return this._sources ?? this.room.find(FIND_SOURCES);
+    if (!this._sources) {
+      this._sources = this.room.find(FIND_SOURCES);
+    }
+    return this._sources;
   }
 
   get towers(): StructureTower[] {
-    return this._towers ?? this.room.find<StructureTower>(FIND_MY_STRUCTURES,
-      { filter: (s) => s.structureType == STRUCTURE_TOWER });
+    if (!this._towers) {
+      this._towers = this.room.find<StructureTower>(FIND_MY_STRUCTURES,
+        { filter: (s) => s.structureType == STRUCTURE_TOWER });
+    }
+    return this._towers;
   }
 
   get roads(): StructureRoad[] {
-    return this._roads ?? this.room.find<StructureRoad>(FIND_STRUCTURES,
-      { filter: (s) => s.structureType == STRUCTURE_ROAD });
+    if (!this._roads) {
+      this._roads = this.room.find<StructureRoad>(FIND_STRUCTURES,
+        { filter: (s) => s.structureType == STRUCTURE_ROAD });
+    }
+    return this._roads;
   }
 
   get ramparts(): StructureRampart[] {
-    return this._ramparts ?? this.room.find<StructureRampart>(FIND_MY_STRUCTURES,
-      { filter: (s) => s.structureType == STRUCTURE_TOWER });
+    if (!this._ramparts) {
+      this._ramparts = this.room.find<StructureRampart>(FIND_MY_STRUCTURES,
+        { filter: (s) => s.structureType == STRUCTURE_TOWER });
+    }
+    return this._ramparts;
   }
 
   get constructionSites(): ConstructionSite[] {
-    return this._constructionSites ?? this.room.find(FIND_MY_CONSTRUCTION_SITES);
+    if (!this._constructionSites) {
+      this._constructionSites = this.room.find(FIND_MY_CONSTRUCTION_SITES);
+    }
+    return this._constructionSites;
   }
 
   get ownedFlags(): Flag[] {
-    return this._ownedFlags ?? _.filter(Game.flags, (f) => f.name.startsWith(this.room.name));
+    if (!this._ownedFlags) {
+      this._ownedFlags = _.filter(Game.flags, (f) => f.name.startsWith(this.room.name));
+    }
+    return this._ownedFlags;
   }
 
   get creeps(): Creep[] {
-    return this._creeps ?? _.filter(Game.creeps, (c) => {
-      if (c.spawning) {
-        return false;
-      }
-      if (c.memory.home) {
-        return c.memory.home == this.room.name;
-      }
-      return (c.room.name === this.room.name);
-    });
+    if (!this._creeps) {
+      this._creeps = _.filter(Game.creeps, (c) => {
+        if (c.spawning) {
+          return false;
+        }
+        if (c.memory.home) {
+          return c.memory.home == this.room.name;
+        }
+        return (c.room.name === this.room.name);
+      });
+    }
+    return this._creeps;
   }
 }
 

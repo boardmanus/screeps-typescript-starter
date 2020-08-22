@@ -25,21 +25,9 @@ import BusinessStripMining from "BusinessStripMining";
 import BusinessDefend from "BusinessDefend";
 import BusinessColonizing from "BusinessColonizing";
 import Room$ from "RoomCache";
+import { profile, init } from 'Profiler/Profiler';
+import Worker from "Worker";
 
-function map_valid_bosses(memory: BossMemory[], jobMap: Job.Map): Boss[] {
-  return u.map_valid(
-    memory,
-    (memory: BossMemory): Boss | undefined => {
-      const boss = Boss.fromMemory(memory, jobMap);
-      return boss;
-    });
-}
-
-function map_valid_executives(memory: ExecutiveMemory[], businessMap: Business.Map): Executive[] {
-  return u.map_valid(
-    memory,
-    (executive: ExecutiveMemory): Executive | undefined => { return Executive.fromMemory(executive, businessMap); });
-}
 
 function map_valid_to_links(linkers: (Source | StructureStorage)[], to: boolean): StructureLink[] {
   return _.filter(
@@ -90,6 +78,7 @@ class TransferWork implements Work {
 type ExecutiveMap = { [business: string]: Executive };
 type BossMap = { [job: string]: Boss };
 
+@profile
 export class Mayor implements Monarchy.Model {
 
   static readonly TYPE = 'mayor';
@@ -100,8 +89,6 @@ export class Mayor implements Monarchy.Model {
   private _architect: Architect;
   private _caretaker: Caretaker;
   private _cloner: Cloner;
-  private _jobMap: Job.Map;
-  private _businessMap: Business.Map;
   private _executives: ExecutiveMap;
   private _allBosses: BossMap;
   private _redundantBosses: Boss[];
@@ -112,7 +99,6 @@ export class Mayor implements Monarchy.Model {
   addBusiness(business: Business.Model): Executive {
     const id = business.id();
     const ceo = new Executive(business);
-    this._businessMap[id] = business;
     this._executives[id] = ceo;
     return ceo;
   }
@@ -133,8 +119,10 @@ export class Mayor implements Monarchy.Model {
     this._redundantBosses = [];
     this._lazyWorkers = [];
 
-    this._jobMap = {};
-    this._businessMap = {};
+    this.init(king, room);
+  }
+
+  init(king: Monarchy.Model, room: Room): void {
 
     const exploring = new BusinessExploring(this._room);
     this.addBusiness(exploring);
@@ -217,9 +205,19 @@ export class Mayor implements Monarchy.Model {
     return [this._room, ...this._remoteRooms];
   }
 
-  survey(): void {
+  initJobs(): void {
+    const allJobs = [
+      ..._.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
+      ...this.pickupJobs(),
+      ...this.unloadJobs(),
+      ...this._architect.schedule(),
+      ...this._cloner.schedule(),
+      ...this._caretaker.schedule()];
 
-    log.info(`${this}: surveying...`);
+    _.each(allJobs, (j) => this._allBosses[j.id()] = new Boss(j));
+  }
+
+  subSurvey(): void {
     this._architect.survey();
     this._caretaker.survey();
     this._cloner.survey();
@@ -230,58 +228,70 @@ export class Mayor implements Monarchy.Model {
       }
       ceo.survey();
     });
+  }
 
-    const allJobs: Job.Model[] = [
-      ..._.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
-      ...this.pickupJobs(),
-      ...this.unloadJobs(),
-      ...this._architect.schedule(),
-      ...this._cloner.schedule(),
-      ...this._caretaker.schedule()];
-
-    _.each(allJobs, (j) => {
-      const id = j.id();
-      this._jobMap[id] = j;
-      this._allBosses[id] = new Boss(j);
-    });
-
+  initBosses(): void {
     _.each(this._allCreeps, (c) => {
       const id = c.memory.job;
       if (!id) {
         return;
       }
       const boss = this._allBosses[id];
-      if (!boss) {
-        delete c.memory.job;
+      if (!boss || boss.job.completion(c) >= 1.0) {
+        c.setJob();
+        c.setLastJob(boss.job);
         return;
       }
+
       boss.assignWorker(c);
+      const employee = <Worker>c._worker;
+      if (employee) {
+        employee.assignJob(boss.job);
+      }
     });
+  }
 
-    log.info(`${this}: ${allJobs.length} jobs found while surveying.`);
-
+  assignSurvey(): void {
     const unemployed: Creep[] = _.filter(this._allCreeps, (worker) => !worker.isEmployed());
     const [employers, noVacancies] = _.partition(this._allBosses, (e) => e.needsWorkers());
     const lazyWorkers = this.assignWorkers(employers, unemployed);
 
     log.info(`${this}: ${employers.length} employers`);
+    log.info(`${this}: ${noVacancies.length} bosses with no vacancies`)
     log.info(`${this}: ${unemployed.length} unemployed workers`);
     log.info(`${this}: ${lazyWorkers.length} lazy workers`);
 
+    this._lazyWorkers = lazyWorkers;
+  }
+
+  bossesSurvey(): void {
     const [usefulBosses, redundantBosses] = _.partition(this._allBosses, (boss) => {
       return boss.hasWorkers() && !boss.jobComplete();
     });
+    log.info(`${this}: ${this._usefulBosses.length} bosses, ${this._redundantBosses.length} redundant`);
 
-    log.info(`${this}: ${usefulBosses.length} bosses, ${redundantBosses.length} redundant`);
     this._usefulBosses = usefulBosses;
-    this._lazyWorkers = lazyWorkers;
     this._redundantBosses = redundantBosses;
+  }
 
-    log.debug(`Top 5 bosses!`)
-    _.each(_.take(prioritize_bosses(usefulBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
-    log.debug(`Top 5 vacancies!`)
-    const employed = _.flatten(_.map(usefulBosses, (b) => b.workers()));
-    _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
+  survey(): void {
+
+    log.info(`${this}: surveying...`);
+    this.subSurvey();
+    this.initJobs();
+    this.initBosses();
+    log.info(`${this}: ${this._allBosses.length} jobs found while surveying.`);
+
+    this.assignSurvey();
+
+    this.bossesSurvey();
+    /*
+        log.debug(`Top 5 bosses!`)
+        _.each(_.take(prioritize_bosses(this._usefulBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
+        log.debug(`Top 5 vacancies!`)
+        const employed = _.flatten(_.map(this._usefulBosses, (b) => b.workers()));
+        _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
+      */
   }
 
   work(): Work[] {

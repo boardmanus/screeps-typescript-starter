@@ -6,7 +6,7 @@ import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
-
+import { profile } from 'Profiler/Profiler'
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -267,6 +267,7 @@ function update_vault(vault: StructureStorage): void {
   storageMem.link = vault._link?.id;
 }
 
+@profile
 export default class BusinessBanking implements Business.Model {
 
   static readonly TYPE: string = 'bank';

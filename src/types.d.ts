@@ -26,7 +26,7 @@ interface SpawnMemory {
   id: string;
   link: string | undefined;
 }
-
+/*
 interface BossMemory {
   job: string;
   workers: string[];
@@ -42,15 +42,13 @@ interface ExecutiveMemory {
   employees: WorkerMemory[];
   resumes: string[];
 }
-
+*/
 interface ArchitectMemory {
   roading: { [type: string]: number };
 }
 
 interface RoomMemory {
   remoteMines: SourceMemory[];
-  executives: ExecutiveMemory[];
-  bosses: BossMemory[];
   sources: SourceMemory[];
   storage: StorageMemory;
   spawns: SpawnMemory[];

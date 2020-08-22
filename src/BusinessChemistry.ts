@@ -123,6 +123,7 @@ function update_labs(labs: StructureLab[]): void {
 
 }
 
+import { profile } from 'Profiler/Profiler'
 export default class BusinessChemistry implements Business.Model {
 
   static readonly TYPE: string = 'chem';

@@ -6,6 +6,7 @@ import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import JobRecycle from 'JobRecycle';
+import { profile } from 'Profiler/Profiler'
 
 
 const DEFENDER_EMPLOYEE_BODY: BodyPartConstant[] = [
@@ -37,6 +38,7 @@ function attacker_priority(attacker: Creep): number {
   return 5;
 }
 
+@profile
 export default class BusinessDefend implements Business.Model {
 
   static readonly TYPE: string = 'def';

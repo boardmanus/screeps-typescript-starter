@@ -8,6 +8,8 @@ import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import u from 'Utility';
 import BusinessExploring from 'BusinessExploring';
+import { profile } from 'Profiler/Profiler'
+
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -298,7 +300,7 @@ function find_new_storage_sites(spawn: StructureSpawn): RoomPosition[] {
   return storagePos;
 }
 
-
+@profile
 export default class BusinessCloning implements Business.Model {
 
   static readonly TYPE: string = 'clone';
