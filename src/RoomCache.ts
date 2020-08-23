@@ -1,82 +1,55 @@
-import { throws } from "assert";
+import Cache from "Cache";
 
 
 
 export class RoomCache {
 
   readonly room: Room;
-
-  private _sources: Source[] | undefined;
-  private _towers: StructureTower[] | undefined;
-  private _roads: StructureRoad[] | undefined;
-  private _ramparts: StructureRampart[] | undefined;
-  private _constructionSites: ConstructionSite[] | undefined;
-  private _ownedFlags: Flag[] | undefined;
-  private _creeps: Creep[] | undefined;
+  private readonly _cache: Cache;
 
   constructor(room: Room) {
+    this._cache = new Cache();
     this.room = room;
     room._cache = this;
   }
 
   get sources(): Source[] {
-    if (!this._sources) {
-      this._sources = this.room.find(FIND_SOURCES);
-    }
-    return this._sources;
+    return this._cache.get('sources', () => this.room.find(FIND_SOURCES));
   }
 
   get towers(): StructureTower[] {
-    if (!this._towers) {
-      this._towers = this.room.find<StructureTower>(FIND_MY_STRUCTURES,
-        { filter: (s) => s.structureType == STRUCTURE_TOWER });
-    }
-    return this._towers;
+    return this._cache.get('towers', () => this.room.find<StructureTower>(FIND_MY_STRUCTURES,
+      { filter: (s) => s.structureType == STRUCTURE_TOWER }));
   }
 
   get roads(): StructureRoad[] {
-    if (!this._roads) {
-      this._roads = this.room.find<StructureRoad>(FIND_STRUCTURES,
-        { filter: (s) => s.structureType == STRUCTURE_ROAD });
-    }
-    return this._roads;
+    return this._cache.get('roads', () => this.room.find<StructureRoad>(FIND_STRUCTURES,
+      { filter: (s) => s.structureType == STRUCTURE_ROAD }));
   }
 
   get ramparts(): StructureRampart[] {
-    if (!this._ramparts) {
-      this._ramparts = this.room.find<StructureRampart>(FIND_MY_STRUCTURES,
-        { filter: (s) => s.structureType == STRUCTURE_TOWER });
-    }
-    return this._ramparts;
+    return this._cache.get('ramparts', () => this.room.find<StructureRampart>(FIND_STRUCTURES,
+      { filter: (s) => s.structureType == STRUCTURE_RAMPART }));
   }
 
   get constructionSites(): ConstructionSite[] {
-    if (!this._constructionSites) {
-      this._constructionSites = this.room.find(FIND_MY_CONSTRUCTION_SITES);
-    }
-    return this._constructionSites;
+    return this._cache.get('cs', () => this.room.find(FIND_MY_CONSTRUCTION_SITES));
   }
 
   get ownedFlags(): Flag[] {
-    if (!this._ownedFlags) {
-      this._ownedFlags = _.filter(Game.flags, (f) => f.name.startsWith(this.room.name));
-    }
-    return this._ownedFlags;
+    return this._cache.get('flags', () => _.filter(Game.flags, (f) => f.name.startsWith(this.room.name)));
   }
 
   get creeps(): Creep[] {
-    if (!this._creeps) {
-      this._creeps = _.filter(Game.creeps, (c) => {
-        if (c.spawning) {
-          return false;
-        }
-        if (c.memory.home) {
-          return c.memory.home == this.room.name;
-        }
-        return (c.room.name === this.room.name);
-      });
-    }
-    return this._creeps;
+    return this._cache.get('creeps', () => _.filter(Game.creeps, (c) => {
+      if (c.spawning) {
+        return false;
+      }
+      if (c.memory.home) {
+        return c.memory.home == this.room.name;
+      }
+      return (c.room.name === this.room.name);
+    }));
   }
 }
 

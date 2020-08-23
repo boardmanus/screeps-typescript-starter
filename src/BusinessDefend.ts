@@ -1,11 +1,8 @@
 import * as Business from 'Business';
 import * as Job from "Job";
 import JobAttack from 'JobAttack';
-import Worker from 'Worker';
-import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
-import JobRecycle from 'JobRecycle';
 import { profile } from 'Profiler/Profiler'
 
 
@@ -76,7 +73,7 @@ export default class BusinessDefend implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     return this._attackers.length > 0 && employees.length == 0;
     //return (employees.length < this._attackers.length);
   }
@@ -103,7 +100,7 @@ export default class BusinessDefend implements Business.Model {
     return jobs;
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     return []
   }
 

@@ -189,6 +189,11 @@ function outputProfilerData() {
   output += `${totalTicks} total ticks measured`;
   output += `\t\t\t${totalCpu.toFixed(2)} average CPU profiled per tick`;
   console.log(output);
+
+  const tt = _.sum(Reflect.ownKeys(Memory.profiler.data), (key) => {
+    return Memory.profiler.data[String(key)].time;
+  });
+  console.log(`Total time = ${tt} / ${totalTicks} = ${tt / totalTicks * 100}%`)
 }
 
 // debugging

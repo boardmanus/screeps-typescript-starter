@@ -5,7 +5,7 @@ import { log } from "./ScrupsLogger";
 import Executive from "Executive";
 import BusinessEnergyMining from "BusinessEnergyMining";
 import { Operation } from "./Operation";
-import { FunctionCache } from "./Cache";
+import Cache from "Cache";
 import u from "./Utility";
 
 const ROADING_FIND_PATH_OPTIONS: PathFinderOpts = {
@@ -15,10 +15,10 @@ const ROADING_FIND_PATH_OPTIONS: PathFinderOpts = {
   roomCallback: gen_roading_cost_matrix
 };
 
-const ROADING_MATRIX_CACHE: FunctionCache<CostMatrix> = new FunctionCache();
+const ROADING_MATRIX_CACHE: Cache = new Cache();
 
 function gen_roading_cost_matrix(roomName: string): CostMatrix {
-  return ROADING_MATRIX_CACHE.getValue(roomName, (): CostMatrix => {
+  return ROADING_MATRIX_CACHE.get(roomName, (): CostMatrix => {
     const room: Room = Game.rooms[roomName];
     const matrix = new PathFinder.CostMatrix();
 
@@ -470,9 +470,9 @@ export class Architect implements Expert {
 
     const towerPositions = _.take(allTowerPositions, allowedNumTowers - numTowers);
 
-  return _.map(towerPositions, (pos: RoomPosition): Work => {
-    log.info(`${this}: creating new tower build work at ${pos} ...`);
-    return new BuildingWork(pos, STRUCTURE_TOWER);
+    return _.map(towerPositions, (pos: RoomPosition): Work => {
+      log.info(`${this}: creating new tower build work at ${pos} ...`);
+      return new BuildingWork(pos, STRUCTURE_TOWER);
     });
   }
   /*

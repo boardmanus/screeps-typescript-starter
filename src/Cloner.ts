@@ -50,14 +50,10 @@ function clone_a_worker(work: CloningWork): Operation {
         log.info(`${work}: started to clone ${work.name}:${work.body}`);
         if (work.req) {
           log.info(`${work}: got ${work.name} resume for employee of ${work.req.ceo}`);
-          let memory: CreepMemory = Memory.creeps[work.name];
-          if (!memory) {
-            memory = <CreepMemory>{};
-            Memory.creeps[work.name] = memory;
-          }
+          let memory: CreepMemory = Memory.creeps[work.name] ?? <CreepMemory>{};
           memory.home = work.req.home.name;
           memory.business = work.req.ceo.business.id()
-          work.req.ceo.addEmployeeResume(work.name)
+          Memory.creeps[work.name] = memory;
         }
         break;
     }

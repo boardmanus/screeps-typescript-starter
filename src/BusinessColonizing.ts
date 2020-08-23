@@ -1,7 +1,6 @@
 import * as Business from 'Business';
 import * as Job from "Job";
 import JobClaim from 'JobClaim';
-import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import u from 'Utility';
@@ -149,7 +148,7 @@ export default class BusinessColonizing implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     const keys = Object.keys(this._colonizationRooms);
     if (keys.length < employees.length) {
       return false;
@@ -212,7 +211,7 @@ export default class BusinessColonizing implements Business.Model {
     });
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     return [];
   }
 

@@ -2,7 +2,6 @@ import * as Business from 'Business';
 import * as Job from "Job";
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
-import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
@@ -254,7 +253,6 @@ function update_vault(vault: StructureStorage): void {
     for (const site of sites) {
       if (site.structureType === STRUCTURE_LINK) {
         vault._link = site;
-        log.info(`${vault}: updated link to ${site}`);
       }
     }
   }
@@ -289,7 +287,8 @@ export default class BusinessBanking implements Business.Model {
   }
 
   id(): string {
-    return Business.id(BusinessBanking.TYPE, this._room.name);
+    //return Business.id(BusinessBanking.TYPE, this._room.name);
+    return `bus-bank-${this._room.name}`
   }
 
   toString(): string {
@@ -304,7 +303,7 @@ export default class BusinessBanking implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     return employees.length < Math.min(3, this._remoteRooms.length + 1);
   }
 
@@ -328,7 +327,7 @@ export default class BusinessBanking implements Business.Model {
     return [];
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     if (!this._vault) {
       return [];
     }

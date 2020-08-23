@@ -3,7 +3,6 @@ import * as Job from "Job";
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRecycle from 'JobRecycle';
-import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import u from 'Utility';
@@ -343,6 +342,8 @@ export default class BusinessCloning implements Business.Model {
     }
 
     this._unloadJobs = extJobs;
+
+    update_spawns(this._spawns);
   }
 
   id(): string {
@@ -361,12 +362,11 @@ export default class BusinessCloning implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     return employees.length == 0;
   }
 
   survey() {
-    update_spawns(this._spawns);
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
@@ -391,7 +391,7 @@ export default class BusinessCloning implements Business.Model {
     return jobs;
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
 
     const extJobs = this._unloadJobs;
 

@@ -4,7 +4,6 @@ import JobUpgrade from 'JobUpgrade';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRepair from 'JobRepair';
-import Worker from 'Worker';
 import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
@@ -160,6 +159,8 @@ export default class BusinessUpgrading implements Business.Model {
   constructor(controller: StructureController, priority: number = 5) {
     this._priority = priority;
     this._controller = controller;
+
+    update_controller(this._controller);
   }
 
   id(): string {
@@ -179,12 +180,11 @@ export default class BusinessUpgrading implements Business.Model {
     return rcl < 4;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     return employees.length == 0;
   }
 
   survey() {
-    update_controller(this._controller);
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
@@ -226,7 +226,7 @@ export default class BusinessUpgrading implements Business.Model {
     return jobs;
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     const controller: StructureController = this._controller;
     const attackers = u.find_nearby_attackers(controller);
     if (attackers.length > 0) {
@@ -238,7 +238,7 @@ export default class BusinessUpgrading implements Business.Model {
     jobs.push(new JobUpgrade(controller));
 
     const container = controller.container();
-    if (_.find(employees, (e) => !e.creep.spawning)) {
+    if (_.find(employees, (e) => !e.spawning)) {
       const er = controller.room.energyAvailable / controller.room.energyCapacityAvailable;
       if (container && container.freeSpace() > 500 && er > 0.5) {
         const urgency = container.freeSpace() / container.capacity();
@@ -247,8 +247,8 @@ export default class BusinessUpgrading implements Business.Model {
 
       if (!container) {
         _.each(employees, (e) => {
-          if (e.creep.freeSpace() >= 20) {
-            jobs.push(new JobUnload(e.creep, RESOURCE_ENERGY));
+          if (e.freeSpace() >= 20) {
+            jobs.push(new JobUnload(e, RESOURCE_ENERGY));
           }
         });
       }

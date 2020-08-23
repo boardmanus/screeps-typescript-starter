@@ -1,6 +1,5 @@
 import Room$ from "RoomCache";
 import Executive from "Executive";
-import Worker from "Worker";
 import u from "Utility";
 
 
@@ -12,8 +11,8 @@ function spawn_cost(creep: Creep): number {
   return _.sum(creep.body, (b) => BODYPART_COST[b.type]);
 }
 
-function employee_spawn_cost(employees: Worker[]): number {
-  return _.sum(employees, (e) => spawn_cost(e.creep));
+function employee_spawn_cost(employees: Creep[]): number {
+  return _.sum(employees, (e) => spawn_cost(e));
 }
 
 function spawn_expense_rate(ceos: Executive[]): number {

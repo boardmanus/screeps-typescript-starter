@@ -4,7 +4,9 @@ import { Operation } from "./Operation"
 import { log } from './ScrupsLogger'
 import * as Monarchy from 'Monarchy'
 import { RoomCache } from "RoomCache"
+import { profile } from "Profiler/Profiler"
 
+@profile
 export class King implements Monarchy.Model {
 
   static readonly TYPE = 'king';

@@ -1,13 +1,10 @@
 import * as Business from 'Business';
 import * as Job from "Job";
-import * as Monarchy from "Monarchy";
 import JobHarvest from 'JobHarvest';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRepair from 'JobRepair';
 import JobBuild from 'JobBuild';
-import JobDrop from 'JobDrop';
-import Worker from 'Worker';
 import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
@@ -290,6 +287,8 @@ export default class BusinessEnergyMining implements Business.Model {
   constructor(mine: Source, priority: number = 6) {
     this._priority = priority;
     this._mine = mine;
+
+    update_mine(this._mine);
   }
 
   id(): string {
@@ -313,12 +312,11 @@ export default class BusinessEnergyMining implements Business.Model {
     return rcl < 4;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     return (employees.length == 0) && (this._mine.available() > 0);
   }
 
   survey() {
-    update_mine(this._mine);
   }
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
@@ -395,8 +393,9 @@ export default class BusinessEnergyMining implements Business.Model {
     return jobs;
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     const mine: Source = this._mine;
+
     const attackers = u.find_nearby_attackers(mine);
     if (attackers.length > 0) {
       log.warning(`${this}: ${attackers} near mine - no contract jobs!`);
@@ -409,6 +408,7 @@ export default class BusinessEnergyMining implements Business.Model {
     const container = mine.container();
 
     if ((employees.length == 0) || (!mine._link && !mine._container)) {
+      log.error(`${this}: contracts - employees=${employees}, mine-l=${mine._link}, mine-c=${mine._container}`)
       // When no employees, link and container, use contractors for harvesting.
       jobs.push(new JobHarvest(mine));
 

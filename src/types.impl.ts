@@ -1,5 +1,6 @@
 import { log } from 'ScrupsLogger'
 import u from 'Utility';
+import * as Business from 'Business';
 import * as Job from 'Job';
 
 RoomPosition.prototype.surroundingPositions = function (radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[] {
@@ -216,4 +217,16 @@ Creep.prototype.setLastJob = function (lastJob?: Job.Model): void {
 }
 Creep.prototype.getLastJob = function (): Job.Model | undefined {
   return this._lastJob;
+}
+Creep.prototype.setBusiness = function (business?: Business.Model): void {
+  this._business = business;
+  if (business) {
+    this.memory.business = business.id();
+  }
+  else {
+    delete this.memory.business;
+  }
+}
+Creep.prototype.getBusiness = function (): Business.Model | undefined {
+  return this._business;
 }

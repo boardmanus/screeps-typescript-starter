@@ -2,7 +2,6 @@ import * as Business from 'Business';
 import * as Job from "Job";
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
-import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
@@ -107,7 +106,7 @@ export default class BusinessTrading implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     return false;
   }
 
@@ -123,7 +122,7 @@ export default class BusinessTrading implements Business.Model {
     return [];
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     if (!this._terminal) {
       return [];
     }

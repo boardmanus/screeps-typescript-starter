@@ -1,10 +1,7 @@
 import * as Business from 'Business';
 import * as Job from "Job";
 import JobHarvest from 'JobHarvest';
-import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
-import JobDrop from 'JobDrop';
-import Worker from 'Worker';
 import u from 'Utility';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
@@ -53,7 +50,7 @@ export default class BusinessStripMining implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     log.debug(`${this}: ${this._mine} has ${this._mine.available()}`)
     return ((employees.length == 0)
       && (this._mine.available() >= 900));
@@ -84,7 +81,7 @@ export default class BusinessStripMining implements Business.Model {
     return jobs;
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     const mine: StripMine = this._mine;
     const attackers = u.find_nearby_attackers(mine);
     if (attackers.length > 0) {
@@ -94,7 +91,7 @@ export default class BusinessStripMining implements Business.Model {
 
     let jobs: Job.Model[] = [];
 
-    _.each(employees, (e) => jobs.push(new JobPickup(e.creep, u.RESOURCE_ALL, pickup_priority(e.creep))));
+    _.each(employees, (e) => jobs.push(new JobPickup(e, u.RESOURCE_ALL, pickup_priority(e))));
 
     return jobs;
   }

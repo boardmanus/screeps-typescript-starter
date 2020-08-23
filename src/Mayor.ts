@@ -25,8 +25,8 @@ import BusinessStripMining from "BusinessStripMining";
 import BusinessDefend from "BusinessDefend";
 import BusinessColonizing from "BusinessColonizing";
 import Room$ from "RoomCache";
-import { profile, init } from 'Profiler/Profiler';
-import Worker from "Worker";
+import { profile } from 'Profiler/Profiler';
+import { join } from "path";
 
 
 function map_valid_to_links(linkers: (Source | StructureStorage)[], to: boolean): StructureLink[] {
@@ -91,6 +91,7 @@ export class Mayor implements Monarchy.Model {
   private _cloner: Cloner;
   private _executives: ExecutiveMap;
   private _allBosses: BossMap;
+  private _contractBosses: Boss[];
   private _redundantBosses: Boss[];
   private _usefulBosses: Boss[];
   private _allCreeps: Creep[];
@@ -115,6 +116,7 @@ export class Mayor implements Monarchy.Model {
 
     this._allCreeps = Room$(room).creeps;
 
+    this._contractBosses = [];
     this._usefulBosses = [];
     this._redundantBosses = [];
     this._lazyWorkers = [];
@@ -205,8 +207,17 @@ export class Mayor implements Monarchy.Model {
     return [this._room, ...this._remoteRooms];
   }
 
+  subSurvey(): void {
+    this._architect.survey();
+    this._caretaker.survey();
+    this._cloner.survey();
+  }
+
   initJobs(): void {
-    const allJobs = [
+    const ceoBosses = _.flatten(_.map(this._executives, (ceo) => ceo.bosses()));
+    _.each(ceoBosses, (b) => this._allBosses[b.job.id()] = b);
+
+    const contractJobs = [
       ..._.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
       ...this.pickupJobs(),
       ...this.unloadJobs(),
@@ -214,13 +225,50 @@ export class Mayor implements Monarchy.Model {
       ...this._cloner.schedule(),
       ...this._caretaker.schedule()];
 
-    _.each(allJobs, (j) => this._allBosses[j.id()] = new Boss(j));
+    _.each(contractJobs, (j) => {
+      const boss = this._allBosses[j.id()] ?? new Boss(j);
+      this._allBosses[j.id()] = boss;
+      this._contractBosses.push(boss);
+    });
+
+    log.info(`${this}: ${ceoBosses.length} ceo bosses, and ${contractJobs.length} jobs found while surveying.`);
   }
 
-  subSurvey(): void {
-    this._architect.survey();
-    this._caretaker.survey();
-    this._cloner.survey();
+  initBosses(): void {
+    _.each(this._allCreeps, (c) => {
+
+      const lastJobId = c.memory.lastJob;
+      if (lastJobId) {
+        c.setLastJob(this._allBosses[lastJobId]?.job);
+      }
+
+      const jobId = c.memory.job;
+      if (!jobId) {
+        log.warning(`${this}: no memory of job for ${c}`)
+        return;
+      }
+
+      const boss = this._allBosses[jobId];
+      if (!boss) {
+        log.error(`${this}: ${c} has no boss for ${jobId}`)
+        c.setJob();
+        return;
+      }
+
+      if (boss.job.completion(c) >= 1.0) {
+        // Clear the job from the creep
+        log.info(`${this}: ${c} just completed ${boss.job}`)
+        c.setJob();
+        c.setLastJob(boss.job);
+        return;
+      }
+
+      log.debug(`${this}: ${c} continuing ${boss.job}`)
+      boss.assignWorker(c);
+    });
+  }
+
+  assignSurvey(): void {
 
     _.each(this._executives, (ceo) => {
       if (ceo.canRequestEmployee()) {
@@ -228,37 +276,14 @@ export class Mayor implements Monarchy.Model {
       }
       ceo.survey();
     });
-  }
 
-  initBosses(): void {
-    _.each(this._allCreeps, (c) => {
-      const id = c.memory.job;
-      if (!id) {
-        return;
-      }
-      const boss = this._allBosses[id];
-      if (!boss || boss.job.completion(c) >= 1.0) {
-        c.setJob();
-        c.setLastJob(boss.job);
-        return;
-      }
-
-      boss.assignWorker(c);
-      const employee = <Worker>c._worker;
-      if (employee) {
-        employee.assignJob(boss.job);
-      }
-    });
-  }
-
-  assignSurvey(): void {
     const unemployed: Creep[] = _.filter(this._allCreeps, (worker) => !worker.isEmployed());
-    const [employers, noVacancies] = _.partition(this._allBosses, (e) => e.needsWorkers());
+    const [employers, noVacancies] = _.partition(this._contractBosses, (e) => e.needsWorkers());
     const lazyWorkers = this.assignWorkers(employers, unemployed);
 
     log.info(`${this}: ${employers.length} employers`);
     log.info(`${this}: ${noVacancies.length} bosses with no vacancies`)
-    log.info(`${this}: ${unemployed.length} unemployed workers`);
+    log.info(`${this}: ${unemployed.length} unemployed workers (${unemployed})`);
     log.info(`${this}: ${lazyWorkers.length} lazy workers`);
 
     this._lazyWorkers = lazyWorkers;
@@ -280,7 +305,6 @@ export class Mayor implements Monarchy.Model {
     this.subSurvey();
     this.initJobs();
     this.initBosses();
-    log.info(`${this}: ${this._allBosses.length} jobs found while surveying.`);
 
     this.assignSurvey();
 

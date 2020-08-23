@@ -1,17 +1,16 @@
 import * as Job from 'Job';
 import { BuildingWork } from 'Architect';
-import Worker from 'Worker';
 import Factory from 'Factory';
 
 export interface Model {
   id(): string;
   priority(): number;
   survey(): void;
-  needsEmployee(employees: Worker[]): boolean;
+  needsEmployee(employees: Creep[]): boolean;
   canRequestEmployee(): boolean;
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];
   permanentJobs(): Job.Model[];
-  contractJobs(employees: Worker[]): Job.Model[];
+  contractJobs(employees: Creep[]): Job.Model[];
   buildings(): BuildingWork[];
 }
 

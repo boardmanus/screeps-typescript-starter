@@ -1,13 +1,13 @@
-export class FunctionCache<T> {
+export default class FunctionCache {
 
-  private _values : { [ key : string ] : T };
+  private _values: { [key: string]: any };
 
   constructor() {
     this._values = {};
   }
 
-  getValue(key : string, fn : () => T) : T {
-    let value : T = this._values[key];
+  get<T>(key: string, fn: () => T): T {
+    let value: T = this._values[key];
     if (value === undefined) {
       value = fn();
       this._values[key] = value;

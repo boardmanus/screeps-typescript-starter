@@ -1,5 +1,5 @@
 import { log } from "./ScrupsLogger";
-import { FunctionCache } from "./Cache";
+import Cache from "./Cache";
 
 namespace u {
   export const RESOURCE_ALL: ResourceType = 'all';
@@ -170,9 +170,9 @@ namespace u {
 
   export type Site = Creep | Structure | Resource | Tombstone | Ruin | Source | Mineral | Deposit | ConstructionSite;
 
-  const _pathCache: FunctionCache<RoomPosition[]> = new FunctionCache();
+  const _pathCache: Cache = new Cache();
   export function get_path(from: Site, to: Site): RoomPosition[] {
-    return _pathCache.getValue(`${from.pos} - ${to.pos}`, () => {
+    return _pathCache.get(`${from.pos} - ${to.pos}`, () => {
       const room = from.room;
       if (!room || from.pos.inRangeTo(to, 1)) {
         return [];

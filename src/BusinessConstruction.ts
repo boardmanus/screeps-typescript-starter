@@ -2,7 +2,6 @@ import * as Business from 'Business';
 import * as Job from "Job";
 import JobBuild from 'JobBuild';
 import JobRepair from 'JobRepair';
-import Worker from 'Worker';
 import { BuildingWork } from 'Architect';
 import u from 'Utility';
 import { log } from 'ScrupsLogger';
@@ -169,7 +168,7 @@ export default class BusinessConstruction implements Business.Model {
     return rcl < 4;
   }
 
-  needsEmployee(employees: Worker[]): boolean {
+  needsEmployee(employees: Creep[]): boolean {
     let workRequired = _.sum(this._allConstructionSites, (cs) => cs.progressTotal - cs.progress);
     workRequired += _.sum(_.filter(_.map(this._repairJobs,
       (j) => <Structure>j.site()),
@@ -200,14 +199,14 @@ export default class BusinessConstruction implements Business.Model {
     return this._allJobs;
   }
 
-  contractJobs(employees: Worker[]): Job.Model[] {
+  contractJobs(employees: Creep[]): Job.Model[] {
     const contracts = [...this._allJobs];
 
     _.each(employees, (worker) => {
-      if (!worker.creep.spawning
-        && worker.creep.freeSpace() > 100
-        && (worker.job()?.type() === JobBuild.TYPE)) {
-        contracts.push(new JobUnload(worker.creep, RESOURCE_ENERGY));
+      if (!worker.spawning
+        && worker.freeSpace() > 100
+        && (worker.getJob()?.type() === JobBuild.TYPE)) {
+        contracts.push(new JobUnload(worker, RESOURCE_ENERGY));
       }
     });
     return contracts;

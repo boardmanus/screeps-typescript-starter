@@ -1,32 +1,27 @@
 import * as Job from "Job";
 import { Operation } from "Operation";
-import Worker from "Worker";
-import { Work } from "./Work";
+import { Work } from "Work";
+import Boss from "Boss";
 import * as Business from "Business";
-import u from "./Utility";
-import { log } from './ScrupsLogger';
+import { log } from 'ScrupsLogger';
 import { profile } from 'Profiler/Profiler'
 
-function map_valid_resumes(resumes: string[]): Worker[] {
-  return _.map(u.map_valid(resumes, (resume) => Game.creeps[resume]), (creep) => new Worker(creep));
-}
 
+function find_best_boss(creep: Creep, busyWorkers: Creep[], bosses: Boss[]): Boss | undefined {
 
-function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
-
-  const viableJobs = _.filter(jobs, (job) => job.efficiency(creep) > 0);
-  const workableJobs = _.filter(viableJobs, (job) => {
-    const workers: Creep[] = _.map(_.filter(busyWorkers, (w) => job.id() == w.job()?.id()), (w) => w.creep);
-    return !job.isSatisfied(workers);
+  const viableBosses = _.filter(bosses, (boss) => boss.job.efficiency(creep) > 0.0);
+  const workableJobs = _.filter(viableBosses, (boss) => {
+    const workers: Creep[] = _.filter(busyWorkers, (w) => boss.job.id() == w.getJob()?.id());
+    return !boss.job.isSatisfied(workers);
   });
 
-  const orderedJobs = _.sortBy(workableJobs, (job) => -job.priority([creep]) * job.efficiency(creep));
+  const orderedBosses = _.sortBy(workableJobs, (boss) => -boss.job.priority([creep]) * boss.job.efficiency(creep));
 
-  if (orderedJobs.length == 0) {
+  if (orderedBosses.length == 0) {
     return undefined;
   }
 
-  return orderedJobs[0];
+  return orderedBosses[0];
 }
 
 
@@ -34,21 +29,13 @@ function find_best_job(creep: Creep, busyWorkers: Worker[], jobs: Job.Model[]) {
 export default class Executive implements Work {
 
   readonly business: Business.Model;
-  private _employees: Worker[];
-  private _resumes: string[];
+  private readonly _bosses: Boss[];
+  private readonly _employees: Creep[];
 
-  constructor(business: Business.Model, employees?: Worker[], resumes?: string[]) {
+  constructor(business: Business.Model) {
     this.business = business;
-    this._employees = employees ?? [];
-    this._resumes = [];
-
-    if (resumes && resumes.length > 0) {
-      const newRecruits = map_valid_resumes(resumes);
-      _.each(newRecruits, (w) => {
-        this._employees.push(w);
-        w.creep.memory.business = this.business.id();
-      });
-    }
+    this._employees = [];
+    this._bosses = _.map(this.business.permanentJobs(), (j) => new Boss(j));
   }
 
   id(): string {
@@ -59,7 +46,10 @@ export default class Executive implements Work {
     return this.id();
   }
 
-  employees(): Worker[] {
+  bosses(): Boss[] {
+    return this._bosses;
+  }
+  employees(): Creep[] {
     return this._employees;
   }
 
@@ -80,15 +70,13 @@ export default class Executive implements Work {
   }
 
   addEmployee(creep: Creep) {
-    if (!_.find(this._employees, (worker) => worker.creep.id == creep.id)) {
-      const worker = new Worker(creep);
-      this._employees.push(worker);
-      creep.memory.business = this.business.id();
+    if (_.find(this._employees, (worker) => worker.id == creep.id)) {
+      log.error(`${this}: tried to add the same worker (${creep}) twice!`);
+      return;
     }
-  }
 
-  addEmployeeResume(creepName: string) {
-    this._resumes.push(creepName);
+    this._employees.push(creep);
+    creep.setBusiness(this.business);
   }
 
   priority(): number {
@@ -101,32 +89,29 @@ export default class Executive implements Work {
 
   survey(): void {
     this.business.survey();
-
-    const jobs = this.business.permanentJobs();
-    if (jobs.length == 0) {
+    if (this._bosses.length == 0) {
       return;
     }
 
-    const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.hasJob() && !worker.creep.spawning);
+    const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.getJob() && !worker.spawning);
     if (lazyWorkers.length == 0) {
       log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
       return;
     }
 
     for (const worker of lazyWorkers) {
-      const bestJob = find_best_job(worker.creep, busyWorkers, jobs);
-      if (bestJob) {
-        worker.assignJob(bestJob);
-        log.info(`${this}: assigned ${bestJob} to ${worker}`);
+      const bestBoss = find_best_boss(worker, busyWorkers, this._bosses);
+      if (bestBoss) {
+        worker.setJob(bestBoss.job);
       }
       else {
-        log.warning(`${this}: no job for ${worker.creep}! (${jobs.length} possible)`)
+        log.warning(`${this}: no job for ${worker}! (${this._bosses.length} possible)`)
       }
     }
   }
 
   work(): Operation[] {
-    const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.work()));
+    const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.getJob()?.work(worker) ?? []));
     return executiveOperations;
   }
 }
