@@ -333,7 +333,7 @@ export default class BusinessBanking implements Business.Model {
     }
 
     const vault: StructureStorage = this._vault;
-    const attackers = u.find_nearby_attackers(vault);
+    const attackers = u.find_nearby_hostiles(vault);
     if (attackers.length > 0) {
       log.warning(`${this}: ${attackers} near vault - no contract jobs!`);
       return [];

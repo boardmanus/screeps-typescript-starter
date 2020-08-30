@@ -35,7 +35,6 @@ function gen_roading_cost_matrix(roomName: string): CostMatrix {
 
 function find_roading_route(from: RoomObject, to: RoomObject): RoomPosition[] {
   const path: PathFinderPath = PathFinder.search(from.pos, { pos: to.pos, range: 1 }, ROADING_FIND_PATH_OPTIONS);
-  log.debug(`Roading route from ${from} to ${to}: ${path.path.length} sq`);
   return path.path;
 }
 
@@ -155,6 +154,10 @@ function select_road_sites(room: Room, maxSites: number, name: string, defCounte
     log.debug(`${room}: computing roads for ${name}`);
     const sites = _.take(_.filter(selector(room), (pos: RoomPosition) => {
       if (pos.x == 0 || pos.y == 0 || pos.x == 49 || pos.y == 49) {
+        return false;
+      }
+      if (!Game.rooms[pos.roomName]) {
+        log.error(`${room}: road pos ${pos} has unaccessable room`);
         return false;
       }
       const roadFound = _.find(pos.look(), look_for_road_filter);

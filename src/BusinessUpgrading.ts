@@ -200,7 +200,7 @@ export default class BusinessUpgrading implements Business.Model {
 
   permanentJobs(): Job.Model[] {
     const controller: StructureController = this._controller;
-    const attackers = u.find_nearby_attackers(controller);
+    const attackers = u.find_nearby_hostiles(controller);
     if (attackers.length > 0) {
       log.warning(`${this}: [${attackers}] near controller - no permanent jobs!`);
       return [];
@@ -228,7 +228,7 @@ export default class BusinessUpgrading implements Business.Model {
 
   contractJobs(employees: Creep[]): Job.Model[] {
     const controller: StructureController = this._controller;
-    const attackers = u.find_nearby_attackers(controller);
+    const attackers = u.find_nearby_hostiles(controller);
     if (attackers.length > 0) {
       log.warning(`${this}: ${attackers} near controller - no contract jobs!`);
       return [];
@@ -240,16 +240,19 @@ export default class BusinessUpgrading implements Business.Model {
     const container = controller.container();
     if (_.find(employees, (e) => !e.spawning)) {
       const er = controller.room.energyAvailable / controller.room.energyCapacityAvailable;
-      if (container && container.freeSpace() > 500 && er > 0.5) {
-        const urgency = container.freeSpace() / container.capacity();
-        jobs.push(new JobUnload(container, RESOURCE_ENERGY, urgency * 9));
-      }
+      if (container) {
+        if (container.freeSpace() > 500 && er > 0.5) {
+          const urgency = container.freeSpace() / container.capacity();
+          jobs.push(new JobUnload(container, RESOURCE_ENERGY, urgency * 7));
+        }
 
-      if (!container) {
+        if (container.available(u.RESOURCE_MINERALS) > 0) {
+          jobs.push(new JobPickup(container, u.RESOURCE_MINERALS));
+        }
+      }
+      else {
         _.each(employees, (e) => {
-          if (e.freeSpace() >= 20) {
-            jobs.push(new JobUnload(e, RESOURCE_ENERGY));
-          }
+          jobs.push(new JobUnload(e, RESOURCE_ENERGY));
         });
       }
     }

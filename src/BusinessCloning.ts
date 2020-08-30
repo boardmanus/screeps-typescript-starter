@@ -427,7 +427,8 @@ export default class BusinessCloning implements Business.Model {
         return new BuildingWork(pos, STRUCTURE_CONTAINER);
       });
 
-    return [...extWork, ...recycleWork];
+    const buildings = [...extWork, ...recycleWork];
+    return buildings;
   }
 }
 

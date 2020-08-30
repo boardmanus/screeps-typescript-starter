@@ -242,12 +242,12 @@ export class Cloner implements Expert {
     const numScouts = _.sum(scouts, (s) => s.employees().length);
     const numWorkers = allCreeps.length - numScouts;
     const maxWorkers = ((totalEnergy > MAX_WORKER_ENERGY) ? MAX_HEAVY_WORKERS : MAX_WORKERS);
-    if (numWorkers >= maxWorkers) {
-      log.info(`${this}: not cloning => ${numWorkers} >= ${maxWorkers} workers (t<${allCreeps.length}> - h<${harvesters.length}> - s<${numScouts}> - u<${upgraders.length}>)`)
+    if ((harvesters.length > 0 && movers.length > 0) || numWorkers >= maxWorkers) {
+      log.info(`${this}: not cloning => ${numWorkers} >= ${maxWorkers} workers (t<${allCreeps.length}> - h<${harvesters.length}> - m<${movers}>)`)
       return [];
     }
 
-    const energyToUse = ((harvesters.length < 2 || numWorkers < MIN_SAFE_WORKERS) && numWorkers < MAX_WORKERS) ? availableEnergy : totalEnergy;
+    const energyToUse = (((harvesters.length < 2 && movers.length == 0) || numWorkers < MIN_SAFE_WORKERS) && numWorkers < MAX_WORKERS) ? availableEnergy : totalEnergy;
     const creepBody = u.generate_body(EMPLOYEE_BODY_BASE, EMPLOYEE_BODY_TEMPLATE, Math.min(MAX_WORKER_ENERGY, energyToUse));
     if (creepBody.length == 0) {
       log.debug(`${this}: not enough energy (${availableEnergy}) to clone a creep`);

@@ -29,12 +29,11 @@ function unload_at_site(job: JobUnload, worker: Creep): Operation {
   return () => {
     const site = job._site;
 
-    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
-    if (lastJob && lastJob.site() === job.site() && lastJob.type() === JobPickup.TYPE) {
-      log.error(`${job}: dropping off after picking up at same site!`)
-    }
-
     Job.visualize(job, worker);
+
+    if (!worker.pos.inRangeTo(site, 1)) {
+      Job.moveTo(job, worker, 1);
+    }
 
     const resource = best_resource(worker, site, job._resource);
     let res: number = worker.transfer(site, resource);
@@ -44,7 +43,6 @@ function unload_at_site(job: JobUnload, worker: Creep): Operation {
         log.info(`${job}: ${worker} transferred ${resource} to ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        Job.moveTo(job, worker, 1);
         break;
       default:
         log.warning(`${job}: ${worker} failed to transfer ${worker.store[resource]} ${resource} to ${site} (${u.errstr(res)})`);

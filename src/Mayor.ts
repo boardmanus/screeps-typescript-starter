@@ -309,6 +309,8 @@ export class Mayor implements Monarchy.Model {
     this.assignSurvey();
 
     this.bossesSurvey();
+    log.info(`${this}: survey complete.`);
+
     /*
         log.debug(`Top 5 bosses!`)
         _.each(_.take(prioritize_bosses(this._usefulBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
@@ -325,7 +327,7 @@ export class Mayor implements Monarchy.Model {
     const bosses = this._usefulBosses;
 
     const allWork: Work[] = noWork.concat(
-      executives,
+      //executives,
       bosses,
       this._cloner.clone(executives, bosses.concat(this._redundantBosses), this._lazyWorkers, this._allCreeps),
       this._architect.design([this._room, ...this._remoteRooms], executives),
@@ -485,6 +487,8 @@ export class Mayor implements Monarchy.Model {
     //    log.info(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left - over jobs`);
     //    const [hiring, lazyMulti] = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
     //return lazyFull.concat(lazyEmpty, lazyMulti);
+    log.error(`All bosses:`);
+    _.each(bosses, (b) => log.error(`${b} => ${b.job.site()}`));
     const [hiring, lazy] = assign_workers(bosses, availableWorkers);
     return lazy;
   }
@@ -521,8 +525,8 @@ function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]
     return [bosses, workers];
   }
 
-  //log.debug(`Worker-Boss Pairings:`)
-  //_.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
+  log.error(`Worker-Boss Pairings:`)
+  _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
 
   const assignedBosses: Boss[] = [];
   const assignedWorkers: Creep[] = [];
@@ -535,8 +539,8 @@ function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]
     bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
     bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
     pairings = _.filter(pairings, (wbp: WorkerBossPairing) => { return wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker; });
-    //log.debug(`Refined Worker-Boss Pairings:`)
-    //_.each(pairings, (p) => log.debug(`r:${p.rating}, ${p.boss}, ${p.worker}`));
+    log.error(`Refined Worker-Boss Pairings:`)
+    _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
   }
   while (pairings.length);
 

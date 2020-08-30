@@ -5,6 +5,7 @@ import { log } from './ScrupsLogger'
 import * as Monarchy from 'Monarchy'
 import { RoomCache } from "RoomCache"
 import { profile } from "Profiler/Profiler"
+import { StockMarket } from "StockMarket"
 
 @profile
 export class King implements Monarchy.Model {
@@ -16,6 +17,7 @@ export class King implements Monarchy.Model {
   private _rooms: Room[];
 
   constructor() {
+    StockMarket.create();
     _.each(Game.rooms, (room) => new RoomCache(room));
     this._rooms = _.select(Game.rooms, (room: Room) => { return room.controller ? room.controller.my : false });
     let controller = (this._rooms.length) ? this._rooms[0].controller : undefined;

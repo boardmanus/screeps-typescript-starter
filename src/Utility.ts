@@ -100,7 +100,7 @@ namespace u {
     return body.length * CREEP_SPAWN_TIME;
   }
 
-  export function find_nearby_attackers(obj: RoomObject, distance: number = 5): Creep[] {
+  export function find_nearby_hostiles(obj: RoomObject, distance: number = 5): Creep[] {
     if (!obj.room) {
       return [];
     }
@@ -149,9 +149,11 @@ namespace u {
       || (s.structureType == STRUCTURE_RAMPART && (s as StructureRampart | ConstructionSite).my));
   }
 
-  export function terrain_cost(pos: RoomPosition | null): number {
-    if (!pos) {
-      return 100000;
+  export function terrain_cost(pos: RoomPosition): number {
+
+    if (!Game.rooms[pos.roomName]) {
+      // Can't get the terrain if we can't see the room
+      return 1.8;
     }
 
     const structures = pos.lookFor(LOOK_STRUCTURES);
@@ -164,7 +166,7 @@ namespace u {
       case "plain": return 2;
       case "swamp": return 10;
       default:
-      case "wall": return 1000000;
+      case "wall": return FOREVER;
     }
   }
 
@@ -188,54 +190,93 @@ namespace u {
     return worker.getActiveBodyparts(WORK) * maxEnergyPerPart;
   }
 
-  export function movement_time(weight: number, moveParts: number, path: RoomPosition[]) {
+  export function movement_time(invigoration: number, path: RoomPosition[]) {
     if (path.length == 0) {
       return 0;
     }
 
-    if (moveParts == 0) {
+    if (invigoration <= 0.0) {
       // Forever
       return FOREVER;
     }
 
     // time waiting for fatigue
     const t_f = _.sum(path, (p: RoomPosition): number => {
-      const t = terrain_cost(p);
-      const f = weight * t;
-      return (f > 0) ? Math.ceil(f / (2 * moveParts)) : 0;
+      const terrain = terrain_cost(p);
+      return Math.ceil(terrain / invigoration);
     });
 
     // total time is waiting time + traversal time
     return t_f + path.length;
   }
 
-  export function creep_movement_time(worker: Creep, site: Site): number {
+  function carry_boost(boost: ResourceConstant | undefined): number {
+    if (!boost) {
+      return 1;
+    }
+    else if (boost == RESOURCE_KEANIUM_HYDRIDE) {
+      return BOOSTS[CARRY].KH.capacity;
+    }
+    else if (boost == RESOURCE_KEANIUM_ACID) {
+      return BOOSTS[CARRY].KH2O.capacity;
+    }
+    else if (boost == RESOURCE_CATALYZED_KEANIUM_ACID) {
+      return BOOSTS[CARRY].XKH2O.capacity;
+    }
+    else {
+      return 1;
+    }
+  }
 
-    const [moveParts, carryParts] = _.reduce(
-      worker.body,
-      ([n, c], b: BodyPartDefinition): [number, number] => {
-        return [(b.type == MOVE) ? n + 1 : n, (b.type == CARRY) ? c + 1 : c];
-      },
-      [0, 0]);
+  export function creep_weight(creep: Creep) {
+    let carriedResources = creep.available();
+
+    const weight: number = _.reduce(creep.body, (w, part) => {
+      if (part.hits === 0 || part.type === MOVE) {
+        return w;
+      }
+      if (part.type === CARRY) {
+        if (carriedResources == 0) {
+          return w;
+        }
+        carriedResources -= Math.min(carriedResources, CARRY_CAPACITY * carry_boost(part.boost));
+        return w + 1;
+      }
+      return w + 1;
+    }, 0);
+
+    return weight;
+  }
+
+  // Invigoration - fatigue recovery per tick f/t
+  export function creep_invigoration(creep: Creep): number {
+    const numMoveParts = creep.getActiveBodyparts(MOVE);
+    const weight = creep_weight(creep);
+    const rate = (weight == 0) ? numMoveParts : numMoveParts / weight;
+    return 2.0 * rate;
+  }
+
+  export function creep_movement_time(worker: Creep, site: Site): number {
 
     if (worker.room.name == site.room?.name) {
       const range = worker.pos.getRangeTo(site.pos);
+      if (range == 0) {
+        return 0;
+      }
+      if (worker.getActiveBodyparts(MOVE) == 0) {
+        return FOREVER;
+      }
       if (range < 2) {
-        if (moveParts == 0 && range > 0) {
-          return FOREVER;
-        }
         return range;
       }
     }
-
-    const weight = worker.body.length - moveParts - carryParts * (worker.freeSpace() / worker.capacity());
 
     const path = get_path(worker, site);
     if (path.length == 0) {
       return 0;
     }
 
-    return movement_time(weight, moveParts, path);
+    return movement_time(creep_invigoration(worker), path);
   }
 
   export function taxi_efficiency(worker: Creep, site: Site, energy: number): number {

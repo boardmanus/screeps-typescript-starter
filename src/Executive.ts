@@ -111,7 +111,8 @@ export default class Executive implements Work {
   }
 
   work(): Operation[] {
-    const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.getJob()?.work(worker) ?? []));
-    return executiveOperations;
+    //const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.getJob()?.work(worker) ?? []));
+    //log.info(`${this}: work (${executiveOperations.length} operations)`)
+    return [];//executiveOperations;
   }
 }

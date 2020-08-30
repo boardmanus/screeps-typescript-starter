@@ -72,6 +72,7 @@ function update_terminal(terminal: StructureTerminal): void {
 
 }
 
+
 export default class BusinessTrading implements Business.Model {
 
   static readonly TYPE: string = 'trade';
@@ -129,7 +130,8 @@ export default class BusinessTrading implements Business.Model {
 
     const jobs: Job.Model[] = [];
     if (this._terminal.freeSpace() > 0) {
-      jobs.push(new JobUnload(this._terminal, u.RESOURCE_MINERALS, 2));
+      const resource = (this._terminal.available(RESOURCE_ENERGY) < 10000) ? u.RESOURCE_ALL : u.RESOURCE_MINERALS;
+      jobs.push(new JobUnload(this._terminal, resource, 2));
     }
 
     if (this._room.storage

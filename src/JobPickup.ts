@@ -7,12 +7,12 @@ import { log } from './ScrupsLogger'
 
 function withdraw_from_site(job: JobPickup, worker: Creep, site: PickupStoreSite): Operation {
   return () => {
-    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
-    if (lastJob && lastJob.site() === job.site() && lastJob.type() === JobUnload.TYPE) {
-      log.error(`${job}: picking up after dropping off at same site!`)
-    }
 
     Job.visualize(job, worker);
+
+    if (!worker.pos.inRangeTo(site, 1)) {
+      Job.moveTo(job, worker, 1);
+    }
     const resource = u.max_stored_resource(site.store, job._resource);
     const available = site.available(resource);
     const res: number = worker.withdraw(site, resource);
@@ -21,7 +21,6 @@ function withdraw_from_site(job: JobPickup, worker: Creep, site: PickupStoreSite
         log.error(`${job}: unexpected error while ${worker} tried withdrawing ${job._resource} from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
-        Job.moveTo(job, worker, 1);
         break;
       case OK:
         // Finished job.
@@ -124,7 +123,7 @@ export default class JobPickup implements Job.Model {
       return 0.0;
     }
 
-    if (u.find_nearby_attackers(this._site).length > 0) {
+    if (u.find_nearby_hostiles(this._site).length > 0) {
       return 0;
     }
 

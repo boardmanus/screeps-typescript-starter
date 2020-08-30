@@ -6,6 +6,7 @@ import { log } from './ScrupsLogger'
 import 'types.impl';
 import * as data from "../package.json";
 import * as Profiler from "Profiler/Profiler";
+import Cli from "Cli";
 
 
 // Any code written outside the `loop()` method is executed only when the
@@ -26,6 +27,7 @@ global.Profiler = Profiler.init();
 export const loop = ErrorMapper.wrapLoop(() => {
 
   log.info(` ***** TICK ${Game.time} ***** `);
+  Cli.create();
 
   for (const i in Memory.creeps) {
     if (!Game.creeps[i]) {

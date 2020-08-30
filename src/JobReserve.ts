@@ -79,7 +79,7 @@ export default class JobReserve implements Job.Model {
       return 0.0;
     }
 
-    if (u.find_nearby_attackers(this._site, 20).length > 0) {
+    if (u.find_nearby_hostiles(this._site, 20).length > 0) {
       return 0.0;
     }
 

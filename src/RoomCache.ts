@@ -40,6 +40,13 @@ export class RoomCache {
     return this._cache.get('flags', () => _.filter(Game.flags, (f) => f.name.startsWith(this.room.name)));
   }
 
+  get hostiles(): Creep[] {
+    return this._cache.get('hostiles', () => _.filter(this.room.find(FIND_HOSTILE_CREEPS), (c) => {
+      return ((c.getActiveBodyparts(ATTACK) > 0)
+        || (c.getActiveBodyparts(RANGED_ATTACK) > 0));
+    }));
+  }
+
   get creeps(): Creep[] {
     return this._cache.get('creeps', () => _.filter(Game.creeps, (c) => {
       if (c.spawning) {

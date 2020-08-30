@@ -87,11 +87,11 @@ function worker_repair_filter(site: Structure): boolean {
       break;
   }
 
-  return badHealth && u.find_nearby_attackers(site).length == 0;
+  return badHealth && u.find_nearby_hostiles(site).length == 0;
 }
 
 function worker_construction_filter(site: Structure): boolean {
-  return u.find_nearby_attackers(site).length == 0;
+  return u.find_nearby_hostiles(site).length == 0;
 }
 
 
@@ -176,7 +176,7 @@ export default class BusinessConstruction implements Business.Model {
       (s) => s.hitsMax - s.hits);
 
     let desiredEmployees = Math.min(3, Math.ceil(workRequired / WORK_PER_EMPLOYEE));
-    log.debug(`${this}: ${desiredEmployees} desired construction employees (${workRequired}/${WORK_PER_EMPLOYEE})`)
+    log.info(`${this}: Have ${employees.length} of ${desiredEmployees} desired construction employees (${workRequired}/${WORK_PER_EMPLOYEE})`)
 
     return employees.length < desiredEmployees;
   }

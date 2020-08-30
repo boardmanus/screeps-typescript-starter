@@ -3,6 +3,10 @@ interface Room {
   _cache: any | undefined;
 }
 
+interface Market {
+  _cache: any | undefined;
+}
+
 interface RoomPosition {
   surroundingPositions(radius: number, filter?: (p: RoomPosition) => boolean): RoomPosition[];
 }
@@ -72,6 +76,7 @@ declare namespace NodeJS {
   interface Global {
     log: any;
     Profiler: any;
+    cli: any;
   }
 }
 

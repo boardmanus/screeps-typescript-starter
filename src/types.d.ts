@@ -43,6 +43,8 @@ interface ExecutiveMemory {
   resumes: string[];
 }
 */
+
+
 interface ArchitectMemory {
   roading: { [type: string]: number };
 }

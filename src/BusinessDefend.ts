@@ -4,10 +4,11 @@ import JobAttack from 'JobAttack';
 import { BuildingWork } from 'Architect';
 import { log } from 'ScrupsLogger';
 import { profile } from 'Profiler/Profiler'
+import Room$ from "RoomCache";
 
 
 const DEFENDER_EMPLOYEE_BODY: BodyPartConstant[] = [
-  TOUGH, TOUGH, TOUGH, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK
+  TOUGH, TOUGH, TOUGH, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, MOVE, MOVE, MOVE, HEAL, RANGED_ATTACK
 ];
 
 
@@ -39,22 +40,29 @@ function attacker_priority(attacker: Creep): number {
 export default class BusinessDefend implements Business.Model {
 
   static readonly TYPE: string = 'def';
+  static readonly DEFEND_FLAG_PREFIX: string = 'defend';
 
   private readonly _priority: number;
   readonly _room: Room;
   readonly _remoteRooms: Room[];
   readonly _attackers: Creep[];
   readonly _recyclers: StructureSpawn[];
+  readonly _flags: Flag[];
+  private _permanentJobs: Job.Model[] | undefined;
 
   constructor(room: Room, remoteRooms: Room[], priority: number = 7) {
     this._priority = priority;
     this._room = room;
     this._remoteRooms = remoteRooms;
 
+
     this._recyclers = room.find(FIND_MY_SPAWNS, { filter: (s) => s.isActive && s.recycler() });
 
     this._attackers = room.find(FIND_HOSTILE_CREEPS);
     this._attackers.push(..._.flatten(_.map(remoteRooms, (room) => room.find(FIND_HOSTILE_CREEPS))));
+
+    const defendFlagPrefix = `${room.name}:${BusinessDefend.DEFEND_FLAG_PREFIX}:`;
+    this._flags = _.filter(Room$(room).ownedFlags, (f) => f.name.startsWith(defendFlagPrefix));
   }
 
   id(): string {
@@ -74,7 +82,8 @@ export default class BusinessDefend implements Business.Model {
   }
 
   needsEmployee(employees: Creep[]): boolean {
-    return this._attackers.length > 0 && employees.length == 0;
+
+    return (this._flags.length > 0 || this._attackers.length > 0) && employees.length == 0;
     //return (employees.length < this._attackers.length);
   }
 
@@ -87,17 +96,20 @@ export default class BusinessDefend implements Business.Model {
 
   permanentJobs(): Job.Model[] {
 
-    const jobs: Job.Model[] = [];
+    return this._permanentJobs ?? (this._permanentJobs = (() => {
+      const jobs: Job.Model[] = [];
 
-    log.debug(`${this}: ${this._room} has ${this._attackers.length} attackers!`);
+      log.debug(`${this}: ${this._room} has ${this._attackers.length} attackers!`);
 
-    _.each(this._attackers, (a) => jobs.push(new JobAttack(a, attacker_priority(a))));
-    /*
-        if (this._recyclers.length > 0) {
-          jobs.push(new JobRecycle(this._recyclers[0]));
-        }
-    */
-    return jobs;
+      _.each(this._flags, (f) => jobs.push(new JobAttack(f, 8)));
+      _.each(this._attackers, (a) => jobs.push(new JobAttack(a, attacker_priority(a))));
+      /*
+          if (this._recyclers.length > 0) {
+            jobs.push(new JobRecycle(this._recyclers[0]));
+          }
+      */
+      return jobs;
+    })());
   }
 
   contractJobs(employees: Creep[]): Job.Model[] {

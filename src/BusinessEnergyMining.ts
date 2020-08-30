@@ -348,7 +348,7 @@ export default class BusinessEnergyMining implements Business.Model {
       }
     }
     else {
-      const attackers = u.find_nearby_attackers(mine);
+      const attackers = u.find_nearby_hostiles(mine);
       if (attackers.length > 0) {
         log.warning(`${this}: [${attackers}] near mine - no permanent jobs!`);
         return [];
@@ -396,7 +396,7 @@ export default class BusinessEnergyMining implements Business.Model {
   contractJobs(employees: Creep[]): Job.Model[] {
     const mine: Source = this._mine;
 
-    const attackers = u.find_nearby_attackers(mine);
+    const attackers = u.find_nearby_hostiles(mine);
     if (attackers.length > 0) {
       log.warning(`${this}: ${attackers} near mine - no contract jobs!`);
       return [];

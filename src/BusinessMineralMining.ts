@@ -247,7 +247,7 @@ export default class BusinessMineralMining implements Business.Model {
 
   permanentJobs(): Job.Model[] {
     const mine: Mineral = this._mine;
-    const attackers = u.find_nearby_attackers(mine);
+    const attackers = u.find_nearby_hostiles(mine);
     if (attackers.length > 0) {
       log.warning(`${this}: [${attackers}] near mine - no permanent jobs!`);
       return [];
@@ -274,7 +274,7 @@ export default class BusinessMineralMining implements Business.Model {
 
   contractJobs(employees: Creep[]): Job.Model[] {
     const mine: Mineral = this._mine;
-    const attackers = u.find_nearby_attackers(mine);
+    const attackers = u.find_nearby_hostiles(mine);
     if (attackers.length > 0) {
       log.warning(`${this}: ${attackers} near mine - no contract jobs!`);
       return [];
