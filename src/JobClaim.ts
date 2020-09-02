@@ -1,10 +1,7 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-
-const TTL_NEARLY_DEAD: number = 200;
-const TTL_RECYCLE_TIME: number = 30;
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function claim_at_site(job: JobClaim, worker: Creep): Operation {
   return () => {
@@ -29,7 +26,7 @@ function claim_at_site(job: JobClaim, worker: Creep): Operation {
         log.error(`${job}: unexpected error while ${worker} tried claiming ${job._site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobClaim implements Job.Model {
@@ -39,7 +36,7 @@ export default class JobClaim implements Job.Model {
   readonly _site: StructureController | Flag;
   readonly _priority: number;
 
-  constructor(site: StructureController | Flag, priority: number = 1) {
+  constructor(site: StructureController | Flag, priority = 1) {
     this._site = site;
     this._priority = priority;
   }
@@ -64,14 +61,14 @@ export default class JobClaim implements Job.Model {
     return 'blue';
   }
 
-  priority(workers?: Creep[]): number {
+  priority(_workers?: Creep[]): number {
     return this._priority;
   }
 
   efficiency(worker: Creep): number {
     // Claimers should hold nothing
-    if (worker.available() != 0
-      || worker.getActiveBodyparts(CLAIM) == 0) {
+    if (worker.available() !== 0
+      || worker.getActiveBodyparts(CLAIM) === 0) {
       return 0.0;
     }
 
@@ -91,7 +88,7 @@ export default class JobClaim implements Job.Model {
     return workers.length > 0;
   }
 
-  completion(worker?: Creep): number {
+  completion(_worker?: Creep): number {
     // A claim is never finished.
     if (this._site instanceof Flag) {
       return 0.0;
@@ -111,11 +108,3 @@ export default class JobClaim implements Job.Model {
     return [];
   }
 }
-
-
-Job.factory.addBuilder(JobClaim.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const room = Game.rooms[frags[2]];
-  if (!room || !room.controller) return undefined;
-  return new JobClaim(room.controller);
-});

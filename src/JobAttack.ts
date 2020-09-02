@@ -1,11 +1,8 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-import Room$ from "RoomCache";
-
-const TTL_NEARLY_DEAD: number = 200;
-const TTL_RECYCLE_TIME: number = 30;
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
+import Room$ from 'RoomCache';
 
 function find_best_targets(attacker: Creep): Creep[] {
   const hostiles = u.find_nearby_hostiles(attacker, 15);
@@ -17,11 +14,13 @@ function find_best_targets(attacker: Creep): Creep[] {
 
 function attack_at_site(job: JobAttack, worker: Creep): Operation {
   return () => {
-    const site = job._site;
     const targets = find_best_targets(worker);
-    if (targets.length == 0) {
+    if (targets.length === 0) {
       Job.visualize(job, worker);
       Job.moveTo(job, worker, 0);
+      if (worker.hits < worker.hitsMax) {
+        worker.heal(worker);
+      }
       return;
     }
 
@@ -49,12 +48,12 @@ function attack_at_site(job: JobAttack, worker: Creep): Operation {
 
       // look for hostiles in attack range (sort by hits, then invigoration)
       const stabbees = _.sortBy(_.filter(zappees,
-        (t) => t.pos.getRangeTo(worker) == 1),
+        (t) => t.pos.getRangeTo(worker) === 1),
         (t) => t.hits * 100 - u.creep_invigoration(t));
       if (stabbees.length > 0) {
         target = _.first(stabbees);
-        const res = worker.attack(_.first(stabbees));
-        switch (res) {
+        const attackRes = worker.attack(_.first(stabbees));
+        switch (attackRes) {
           case OK:
             log.info(`${job}: ${worker} stabbed ${target}`);
             break;
@@ -64,10 +63,9 @@ function attack_at_site(job: JobAttack, worker: Creep): Operation {
             log.error(`${job}: ${worker} failed to stab ${target} (${u.errstr(res)})`);
             break;
         }
-      }
-      else {
-        const res = worker.heal(worker);
-        switch (res) {
+      } else {
+        const healRes = worker.heal(worker);
+        switch (healRes) {
           case OK:
             log.info(`${job}: ${worker} healed`);
             break;
@@ -79,7 +77,7 @@ function attack_at_site(job: JobAttack, worker: Creep): Operation {
         }
       }
     }
-  }
+  };
 }
 
 export default class JobAttack implements Job.Model {
@@ -89,7 +87,7 @@ export default class JobAttack implements Job.Model {
   readonly _site: Creep | Flag;
   readonly _priority: number;
 
-  constructor(site: Creep | Flag, priority: number = 7) {
+  constructor(site: Creep | Flag, priority = 7) {
     this._site = site;
     this._priority = priority;
   }
@@ -114,11 +112,11 @@ export default class JobAttack implements Job.Model {
     return 'red';
   }
 
-  priority(workers?: Creep[]): number {
+  priority(_workers?: Creep[]): number {
     return this._priority;
   }
 
-  efficiency(worker: Creep): number {
+  efficiency(_worker: Creep): number {
     // Scouts should hold nothing
     return 1.0;
   }
@@ -139,7 +137,7 @@ export default class JobAttack implements Job.Model {
         return 0.0;
       }
 
-      if (Room$(this._site.room).hostiles.length == 0) {
+      if (Room$(this._site.room).hostiles.length === 0) {
         return worker.pos.inRangeTo(this._site, 0) ? 1.0 : 0.0;
       }
     }
@@ -156,11 +154,3 @@ export default class JobAttack implements Job.Model {
     return [attack_at_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobAttack.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const creep = <Creep>Game.getObjectById(frags[2]);
-  if (!creep) return undefined;
-  return new JobAttack(creep);
-});

@@ -1,7 +1,7 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility";
-import { log } from './ScrupsLogger'
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function upgrade_site(job: JobUpgrade, worker: Creep): Operation {
   return () => {
@@ -11,12 +11,12 @@ function upgrade_site(job: JobUpgrade, worker: Creep): Operation {
     const container = site._container;
     if (container
       && !worker.pos.inRangeTo(container.pos, 0)
-      && container.pos.lookFor(LOOK_CREEPS).length == 0) {
+      && container.pos.lookFor(LOOK_CREEPS).length === 0) {
       Job.moveTo(job, worker, 0, container);
       return;
     }
 
-    let res: number = worker.upgradeController(site);
+    const res: number = worker.upgradeController(site);
     switch (res) {
       case OK:
         log.info(`${job}: ${worker} upgraded controller ${site})`);
@@ -29,7 +29,7 @@ function upgrade_site(job: JobUpgrade, worker: Creep): Operation {
         log.error(`${job}: unexpected error while ${worker} upgraded ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 const PRIORITY_BY_LEVEL: number[] = [
@@ -85,21 +85,17 @@ export default class JobUpgrade implements Job.Model {
     const downgrade = CONTROLLER_DOWNGRADE[this._site.level];
     if (this._site.ticksToDowngrade < downgrade / 5) {
       priority = this._priority + 5;
-    }
-    else if (this._site.ticksToDowngrade < downgrade / 4) {
+    } else if (this._site.ticksToDowngrade < downgrade / 4) {
       priority = this._priority + 4;
-    }
-    else if (this._site.ticksToDowngrade < downgrade / 3) {
+    } else if (this._site.ticksToDowngrade < downgrade / 3) {
       priority = this._priority + 3;
-    }
-    else if (this._site.ticksToDowngrade < downgrade / 2) {
+    } else if (this._site.ticksToDowngrade < downgrade / 2) {
       priority = this._priority + 1;
-    }
-    else {
+    } else {
       priority = this._priority;
     }
-    if (priority == undefined || priority == null) {
-      log.error(`${this}: f'd up priority!`)
+    if (priority === undefined || priority == null) {
+      log.error(`${this}: f'd up priority!`);
     }
     const epriority = priority / (workers.length + 1);
     return epriority;
@@ -107,7 +103,7 @@ export default class JobUpgrade implements Job.Model {
 
   efficiency(worker: Creep): number {
     const available = worker.available(RESOURCE_ENERGY);
-    if (available == 0) {
+    if (available === 0) {
       return 0.0;
     }
     return u.work_efficiency(worker, this._site, available, UPGRADE_CONTROLLER_POWER);
@@ -137,12 +133,3 @@ export default class JobUpgrade implements Job.Model {
     return [upgrade_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobUpgrade.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <StructureController>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  const priority = Number(frags[3]);
-  return new JobUpgrade(site);
-});

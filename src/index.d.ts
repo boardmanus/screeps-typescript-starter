@@ -1,10 +1,9 @@
-
 interface Room {
-  _cache: any | undefined;
+  cache: any | undefined;
 }
 
 interface Market {
-  _cache: any | undefined;
+  cache: any | undefined;
 }
 
 interface RoomPosition {
@@ -70,7 +69,6 @@ interface StructureLink {
   _isSink: boolean | undefined;
 }
 
-
 // add objects to `global` here
 declare namespace NodeJS {
   interface Global {
@@ -80,4 +78,4 @@ declare namespace NodeJS {
   }
 }
 
-declare const __REVISION__: string
+declare const __REVISION__: string;

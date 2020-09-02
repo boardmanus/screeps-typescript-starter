@@ -1,16 +1,15 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from "lib/logger/log";
-
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function build_site(job: JobBuild, worker: Creep) {
   return () => {
     const site = job._site;
     Job.visualize(job, worker);
-    const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
+    const dumbPos = (worker.pos.x === 0 || worker.pos.y === 0 || worker.pos.x === 49 || worker.pos.y === 49);
     if (dumbPos) {
-      const res = Job.moveTo(job, worker, 0);
+      Job.moveTo(job, worker, 0);
       return;
     }
 
@@ -20,25 +19,27 @@ function build_site(job: JobBuild, worker: Creep) {
         log.info(`${job}: ${worker} built stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
-        res = Job.moveTo(job, worker, range);
+        {
+          const range = (site.pos.roomName === worker.pos.roomName) ? 3 : 0;
+          res = Job.moveTo(job, worker, range);
+        }
         break;
       default:
         log.warning(`${job}: ${worker} failed while building at ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobBuild implements Job.Model {
 
   static readonly TYPE = 'build';
 
-  //private _state : BuildState;
+  // private _state : BuildState;
   readonly _site: ConstructionSite;
   readonly _priority: number;
 
-  constructor(site: ConstructionSite, priority: number = 5) {
+  constructor(site: ConstructionSite, priority = 5) {
 
     this._site = site;
     this._priority = priority;
@@ -85,7 +86,7 @@ export default class JobBuild implements Job.Model {
     // multiply by the ratio available.
     // This should allow fuller workers to be chosen more.
     const available = worker.available(RESOURCE_ENERGY);
-    if (available == 0) {
+    if (available === 0) {
       return 0.0;
     }
 
@@ -96,7 +97,7 @@ export default class JobBuild implements Job.Model {
 
   completion(worker?: Creep): number {
     const completion = this._site.progress / this._site.progressTotal;
-    if (!worker || completion == 1.0) {
+    if (!worker || completion === 1.0) {
       return completion;
     }
 
@@ -111,11 +112,3 @@ export default class JobBuild implements Job.Model {
     return [build_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobBuild.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <ConstructionSite>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  return new JobBuild(site);
-});

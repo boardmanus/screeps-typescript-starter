@@ -1,17 +1,11 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-
-const TTL_NEARLY_DEAD: number = 200;
-const TTL_RECYCLE_TIME: number = 30;
+import * as Job from 'Job';
+import { Operation } from './Operation';
 
 function scout_at_site(job: JobScout, worker: Creep): Operation {
   return () => {
-    const site = job._site;
     Job.visualize(job, worker);
     Job.moveTo(job, worker, 0);
-  }
+  };
 }
 
 export default class JobScout implements Job.Model {
@@ -21,7 +15,7 @@ export default class JobScout implements Job.Model {
   readonly _site: Flag;
   readonly _priority: number;
 
-  constructor(site: Flag, priority: number = 1) {
+  constructor(site: Flag, priority = 1) {
     this._site = site;
     this._priority = priority;
   }
@@ -46,13 +40,13 @@ export default class JobScout implements Job.Model {
     return 'blue';
   }
 
-  priority(workers?: Creep[]): number {
+  priority(_workers?: Creep[]): number {
     return this._priority;
   }
 
   efficiency(worker: Creep): number {
     // Scouts should hold nothing
-    if (worker.available() != 0) {
+    if (worker.available() !== 0) {
       return 0.0;
     }
     return 1.0;
@@ -67,7 +61,7 @@ export default class JobScout implements Job.Model {
     return workers.length > 0;
   }
 
-  completion(worker?: Creep): number {
+  completion(_worker?: Creep): number {
     // A scout is never finished.
     return 0.0;
   }
@@ -83,11 +77,3 @@ export default class JobScout implements Job.Model {
     return [];
   }
 }
-
-
-Job.factory.addBuilder(JobScout.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const flag = Game.flags[frags[2]];
-  if (!flag) return undefined;
-  return new JobScout(flag);
-});

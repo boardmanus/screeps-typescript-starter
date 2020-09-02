@@ -1,8 +1,7 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function site_priority(site: Structure, priority: number) {
   switch (site.structureType) {
@@ -12,25 +11,24 @@ function site_priority(site: Structure, priority: number) {
   return priority;
 }
 
-
 function repair_site(job: JobRepair, worker: Creep) {
   return () => {
     const site = job._site;
     Job.visualize(job, worker);
 
-    const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
+    const dumbPos = (worker.pos.x === 0 || worker.pos.y === 0 || worker.pos.x === 49 || worker.pos.y === 49);
     if (dumbPos) {
       Job.moveTo(job, worker, 0);
       return;
     }
 
-    let res: number = worker.repair(site);
+    const res: number = worker.repair(site);
     switch (res) {
       case OK:
         log.info(`${job}: ${worker} repaired stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE: {
-        const range = (site.pos.roomName == worker.pos.roomName) ? 3 : 0;
+        const range = (site.pos.roomName === worker.pos.roomName) ? 3 : 0;
         Job.moveTo(job, worker, range);
         break;
       }
@@ -38,7 +36,7 @@ function repair_site(job: JobRepair, worker: Creep) {
         log.error(`${job}: ${worker} failed while repairing at ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobRepair implements Job.Model {
@@ -90,36 +88,36 @@ export default class JobRepair implements Job.Model {
 
     const maxHits = u.desired_hits(this._site);
     const available = worker.available(RESOURCE_ENERGY);
-    if (available == 0 || this._site.hits >= 0.95 * maxHits) {
+    if (available === 0 || this._site.hits >= 0.95 * maxHits) {
       return 0.0;
     }
 
     const workTime = u.creep_work_time(worker, available, REPAIR_POWER);
-    if (workTime == u.FOREVER) {
+    if (workTime === u.FOREVER) {
       return 0.0;
     }
 
     const travelTime = u.creep_movement_time(worker, this._site);
-    if (travelTime == u.FOREVER) {
+    if (travelTime === u.FOREVER) {
       return 0.0;
     }
 
     // If it's going to longer to travel, as it is to work, then don't do it.
-    //if (workTime * 5.0 < travelTime) {
+    // if (workTime * 5.0 < travelTime) {
     //  return 0.0;
-    //}
+    // }
 
     // Make sure a decent amount of energy is available.
     const capacity = worker.capacity();
     const ratio = available / capacity;
 
     // Favor workers with more energy...
-    return ratio * available / (workTime + travelTime);
+    return (ratio * available) / (workTime + travelTime);
   }
 
   isSatisfied(workers: Creep[]): boolean {
     const maxHits = u.desired_hits(this._site);
-    const energy = _.sum(workers, (w: Creep): number => { return w.available(RESOURCE_ENERGY); });
+    const energy = _.sum(workers, (w: Creep): number => w.available(RESOURCE_ENERGY));
     const damage = maxHits - this._site.hits;
     return (energy * REPAIR_POWER > damage);
   }
@@ -136,7 +134,7 @@ export default class JobRepair implements Job.Model {
     }
 
     const available = worker.available(RESOURCE_ENERGY);
-    if (available == 0) {
+    if (available === 0) {
       return 1.0;
     }
 
@@ -151,12 +149,3 @@ export default class JobRepair implements Job.Model {
     return [repair_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobRepair.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <Structure>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  const priority = Number(frags[3]);
-  return new JobRepair(site);
-});

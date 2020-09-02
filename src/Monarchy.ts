@@ -1,11 +1,9 @@
-import * as Business from "Business";
-import Executive from "Executive";
-
+import Executive from 'Executive';
 
 export type CloneRequest = {
   home: Room;
   ceo: Executive;
-}
+};
 
 export interface Model {
   id(): string;
@@ -14,4 +12,3 @@ export interface Model {
   parent(): Model | undefined;
   cloneRequest(request: CloneRequest): boolean;
 }
-

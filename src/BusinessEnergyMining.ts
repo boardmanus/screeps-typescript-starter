@@ -1,18 +1,18 @@
 import * as Business from 'Business';
-import * as Job from "Job";
+import * as Job from 'Job';
 import JobHarvest from 'JobHarvest';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
 import JobRepair from 'JobRepair';
 import JobBuild from 'JobBuild';
-import u from 'Utility';
-import { BuildingWork } from 'Architect';
-import { log } from 'ScrupsLogger';
-import { profile } from 'Profiler/Profiler'
+import * as u from 'Utility';
+import WorkBuilding from 'WorkBuilding';
+import log from 'ScrupsLogger';
+import { profile } from 'Profiler/Profiler';
 
 type BuildingSpec = {
   structure: BuildableStructureConstant;
-  pos: RoomPosition
+  pos: RoomPosition;
 };
 
 const MIN_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE];
@@ -20,25 +20,21 @@ const IDEAL_EMPLOYEE_BODY: BodyPartConstant[] = [WORK, WORK, WORK, WORK, WORK, M
 
 function find_mine_structures(mine: Source): AnyStructure[] {
   return mine.room?.find(FIND_STRUCTURES, {
-    filter: (s: Structure) => {
-      return ((s.structureType == STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1)
-        || (s.structureType == STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2));
-    }
+    filter: (s: Structure) => ((s.structureType === STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1))
+      || ((s.structureType === STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2))
   });
 }
 
 function find_mine_construction(mine: Source): ConstructionSite[] {
   return mine.room?.find(FIND_CONSTRUCTION_SITES, {
-    filter: (s: ConstructionSite) => {
-      return ((s.structureType == STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1)
-        || (s.structureType == STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2));
-    }
+    filter: (s: ConstructionSite) => (((s.structureType === STRUCTURE_CONTAINER) && mine.pos.inRangeTo(s.pos, 1))
+      || ((s.structureType === STRUCTURE_LINK) && mine.pos.inRangeTo(s.pos, 2)))
   });
 }
 
 function can_build_container(source: Source): boolean {
 
-  const controller = source.room.controller;
+  const { controller } = source.room;
   if (!controller) {
     return false;
   }
@@ -50,13 +46,13 @@ function can_build_container(source: Source): boolean {
 
   const numContainers = u.find_num_building_sites(source.room, STRUCTURE_CONTAINER);
   const allowedNumContainers = CONTROLLER_STRUCTURES.container[rcl];
-  log.debug(`${source}: can_build_container: ${numContainers} around, ${allowedNumContainers} allowed`)
+  log.debug(`${source}: can_build_container: ${numContainers} around, ${allowedNumContainers} allowed`);
 
   return ((allowedNumContainers - numContainers) > 0);
 }
 
 function can_build_link(source: Source): boolean {
-  if (!source._container) {
+  if (!source.container) {
     // Must have a container before a link can be built.
     return false;
   }
@@ -69,18 +65,18 @@ function can_build_link(source: Source): boolean {
   }
 
   // Link to take energy must already be established.
-  const haveSinkLink = _.find(links, (l: StructureLink) => l._isSink) ? true : false;
+  const haveSinkLink = !!_.find(links, (l: StructureLink) => l._isSink);
   return haveSinkLink;
 }
 
 function possible_container_sites(source: Source): RoomPosition[] {
-  let haveContainer: boolean = false;
+  let haveContainer = false;
   const viableSites = source.pos.surroundingPositions(1, (site: RoomPosition): boolean => {
     if (haveContainer) {
       return false;
     }
     const terrain = site.look();
-    for (const t of terrain) {
+    return _.all(terrain, (t) => {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
           if (t.constructionSite) {
@@ -110,15 +106,15 @@ function possible_container_sites(source: Source): RoomPosition[] {
           }
           break;
         case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
+          if (t.terrain === 'wall') {
             return false;
           }
           break;
         default:
           break;
       }
-    }
-    return true;
+      return true;
+    });
   });
 
   if (haveContainer) {
@@ -132,7 +128,7 @@ function possible_container_sites(source: Source): RoomPosition[] {
 function best_container_site(source: Source): RoomPosition {
   const sites = possible_container_sites(source);
 
-  const room = source.room;
+  const { room } = source;
   const sortedSites = _.sortBy(sites, (site: RoomPosition) => {
     const emptyPositions = u.find_empty_surrounding_positions(site);
     let val = -emptyPositions.length;
@@ -148,9 +144,9 @@ function best_container_site(source: Source): RoomPosition {
 }
 
 function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
-  let haveLink: boolean = false;
-  log.debug(`${linkNeighbour}: looking for link positions around`)
-  const room = linkNeighbour.room;
+  let haveLink = false;
+  log.debug(`${linkNeighbour}: looking for link positions around`);
+  const { room } = linkNeighbour;
   if (!room) {
     return [];
   }
@@ -159,7 +155,7 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
       return false;
     }
     const terrain = site.look();
-    for (const t of terrain) {
+    return _.all(terrain, (t) => {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
           switch (t.constructionSite!.structureType) {
@@ -184,18 +180,18 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
           }
           break;
         case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
+          if (t.terrain === 'wall') {
             return false;
           }
           break;
         default:
           break;
       }
-    }
-    return true;
+      return true;
+    });
   });
 
-  log.debug(`${linkNeighbour}: ${viableSites.length} viable sites (haveLink=${haveLink})`)
+  log.debug(`${linkNeighbour}: ${viableSites.length} viable sites (haveLink=${haveLink})`);
 
   if (haveLink) {
     return [];
@@ -204,7 +200,7 @@ function possible_link_sites(linkNeighbour: RoomObject): RoomPosition[] {
   log.info(`found ${viableSites.length} viable link sites for ${linkNeighbour}`);
   const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
     const emptyPositions = u.find_empty_surrounding_positions(site);
-    let val = -emptyPositions.length;
+    const val = -emptyPositions.length;
     return val;
   });
 
@@ -221,17 +217,17 @@ function pickup_priority(container: StructureContainer): number {
   return fullness * 9;
 }
 
-function container_building_work(source: Source): BuildingWork | undefined {
-  const bestSite = best_container_site(source)
-  log.debug(`${source}: best_container_site=${bestSite}`)
+function container_building_work(source: Source): WorkBuilding | undefined {
+  const bestSite = best_container_site(source);
+  log.debug(`${source}: best_container_site=${bestSite}`);
   if (!bestSite) {
     return undefined;
   }
-  return new BuildingWork(bestSite, STRUCTURE_CONTAINER)
+  return new WorkBuilding(bestSite, STRUCTURE_CONTAINER);
 }
 
-function link_building_work(source: Source): BuildingWork {
-  return new BuildingWork(best_link_pos(source), STRUCTURE_LINK)
+function link_building_work(source: Source): WorkBuilding {
+  return new WorkBuilding(best_link_pos(source), STRUCTURE_LINK);
 }
 
 function update_mine(mine: Source): void {
@@ -243,7 +239,7 @@ function update_mine(mine: Source): void {
   const allSourceMem: SourceMemory[] = mine.room.memory.sources ?? [];
   let sourceMem = _.find(allSourceMem, (sm) => sm.id === mine.id);
   if (!sourceMem) {
-    sourceMem = <SourceMemory>{ id: mine.id, container: undefined, link: undefined };
+    sourceMem = { id: mine.id, container: undefined, link: undefined };
     allSourceMem.push(sourceMem);
   }
 
@@ -254,17 +250,16 @@ function update_mine(mine: Source): void {
     mine._container = Game.getObjectById<StructureContainer>(sourceMem.container) ?? undefined;
   }
 
-  if (!mine._container || !mine._link) {
+  if (!mine.container || !mine._link) {
     const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
     sites.push(...find_mine_construction(mine));
-    for (const site of sites) {
+    _.each(sites, (site) => {
       if (!mine._link && site.structureType === STRUCTURE_LINK) {
         mine._link = site;
-      }
-      else if (!mine._container && (site.structureType === STRUCTURE_CONTAINER)) {
+      } else if (!mine.container && (site.structureType === STRUCTURE_CONTAINER)) {
         mine._container = site;
       }
-    }
+    });
   }
 
   if (mine._link instanceof StructureLink) {
@@ -284,7 +279,7 @@ export default class BusinessEnergyMining implements Business.Model {
   private readonly _priority: number;
   readonly _mine: Source;
 
-  constructor(mine: Source, priority: number = 6) {
+  constructor(mine: Source, priority = 6) {
     this._priority = priority;
     this._mine = mine;
 
@@ -304,7 +299,7 @@ export default class BusinessEnergyMining implements Business.Model {
   }
 
   canRequestEmployee(): boolean {
-    const controller = this._mine.room.controller;
+    const { controller } = this._mine.room;
     if (!controller || !controller.my) {
       return false;
     }
@@ -313,7 +308,7 @@ export default class BusinessEnergyMining implements Business.Model {
   }
 
   needsEmployee(employees: Creep[]): boolean {
-    return (employees.length == 0) && (this._mine.available() > 0);
+    return (employees.length === 0) && (this._mine.available() > 0);
   }
 
   survey() {
@@ -321,22 +316,22 @@ export default class BusinessEnergyMining implements Business.Model {
 
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
 
-    log.debug(`${this}: employeeBody(${availEnergy}, ${maxEnergy})`)
+    log.debug(`${this}: employeeBody(${availEnergy}, ${maxEnergy})`);
     const minCost = _.sum(MIN_EMPLOYEE_BODY, (part: BodyPartConstant) => BODYPART_COST[part]);
     if (availEnergy < minCost) {
-      log.debug(`${this}: employeeBody: minCost=${minCost}`)
+      log.debug(`${this}: employeeBody: minCost=${minCost}`);
       return [];
     }
 
     const idealCost = _.sum(IDEAL_EMPLOYEE_BODY, (part: BodyPartConstant) => BODYPART_COST[part]);
     if (availEnergy >= idealCost) {
-      log.debug(`${this}: employeeBody: idealCost=${idealCost} ${IDEAL_EMPLOYEE_BODY}`)
+      log.debug(`${this}: employeeBody: idealCost=${idealCost} ${IDEAL_EMPLOYEE_BODY}`);
       return IDEAL_EMPLOYEE_BODY;
     }
-    else if (idealCost <= maxEnergy) {
+    if (idealCost <= maxEnergy) {
       return [];
     }
-    log.debug(`${this}: employeeBody: minCost=${minCost} ${MIN_EMPLOYEE_BODY}`)
+    log.debug(`${this}: employeeBody: minCost=${minCost} ${MIN_EMPLOYEE_BODY}`);
     return MIN_EMPLOYEE_BODY;
   }
 
@@ -346,8 +341,7 @@ export default class BusinessEnergyMining implements Business.Model {
       if (mine.room.find(FIND_HOSTILE_CREEPS).length > 0) {
         return [];
       }
-    }
-    else {
+    } else {
       const attackers = u.find_nearby_hostiles(mine);
       if (attackers.length > 0) {
         log.warning(`${this}: [${attackers}] near mine - no permanent jobs!`);
@@ -358,7 +352,7 @@ export default class BusinessEnergyMining implements Business.Model {
     const jobs: Job.Model[] = [];
     const link = mine.link();
     const container = mine.container();
-    if (mine.available(RESOURCE_ENERGY) > 0 && (mine._link || mine._container)) {
+    if (mine.available(RESOURCE_ENERGY) > 0 && (mine._link || mine.container)) {
       jobs.push(new JobHarvest(mine, this._priority));
 
       if (this._mine.room.storage) {
@@ -371,7 +365,7 @@ export default class BusinessEnergyMining implements Business.Model {
 
       if (container) {
         jobs.push(new JobUnload(container, u.RESOURCE_ALL, this._priority - 2));
-        //jobs.push(new JobDrop(container, this._priority - 3));
+        // jobs.push(new JobDrop(container, this._priority - 3));
       }
     }
 
@@ -383,11 +377,13 @@ export default class BusinessEnergyMining implements Business.Model {
 
     // Get employees to build their own structures
     if (mine._link && !link) {
-      jobs.push(new JobBuild(<ConstructionSite>mine._link, this._priority));
+      const construction = mine._link as ConstructionSite;
+      jobs.push(new JobBuild(construction, this._priority));
     }
 
-    if (mine._container && !container) {
-      jobs.push(new JobBuild(<ConstructionSite>mine._container, this._priority));
+    if (mine.container && !container) {
+      const construction = mine._container as ConstructionSite;
+      jobs.push(new JobBuild(construction, this._priority));
     }
 
     return jobs;
@@ -402,19 +398,19 @@ export default class BusinessEnergyMining implements Business.Model {
       return [];
     }
 
-    let jobs: Job.Model[] = [];
+    const jobs: Job.Model[] = [];
 
     const link = mine.link();
     const container = mine.container();
 
-    if ((employees.length == 0) || (!mine._link && !mine._container)) {
-      log.error(`${this}: contracts - employees=${employees}, mine-l=${mine._link}, mine-c=${mine._container}`)
+    if ((employees.length === 0) || (!mine._link && !mine.container)) {
+      log.error(`${this}: contracts - employees=${employees}, mine-l=${mine._link}, mine-c=${mine._container}`);
       // When no employees, link and container, use contractors for harvesting.
       jobs.push(new JobHarvest(mine));
 
       if (link) {
         // When no employees, allow contractors to chuck in the link
-        jobs.push(new JobUnload(link, RESOURCE_ENERGY))
+        jobs.push(new JobUnload(link, RESOURCE_ENERGY));
       }
     }
 
@@ -429,11 +425,11 @@ export default class BusinessEnergyMining implements Business.Model {
     return jobs;
   }
 
-  buildings(): BuildingWork[] {
+  buildings(): WorkBuilding[] {
     const mine: Source = this._mine;
-    const work: BuildingWork[] = [];
+    const work: WorkBuilding[] = [];
 
-    if (!mine._container && can_build_container(mine)) {
+    if (!mine.container && can_build_container(mine)) {
       const buildingWork = container_building_work(mine);
       if (buildingWork) {
         work.push(buildingWork);
@@ -450,14 +446,3 @@ export default class BusinessEnergyMining implements Business.Model {
     return work;
   }
 }
-
-Business.factory.addBuilder(BusinessEnergyMining.TYPE, (id: string): Business.Model | undefined => {
-  const frags = id.split('-');
-  const mine = <Source>Game.getObjectById(frags[2]);
-  if (!mine) {
-    return undefined;
-  }
-  return new BusinessEnergyMining(mine);
-});
-
-

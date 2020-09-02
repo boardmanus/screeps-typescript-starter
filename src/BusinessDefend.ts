@@ -1,27 +1,26 @@
 import * as Business from 'Business';
-import * as Job from "Job";
+import * as Job from 'Job';
 import JobAttack from 'JobAttack';
-import { BuildingWork } from 'Architect';
-import { log } from 'ScrupsLogger';
-import { profile } from 'Profiler/Profiler'
-import Room$ from "RoomCache";
-
+import WorkBuilding from 'WorkBuilding';
+import log from 'ScrupsLogger';
+import { profile } from 'Profiler/Profiler';
+import Room$ from 'RoomCache';
 
 const DEFENDER_EMPLOYEE_BODY: BodyPartConstant[] = [
-  TOUGH, TOUGH, TOUGH, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, MOVE, MOVE, MOVE, HEAL, RANGED_ATTACK
+  TOUGH, TOUGH, TOUGH, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, ATTACK, MOVE, MOVE, MOVE, MOVE, MOVE, HEAL, RANGED_ATTACK
 ];
 
-
+/*
 function tower_power(tower: StructureTower, site: RoomObject, max: number): number {
   const d = tower.pos.getRangeTo(site);
   if (d <= TOWER_OPTIMAL_RANGE) {
     return max;
   }
-  else if (d >= TOWER_FALLOFF_RANGE) {
+  if (d >= TOWER_FALLOFF_RANGE) {
     return max / 4;
   }
 
-  return max / 4 + (3 * max / 4) * (TOWER_FALLOFF_RANGE - d) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE);
+  return max / 4 + (((3 * max) / 4) * (TOWER_FALLOFF_RANGE - d)) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE);
 }
 
 function attack_power(tower: StructureTower, site: Creep): number {
@@ -31,8 +30,9 @@ function attack_power(tower: StructureTower, site: Creep): number {
 function repair_power(tower: StructureTower, site: Structure): number {
   return tower_power(tower, site, TOWER_POWER_REPAIR);
 }
+*/
 
-function attacker_priority(attacker: Creep): number {
+function attacker_priority(_attacker: Creep): number {
   return 5;
 }
 
@@ -50,19 +50,18 @@ export default class BusinessDefend implements Business.Model {
   readonly _flags: Flag[];
   private _permanentJobs: Job.Model[] | undefined;
 
-  constructor(room: Room, remoteRooms: Room[], priority: number = 7) {
+  constructor(homeRoom: Room, remoteRooms: Room[], priority = 7) {
     this._priority = priority;
-    this._room = room;
+    this._room = homeRoom;
     this._remoteRooms = remoteRooms;
 
+    this._recyclers = homeRoom.find(FIND_MY_SPAWNS, { filter: (s) => s.isActive && s.recycler() });
 
-    this._recyclers = room.find(FIND_MY_SPAWNS, { filter: (s) => s.isActive && s.recycler() });
-
-    this._attackers = room.find(FIND_HOSTILE_CREEPS);
+    this._attackers = homeRoom.find(FIND_HOSTILE_CREEPS);
     this._attackers.push(..._.flatten(_.map(remoteRooms, (room) => room.find(FIND_HOSTILE_CREEPS))));
 
-    const defendFlagPrefix = `${room.name}:${BusinessDefend.DEFEND_FLAG_PREFIX}:`;
-    this._flags = _.filter(Room$(room).ownedFlags, (f) => f.name.startsWith(defendFlagPrefix));
+    const defendFlagPrefix = `${homeRoom.name}:${BusinessDefend.DEFEND_FLAG_PREFIX}:`;
+    this._flags = _.filter(Room$(homeRoom).ownedFlags, (f) => f.name.startsWith(defendFlagPrefix));
   }
 
   id(): string {
@@ -83,20 +82,19 @@ export default class BusinessDefend implements Business.Model {
 
   needsEmployee(employees: Creep[]): boolean {
 
-    return (this._flags.length > 0 || this._attackers.length > 0) && employees.length == 0;
-    //return (employees.length < this._attackers.length);
+    return (this._flags.length > 0 || this._attackers.length > 0) && employees.length === 0;
+    // return (employees.length < this._attackers.length);
   }
 
   survey() {
   }
 
-  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
+  employeeBody(_availEnergy: number, _maxEnergy: number): BodyPartConstant[] {
     return DEFENDER_EMPLOYEE_BODY;
   }
 
   permanentJobs(): Job.Model[] {
-
-    return this._permanentJobs ?? (this._permanentJobs = (() => {
+    const pjobs = this._permanentJobs ?? (this._permanentJobs = (() => {
       const jobs: Job.Model[] = [];
 
       log.debug(`${this}: ${this._room} has ${this._attackers.length} attackers!`);
@@ -110,24 +108,15 @@ export default class BusinessDefend implements Business.Model {
       */
       return jobs;
     })());
+
+    return pjobs;
   }
 
-  contractJobs(employees: Creep[]): Job.Model[] {
-    return []
+  contractJobs(_employees: Creep[]): Job.Model[] {
+    return [];
   }
 
-  buildings(): BuildingWork[] {
-    return []
+  buildings(): WorkBuilding[] {
+    return [];
   }
 }
-
-Business.factory.addBuilder(BusinessDefend.TYPE, (id: string): Business.Model | undefined => {
-  const frags = id.split('-');
-  const room = <Room>Game.rooms[frags[2]];
-  if (!room) {
-    return undefined;
-  }
-  return new BusinessDefend(room, []);
-});
-
-

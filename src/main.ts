@@ -1,13 +1,11 @@
-
-import { ErrorMapper } from "utils/ErrorMapper";
-import { King } from "./King";
-import { Operation } from "./Operation";
-import { log } from './ScrupsLogger'
+import ErrorMapper from 'utils/ErrorMapper';
+import King from 'King';
+import { Operation } from 'Operation';
+import log from 'ScrupsLogger';
 import 'types.impl';
-import * as data from "../package.json";
-import * as Profiler from "Profiler/Profiler";
-import Cli from "Cli";
-
+import * as Profiler from 'Profiler/Profiler';
+import Cli from 'Cli';
+import * as data from '../package.json';
 
 // Any code written outside the `loop()` method is executed only when the
 // Screeps system reloads your script.
@@ -19,29 +17,29 @@ import Cli from "Cli";
 // by setting USE_PROFILER through webpack, if you want to permanently
 // remove it on deploy
 // Start the profiler
-log.info(`Scripts bootstrapped`);
-log.info(`Revision ID: ${(<any>data).version}`);
+log.info('Scripts bootstrapped');
+log.info(`Revision ID: ${data.version}`);
 
 global.Profiler = Profiler.init();
 
-export const loop = ErrorMapper.wrapLoop(() => {
+const loop = ErrorMapper.wrapLoop(() => {
 
   log.info(` ***** TICK ${Game.time} ***** `);
   Cli.create();
 
-  for (const i in Memory.creeps) {
-    if (!Game.creeps[i]) {
-      delete Memory.creeps[i];
+  _.each(Memory.creeps, (_creep, name) => {
+    if (name && !Game.creeps[name]) {
+      delete Memory.creeps[name];
     }
-  }
+  });
 
-  for (const i in Memory.rooms) {
-    if (!Game.rooms[i]) {
-      delete Memory.rooms[i];
+  _.each(Memory.rooms, (_room, name) => {
+    if (name && !Game.rooms[name]) {
+      delete Memory.rooms[name];
     }
-  }
+  });
 
-  let king = new King();
+  const king = new King();
 
   const operations = king.rule();
 
@@ -51,9 +49,10 @@ export const loop = ErrorMapper.wrapLoop(() => {
   _.each(operations, (op: Operation): void => {
     try {
       op();
-    }
-    catch (e) {
-      log.error(`${op}: ${e}`)
+    } catch (e) {
+      log.error(`${op}: ${e}`);
     }
   });
 });
+
+export { loop as default };

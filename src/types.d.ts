@@ -1,6 +1,7 @@
+/* eslint-disable max-len */
 // memory extension samples
 interface CreepMemory {
-  _move: { path: string };
+  move: { path: string };
   lastPosition: RoomPosition | undefined;
   stuckCount: number | undefined;
   stalledCount: number | undefined;
@@ -44,7 +45,6 @@ interface ExecutiveMemory {
 }
 */
 
-
 interface ArchitectMemory {
   roading: { [type: string]: number };
 }
@@ -74,14 +74,13 @@ interface Memory {
   log: any;
 }
 
-
-type UnloadSite = Creep | StructureTerminal | StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower;
+type UnloadSite = (Creep | StructureTerminal | StructureExtension | StructureSpawn | StructureStorage | StructureContainer | StructureLink | StructureTower);
 type PickupSite = Creep | Resource | Tombstone | Ruin | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 type PickupStoreSite = Tombstone | Ruin | StructureStorage | StructureContainer | StructureStorage | StructureLink | StructureExtension | StructureSpawn;
 
-////declare const RESOURCE_ALL: ResourceType;
-//declare const RESOURCE_MINERALS: ResourceType;
-//type RESOURCE_ALL = 'all';
-//type RESOURCE_MINERALS = 'minerals';
+// declare const RESOURCE_ALL: ResourceType;
+// declare const RESOURCE_MINERALS: ResourceType;
+// type RESOURCE_ALL = 'all';
+// type RESOURCE_MINERALS = 'minerals';
 
 type ResourceType = ResourceConstant | 'all' | 'minerals';

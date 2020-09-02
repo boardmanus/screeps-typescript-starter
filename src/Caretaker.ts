@@ -1,13 +1,12 @@
-import { Expert } from "./Expert";
-import { Work } from "./Work";
-import * as Job from "Job";
-import { Operation } from "./Operation";
-import u from "./Utility";
-import { log } from './ScrupsLogger'
+import * as Job from 'Job';
+import { Expert } from 'Expert';
+import Work from 'Work';
+import { WorkTowerRepair, WorkTowerDefense, WorkTowerHeal } from 'WorkTower';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 const MAX_RAMPART_WALL = 1000000;
 const MAX_RCL = 8;
-
 
 function damage_ratio(site: Structure): number {
   return (1.0 - site.hits / site.hitsMax);
@@ -53,16 +52,15 @@ function wall_repair_priority(wall: StructureWall): number {
 
 function repair_priority(site: Structure): number {
   switch (site.structureType) {
-    case STRUCTURE_ROAD: return road_repair_priority(<StructureRoad>site);
-    case STRUCTURE_RAMPART: return rampart_repair_priority(<StructureRampart>site);
-    case STRUCTURE_WALL: return wall_repair_priority(<StructureWall>site);
+    case STRUCTURE_ROAD: return road_repair_priority(site as StructureRoad);
+    case STRUCTURE_RAMPART: return rampart_repair_priority(site as StructureRampart);
+    case STRUCTURE_WALL: return wall_repair_priority(site as StructureWall);
     default: return 8 * damage_ratio(site);
   }
 }
 
-
 function tower_repair_filter(tower: StructureTower[], site: Structure, minPriority: number): boolean {
-  if ((site instanceof OwnedStructure) && !(site as OwnedStructure).my) {
+  if ((site instanceof OwnedStructure) && !(site).my) {
     return false;
   }
 
@@ -80,120 +78,7 @@ function tower_repair_filter(tower: StructureTower[], site: Structure, minPriori
   return site.hitsMax - site.hits > power;
 }
 
-class TowerRepairWork implements Work {
-
-  readonly tower: StructureTower;
-  readonly site: Structure;
-
-  constructor(tower: StructureTower, site: Structure) {
-    this.tower = tower;
-    this.site = site;
-  }
-
-  id() {
-    return `work-tower-repair-${this.tower.pos.x}-${this.tower.pos.y}`;
-  }
-
-  toString(): string {
-    return this.id();
-  }
-
-  priority(): number {
-    return 0;
-  }
-
-  work(): Operation[] {
-    return [() => {
-      const res = this.tower.repair(this.site);
-      switch (res) {
-        case OK:
-          log.info(`${this}: ${this.tower} repaired ${this.site}`);
-          break;
-        default:
-          log.error(`${this}: ${this.tower} failed to repair ${this.site} (${u.errstr(res)})`);
-          break;
-      }
-    }];
-  }
-}
-
-class TowerHealWork implements Work {
-
-  readonly tower: StructureTower;
-  readonly site: Creep;
-
-  constructor(tower: StructureTower, site: Creep) {
-    this.tower = tower;
-    this.site = site;
-  }
-
-  id() {
-    return `work-tower-heal-${this.site.name}`;
-  }
-
-  toString(): string {
-    return this.id();
-  }
-
-  priority(): number {
-    return 0;
-  }
-
-  work(): Operation[] {
-    return [() => {
-      const res = this.tower.heal(this.site);
-      switch (res) {
-        case OK:
-          log.info(`${this}: ${this.tower} healed ${this.site}`);
-          break;
-        default:
-          log.error(`${this}: ${this.tower} failed to heal ${this.site} (${u.errstr(res)})`);
-          break;
-      }
-    }];
-  }
-}
-
-
-class TowerDefenseWork implements Work {
-
-  readonly tower: StructureTower;
-  readonly target: Creep;
-
-  constructor(tower: StructureTower, target: Creep) {
-    this.tower = tower;
-    this.target = target;
-  }
-
-  id() {
-    return `work-defense-${this.tower}-${this.target}`;
-  }
-
-  toString(): string {
-    return this.id();
-  }
-
-  priority(): number {
-    return 0;
-  }
-
-  work(): Operation[] {
-    return [() => {
-      const res = this.tower.attack(this.target);
-      switch (res) {
-        case OK:
-          log.debug(`INFO: ${this}: ${this.tower} attacked ${this.target}`);
-          break;
-        default:
-          log.debug(`ERROR: ${this}: ${this.tower} failed to attack ${this.target} (${u.errstr(res)})`);
-          break;
-      }
-    }];
-  }
-}
-
-
-export class Caretaker implements Expert {
+export default class Caretaker implements Expert {
 
   private _room: Room;
   private _towers: StructureTower[];
@@ -203,7 +88,7 @@ export class Caretaker implements Expert {
 
     this._towers = room.find<StructureTower>(FIND_MY_STRUCTURES, {
       filter: (s: Structure) => {
-        if (s.structureType != STRUCTURE_TOWER) {
+        if (s.structureType !== STRUCTURE_TOWER) {
           return false;
         }
         return s.available(RESOURCE_ENERGY) > 0;
@@ -212,7 +97,7 @@ export class Caretaker implements Expert {
   }
 
   id(): string {
-    return `caretaker-${this._room.name}`
+    return `caretaker-${this._room.name}`;
   }
 
   toString(): string {
@@ -225,29 +110,30 @@ export class Caretaker implements Expert {
 
   repair(): Work[] {
 
-    if (this._towers.length == 0) {
+    if (this._towers.length === 0) {
       return [];
     }
 
     // Don't perform tower repair if hostile creeps are around.
     const room = this._room;
-    let work: Work[] = [];
+    const work: Work[] = [];
     const foes = room.find(FIND_HOSTILE_CREEPS);
     if (foes.length > 0) {
-      for (let i = 0; i < this._towers.length; ++i) {
-        const t = this._towers[i];
-        if (t.available(RESOURCE_ENERGY) < TOWER_ENERGY_COST) continue;
+      _.each(this._towers, (t) => {
+        if (t.available(RESOURCE_ENERGY) < TOWER_ENERGY_COST) {
+          return;
+        }
         const f = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
         log.info(`${this}: creating new tower defense work ${t} => ${f} ...`);
         if (f) {
           const damage = u.tower_attack_power(t.pos.getRangeTo(f));
           const shield = u.creep_shield_power(f);
-          log.debug(`${this}: ${t} >> ${f} => (${damage} - ${shield} = ${damage - shield})`)
+          log.debug(`${this}: ${t} >> ${f} => (${damage} - ${shield} = ${damage - shield})`);
           if (damage > shield) {
-            work.push(new TowerDefenseWork(t, f));
+            work.push(new WorkTowerDefense(t, f));
           }
         }
-      }
+      });
 
       return work;
     }
@@ -256,47 +142,39 @@ export class Caretaker implements Expert {
     const cloneHealth = 1.0 - this._room.energyAvailable / this._room.energyCapacityAvailable;
     const minPriority = 4.0 * cloneHealth;
 
-    const repairSites = room.find(FIND_STRUCTURES, {
-      filter: (s: Structure) => {
-        return tower_repair_filter(this._towers, s, minPriority);
-      }
-    });
+    const repairSites = room.find(FIND_STRUCTURES, { filter: (s: Structure) => tower_repair_filter(this._towers, s, minPriority) });
 
     const healSites = room.find(FIND_MY_CREEPS, { filter: (c) => c.hits < c.hitsMax && ((c.ticksToLive ?? 0) > 500) });
 
-    log.debug(`${this}: ${repairSites.length} repair sites, ${healSites.length} heal sites`)
-    if (repairSites.length == 0 && healSites.length == 0) {
+    log.debug(`${this}: ${repairSites.length} repair sites, ${healSites.length} heal sites`);
+    if (repairSites.length === 0 && healSites.length === 0) {
       return [];
     }
 
-    for (let i = 0; i < this._towers.length; ++i) {
-      const t = this._towers[i];
-      if (t.available(RESOURCE_ENERGY) < TOWER_CAPACITY / 3) continue;
+    _.each(this._towers, (t) => {
+      if (t.available(RESOURCE_ENERGY) < TOWER_CAPACITY / 3) {
+        return;
+      }
+      const sortedSites = _.sortBy(repairSites, (s: Structure) => -repair_priority(s) * u.tower_repair_power(t.pos.getRangeTo(s)));
 
-      const sortedSites = _.sortBy(repairSites, (s: Structure) => {
-        return -repair_priority(s) * u.tower_repair_power(t.pos.getRangeTo(s));
-      });
-
-      log.debug(`Top 5 ${t} Repair Sites:`)
+      log.debug(`Top 5 ${t} Repair Sites:`);
       _.each(_.take(sortedSites, 5), (s) => log.debug(`${this}: ${t}>>>${s} ${repair_priority(s)}*${u.tower_repair_power(t.pos.getRangeTo(s))}`));
 
-      _.each(healSites, (h) => work.push(new TowerHealWork(t, h)));
+      _.each(healSites, (h) => work.push(new WorkTowerHeal(t, h)));
 
-      log.info(`${this}: creating new tower repair work ${t} => ${sortedSites[0]} ...`)
-      work.push(new TowerRepairWork(t, sortedSites[0]));
-    }
+      log.info(`${this}: creating new tower repair work ${t} => ${sortedSites[0]} ...`);
+      work.push(new WorkTowerRepair(t, sortedSites[0]));
+    });
 
     return work;
   }
 
   schedule(): Job.Model[] {
-
-    const room = this._room;
     return [];
   }
 
   report(): string[] {
-    let r = new Array<string>();
+    const r = new Array<string>();
     r.push(`*** Caretaker report by ${this}`);
     return r;
   }

@@ -1,8 +1,8 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-import JobPickup from "JobPickup";
+import * as Job from 'Job';
+import JobPickup from 'JobPickup';
+import { Operation } from 'Operation';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function is_energy_only(site: UnloadSite): boolean {
   if (site instanceof Creep) return false;
@@ -36,7 +36,7 @@ function unload_at_site(job: JobUnload, worker: Creep): Operation {
     }
 
     const resource = best_resource(worker, site, job._resource);
-    let res: number = worker.transfer(site, resource);
+    const res: number = worker.transfer(site, resource);
     switch (res) {
       case OK:
         // Finished job.
@@ -48,7 +48,7 @@ function unload_at_site(job: JobUnload, worker: Creep): Operation {
         log.warning(`${job}: ${worker} failed to transfer ${worker.store[resource]} ${resource} to ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobUnload implements Job.Model {
@@ -59,7 +59,7 @@ export default class JobUnload implements Job.Model {
   readonly _resource: ResourceType;
   readonly _priority: number;
 
-  constructor(site: UnloadSite, resource: ResourceType = RESOURCE_ENERGY, priority: number = 1) {
+  constructor(site: UnloadSite, resource: ResourceType = RESOURCE_ENERGY, priority = 1) {
     this._site = site;
     this._resource = resource;
     this._priority = priority;
@@ -85,7 +85,7 @@ export default class JobUnload implements Job.Model {
     return 'orange';
   }
 
-  priority(workers?: Creep[]): number {
+  priority(_workers?: Creep[]): number {
     return this._priority;
   }
 
@@ -93,11 +93,11 @@ export default class JobUnload implements Job.Model {
 
     const available = worker.available(this._resource);
     const free = this._site.freeSpace(this._resource);
-    if (available == 0 || free == 0 || worker === this._site) {
+    if (available === 0 || free === 0 || worker === this._site) {
       return 0.0;
     }
 
-    const lastJob = <Job.Model>worker.getLastJob();
+    const lastJob = worker.getLastJob();
     if (lastJob && lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
       return 0.0;
     }
@@ -121,14 +121,12 @@ export default class JobUnload implements Job.Model {
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    return this._site.freeSpace(this._resource) - _.sum(workers, (w: Creep): number => {
-      return w.available(this._resource);
-    }) <= 0;
+    return this._site.freeSpace(this._resource) - _.sum(workers, (w: Creep): number => w.available(this._resource)) <= 0;
   }
 
   completion(worker?: Creep): number {
     const freespace = this._site.freeSpace(this._resource);
-    if (freespace == 0
+    if (freespace === 0
       || ((this._site instanceof StructureTower)
         && (freespace <= TOWER_ENERGY_COST))
       || ((this._site instanceof Creep)
@@ -136,7 +134,7 @@ export default class JobUnload implements Job.Model {
       return 1.0;
     }
 
-    if (worker && ((worker.available(this._resource) == 0) || (worker === this._site))) {
+    if (worker && ((worker.available(this._resource) === 0) || (worker === this._site))) {
       return 1.0;
     }
 
@@ -151,12 +149,3 @@ export default class JobUnload implements Job.Model {
     return [unload_at_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobUnload.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <UnloadSite>Game.getObjectById(frags[3]);
-  if (!site) return undefined;
-  const resource = <ResourceType>frags[2];
-  return new JobUnload(site, resource);
-});

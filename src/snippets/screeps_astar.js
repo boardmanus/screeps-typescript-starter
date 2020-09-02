@@ -16,7 +16,7 @@
 // - Optimizations from http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html
 
 
-var astar = function() {
+var astar = function () {
 
 }
 
@@ -69,13 +69,13 @@ astar.defaults = {
 * @param {Function} [options.heuristic] Heuristic function (see
 *          astar.heuristics).
 */
-astar.prototype.search = function(room, start, end, user_options) {
+astar.prototype.search = function (room, start, end, user_options) {
   var options = _.clone(astar.defaults)
   _.merge(options, _.clone(user_options) || {})
 
   var scoring = options.scoring
   var heuristicModifier = options.heuristicModifier
-  var diagonal = options.diagonal == true
+  var diagonal = options.diagonal === true
   var closest = options.closest
   var maxops = options.maxops
   var ops = 0
@@ -86,16 +86,16 @@ astar.prototype.search = function(room, start, end, user_options) {
     var heuristic = this.heuristics.manhattan
   }
 
-  if (typeof options.weight == 'function') {
+  if (typeof options.weight === 'function') {
     var weight = options.weight
   } else {
     var weight = this.scoring
   }
 
   var avoid_list = {}
-  if(options.avoid) {
-    for(var pos of options.avoid) {
-      if(!avoid_list[pos.x]) {
+  if (options.avoid) {
+    for (var pos of options.avoid) {
+      if (!avoid_list[pos.x]) {
         avoid_list[pos.x] = {}
       }
       avoid_list[pos.x][pos.y] = true
@@ -106,9 +106,9 @@ astar.prototype.search = function(room, start, end, user_options) {
   var ignore_list = {}
   ignore_list[end.x] = {}
   ignore_list[end.x][end.y] = true
-  if(options.ignore) {
-    for(var pos of options.ignore) {
-      if(!ignore_list[pos.x]) {
+  if (options.ignore) {
+    for (var pos of options.ignore) {
+      if (!ignore_list[pos.x]) {
         ignore_list[pos.x] = {}
       }
       ignore_list[pos.x][pos.y] = true
@@ -124,11 +124,11 @@ astar.prototype.search = function(room, start, end, user_options) {
 
   var direction = ''
 
-  var openHeap = new BinaryHeap(function(node) {
+  var openHeap = new BinaryHeap(function (node) {
     return node.f;
   });
 
-  if(heuristicModifier <= 0) {
+  if (heuristicModifier <= 0) {
     start.h = 0
   } else {
     start.h = heuristic(startNode, endNode) * heuristicModifier;
@@ -158,7 +158,7 @@ astar.prototype.search = function(room, start, end, user_options) {
 
     for (var i = 0, il = neighbors.length; i < il; ++i) {
 
-      if(maxops && ops >= maxops) {
+      if (maxops && ops >= maxops) {
         return closest ? this.pathTo(room, closestNode) : []
       }
       ops++
@@ -174,7 +174,7 @@ astar.prototype.search = function(room, start, end, user_options) {
       var gScore = currentNode.g + neighbor.weight;
 
       // Penalize changing direction to encourage straight lines
-      if (scoring.directionchange > 0 && neighbor.getDirectionFrom(currentNode) != direction) {
+      if (scoring.directionchange > 0 && neighbor.getDirectionFrom(currentNode) !== direction) {
         gScore += scoring.directionchange
       }
 
@@ -188,7 +188,7 @@ astar.prototype.search = function(room, start, end, user_options) {
         if (heuristicModifier > 0) {
           // Increase the heuristic score based off of the distance from the goal
           // This encourages straight lines and reduces the search space.
-          if(scoring.distancepenalty > 0) {
+          if (scoring.distancepenalty > 0) {
             heuristicModifier += Math.abs(currentNode.x - endNode.x) * scoring.distancepenalty
             heuristicModifier += Math.abs(currentNode.y - endNode.y) * scoring.distancepenalty
           }
@@ -226,127 +226,127 @@ astar.prototype.search = function(room, start, end, user_options) {
   return closest ? this.pathTo(room, closestNode) : []
 },
 
-// See list of heuristics: http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html
-astar.prototype.heuristics = {
-  manhattan: function(pos0, pos1) {
-    var d1 = Math.abs(pos1.x - pos0.x);
-    var d2 = Math.abs(pos1.y - pos0.y);
-    return d1 + +d2;
+  // See list of heuristics: http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html
+  astar.prototype.heuristics = {
+    manhattan: function (pos0, pos1) {
+      var d1 = Math.abs(pos1.x - pos0.x);
+      var d2 = Math.abs(pos1.y - pos0.y);
+      return d1 + +d2;
+    },
+
+    diagonal_weighted: function (pos0, pos1) {
+      var D = 1;
+      var D2 = Math.sqrt(2);
+      var d1 = Math.abs(pos1.x - pos0.x);
+      var d2 = Math.abs(pos1.y - pos0.y);
+      return (D * (d1 + d2)) + ((D2 - (2 * D)) * Math.min(d1, d2));
+    },
+
+    diagonal: function (pos0, pos1) {
+      var d1 = Math.abs(pos1.x - pos0.x);
+      var d2 = Math.abs(pos1.y - pos0.y);
+      return Math.max(d1, d2)
+    }
   },
 
-  diagonal_weighted: function(pos0, pos1) {
-    var D = 1;
-    var D2 = Math.sqrt(2);
-    var d1 = Math.abs(pos1.x - pos0.x);
-    var d2 = Math.abs(pos1.y - pos0.y);
-    return (D * (d1 + d2)) + ((D2 - (2 * D)) * Math.min(d1, d2));
-  },
+  astar.prototype.scoring = function (room, x, y, scoring) {
 
-  diagonal: function(pos0, pos1) {
-    var d1 = Math.abs(pos1.x - pos0.x);
-    var d2 = Math.abs(pos1.y - pos0.y);
-    return Math.max(d1, d2)
-  }
-},
+    if (!scoring) {
+      scoring = {}
+    }
 
-astar.prototype.scoring = function(room, x, y, scoring) {
+    var pos = room.getPositionAt(x, y)
 
-  if (!scoring) {
-    scoring = {}
-  }
+    if (typeof scoring.filter === 'function') {
+      if (!scoring.filter(pos)) {
+        return 0
+      }
+    }
 
-  var pos = room.getPositionAt(x, y)
+    var score = 0
+    var terrain = room.lookForAt('terrain', pos)[0]
 
-  if (typeof scoring.filter == 'function') {
-    if (!scoring.filter(pos)) {
+    if (!scoring.terrain[terrain]) {
+      score = 0
+    } else {
+      score = scoring.terrain[terrain]
+    }
+
+    if (score <= 0) {
       return 0
     }
-  }
 
-  var score = 0
-  var terrain = room.lookForAt('terrain', pos)[0]
+    if (scoring.structure !== false) {
+      var structures = pos.getStructure()
+      if (structures.length > 0) {
+        for (var structure of structures) {
 
-  if (!scoring.terrain[terrain]) {
-    score = 0
-  } else {
-    score = scoring.terrain[terrain]
-  }
+          var structureType = structure.structureType
 
-  if (score <= 0) {
-    return 0
-  }
+          if (typeof scoring.structures[structureType] === 'undefined') {
+            structure = 'default'
+          }
 
-  if (scoring.structure !== false) {
-    var structures = pos.getStructure()
-    if (structures.length > 0) {
-      for (var structure of structures) {
+          if (scoring.structures[structureType] !== false) {
+            score = scoring.structures[structureType]
+          }
 
-        var structureType = structure.structureType
+          if (!structure.my) {
+            var hostileStructureType = 'hostile_' + structureType
+            if (scoring.structures[hostileStructureType] !== false) {
+              score = scoring.structures[hostileStructureType]
+            }
+          }
 
-        if (typeof scoring.structures[structureType] == 'undefined') {
-          structure = 'default'
-        }
-
-        if (scoring.structures[structureType] !== false) {
-          score = scoring.structures[structureType]
-        }
-
-        if(!structure.my) {
-          var hostileStructureType = 'hostile_' + structureType
-          if (scoring.structures[hostileStructureType] !== false) {
-            score = scoring.structures[hostileStructureType]
+          if (score < 1) {
+            return 0
           }
         }
+      }
+    }
 
-        if (score < 1) {
+    if (scoring.creep !== false) {
+      var creeps = room.lookForAt('creep', pos)
+      if (creeps.length > 0) {
+        if (scoring.creep >= 1) {
+          score += scoring.creep
+        } else {
           return 0
         }
       }
     }
-  }
 
-  if (scoring.creep !== false) {
-    var creeps = room.lookForAt('creep', pos)
-    if (creeps.length > 0) {
-      if (scoring.creep >= 1) {
-        score += scoring.creep
-      } else {
-        return 0
+    return score
+  },
+
+  astar.prototype.pathTo = function (room, node) {
+    var path = [];
+    var curr = node;
+
+    do {
+      var curr_position = {
+        'x': curr.x,
+        'y': curr.y
       }
-    }
+
+      if (astar.display && astar.colors.optimal) {
+        room.createFlagMemoryEfficient(room.getPositionAt(curr.x, curr.y), astar.colors.optimal)
+      }
+
+      if (curr.parent) {
+        curr_position.dx = curr.x - curr.parent.x
+        curr_position.dy = curr.y - curr.parent.y
+        curr_position.direction = curr.parent.getDirectionFrom(curr)
+        path.unshift(curr_position);
+        curr = curr.parent
+      } else {
+        // we're at the starting location, which we do not include in the path
+        curr = false
+      }
+    } while (curr);
+
+    return path;
   }
-
-  return score
-},
-
-astar.prototype.pathTo = function(room, node) {
-  var path = [];
-  var curr = node;
-
-  do {
-    var curr_position = {
-      'x': curr.x,
-      'y': curr.y
-    }
-
-    if (astar.display && astar.colors.optimal) {
-      room.createFlagMemoryEfficient(room.getPositionAt(curr.x, curr.y), astar.colors.optimal)
-    }
-
-    if(curr.parent) {
-      curr_position.dx = curr.x - curr.parent.x
-      curr_position.dy = curr.y - curr.parent.y
-      curr_position.direction = curr.parent.getDirectionFrom(curr)
-      path.unshift(curr_position);
-      curr = curr.parent
-    } else {
-      // we're at the starting location, which we do not include in the path
-      curr = false
-    }
-  } while (curr);
-
-  return path;
-}
 
 
 
@@ -364,7 +364,7 @@ function Graph(room, weight, scoring, diagonal) {
   this.grid = [];
 }
 
-Graph.prototype.getNode = function(x, y) {
+Graph.prototype.getNode = function (x, y) {
 
   if (!this.grid[x]) {
     this.grid[x] = []
@@ -372,9 +372,9 @@ Graph.prototype.getNode = function(x, y) {
 
   if (!this.grid[x][y]) {
 
-    if(this.scoring.avoid_list[x] && this.scoring.avoid_list[x][y]) {
+    if (this.scoring.avoid_list[x] && this.scoring.avoid_list[x][y]) {
       var weight = 0
-    } else if(this.scoring.ignore_list[x] && this.scoring.ignore_list[x][y]) {
+    } else if (this.scoring.ignore_list[x] && this.scoring.ignore_list[x][y]) {
       var weight = 1
     } else {
       var weight = this.weight(this.room, x, y, this.scoring)
@@ -389,7 +389,7 @@ Graph.prototype.getNode = function(x, y) {
   return this.grid[x][y]
 }
 
-Graph.prototype.neighbors = function(node) {
+Graph.prototype.neighbors = function (node) {
   var ret = [];
   var x = node.x;
   var y = node.y;
@@ -491,18 +491,18 @@ function GridNode(room, x, y, weight) {
   this.parent = null;
 }
 
-GridNode.prototype.toString = function() {
+GridNode.prototype.toString = function () {
   return "[" + this.x + " " + this.y + "]";
 };
 
-GridNode.prototype.isBlocked = function() {
+GridNode.prototype.isBlocked = function () {
   return this.weight < 1;
 };
 
-GridNode.prototype.getDirectionFrom = function(node) {
+GridNode.prototype.getDirectionFrom = function (node) {
   var x = this.x
   var y = this.y
-    // Node is to the left
+  // Node is to the left
   if (node.x < x) {
     // Node is to the top
     if (node.y < y) {
@@ -510,7 +510,7 @@ GridNode.prototype.getDirectionFrom = function(node) {
     }
 
     // Node is on the same level
-    if (node.y == y) {
+    if (node.y === y) {
       return 7
     }
 
@@ -520,7 +520,7 @@ GridNode.prototype.getDirectionFrom = function(node) {
     }
   }
 
-  if (node.x == x) {
+  if (node.x === x) {
     // Node is to the top
     if (node.y < y) {
       return 1
@@ -540,7 +540,7 @@ GridNode.prototype.getDirectionFrom = function(node) {
     }
 
     // Node is on the same level
-    if (node.y == y) {
+    if (node.y === y) {
       return 3
     }
 
@@ -559,7 +559,7 @@ function BinaryHeap(scoreFunction) {
 }
 
 BinaryHeap.prototype = {
-  push: function(element) {
+  push: function (element) {
     var content = this.content;
     // Add the new element to the end of the array.
     content.push(element);
@@ -567,7 +567,7 @@ BinaryHeap.prototype = {
     // Allow it to sink down.
     this.sinkDown(content.length - 1);
   },
-  pop: function() {
+  pop: function () {
     var content = this.content;
     // Store the first element so we can return it later.
     var result = content[0];
@@ -581,7 +581,7 @@ BinaryHeap.prototype = {
     }
     return result;
   },
-  remove: function(node) {
+  remove: function (node) {
     var content = this.content;
     var i = content.indexOf(node);
 
@@ -599,13 +599,13 @@ BinaryHeap.prototype = {
       }
     }
   },
-  size: function() {
+  size: function () {
     return this.content.length;
   },
-  rescoreElement: function(node) {
+  rescoreElement: function (node) {
     this.sinkDown(this.content.indexOf(node));
   },
-  sinkDown: function(n) {
+  sinkDown: function (n) {
     var content = this.content;
     var scoreFunction = this.scoreFunction;
     // Fetch the element that has to be sunk.
@@ -632,7 +632,7 @@ BinaryHeap.prototype = {
       }
     }
   },
-  bubbleUp: function(n) {
+  bubbleUp: function (n) {
     var content = this.content;
     var scoreFunction = this.scoreFunction;
     // Look up the target element and its score.

@@ -1,14 +1,13 @@
 import * as Business from 'Business';
-import * as Job from "Job";
-import { BuildingWork } from 'Architect';
-import u from 'Utility';
-import { log } from 'ScrupsLogger';
+import * as Job from 'Job';
+import WorkBuilding from 'WorkBuilding';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 interface Pos {
-  x: number,
-  y: number
-};
-
+  x: number;
+  y: number;
+}
 
 // \\[][]..
 // []\\[][]
@@ -28,7 +27,7 @@ const LAB_PLACEMENTS: Pos[] = [
 ];
 
 function possible_lab_block_sites(terminal: StructureTerminal): RoomPosition[] {
-  const room = terminal.room;
+  const { room } = terminal;
   const roomName = room.name;
   const terrain = new Room.Terrain(roomName);
   const sites: RoomPosition[] = [];
@@ -48,19 +47,19 @@ function num_allowed_labs(room: Room): number {
   const rcl = room.controller?.level ?? 0;
   return (CONTROLLER_STRUCTURES.lab[rcl]);
 }
-function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
-  const terminal = room.terminal;
+function lab_building_work(room: Room, labs: StructureLab[]): WorkBuilding[] {
+  const { terminal } = room;
   if (!terminal) {
     return [];
   }
 
   let bestPos: RoomPosition;
-  const buildings: BuildingWork[] = [];
+  const buildings: WorkBuilding[] = [];
 
-  if (labs.length == 0) {
+  if (labs.length === 0) {
     const viableSites = possible_lab_block_sites(terminal);
     log.info(`${terminal}: ${viableSites.length} viable lab sites`);
-    if (viableSites.length == 0) {
+    if (viableSites.length === 0) {
       return [];
     }
 
@@ -73,27 +72,26 @@ function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
 
     const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'dashed', stroke: 'purple' };
     let i = 0;
-    for (const site of sortedSites) {
-      style.opacity = (i == 0) ? 1.0 : 0.5 - i / sortedSites.length / 2;
+    _.each(sortedSites, (site) => {
+      style.opacity = (i === 0) ? 1.0 : 0.5 - i / sortedSites.length / 2;
       room.visual.circle(site.x + 1.5, site.y + 1.5, style);
       ++i;
-    }
+    });
 
-    bestPos = sortedSites[0];
+    [bestPos] = sortedSites;
 
     for (let r = 0; r < 4; ++r) {
       const pos = room.getPositionAt(bestPos.x + r, bestPos.y + r);
       if (pos) {
-        buildings.push(new BuildingWork(pos, STRUCTURE_ROAD));
+        buildings.push(new WorkBuilding(pos, STRUCTURE_ROAD));
       }
     }
-  }
-  else {
+  } else {
     bestPos = room.getPositionAt(labs[0].pos.x - 1, labs[0].pos.y) ?? labs[0].pos;
   }
 
   const pstyle: PolyStyle = { fill: 'transparent', stroke: 'purple', lineStyle: 'dashed' };
-  room.visual.rect(bestPos.x - 0.5, bestPos.y - 0.5, 4, 4, pstyle)
+  room.visual.rect(bestPos.x - 0.5, bestPos.y - 0.5, 4, 4, pstyle);
 
   const lstyle: LineStyle = { color: 'purple', lineStyle: 'dashed' };
   room.visual.line(bestPos.x - 0.5, bestPos.y - 0.5, bestPos.x + 3.5, bestPos.y + 3.5, lstyle);
@@ -102,13 +100,13 @@ function lab_building_work(room: Room, labs: StructureLab[]): BuildingWork[] {
   for (let l = labs.length; l < numAllowedLabs; ++l) {
     const pos = room.getPositionAt(bestPos.x + LAB_PLACEMENTS[l].x, bestPos.y + LAB_PLACEMENTS[l].y);
     if (pos) {
-      buildings.push(new BuildingWork(pos, STRUCTURE_LAB));
+      buildings.push(new WorkBuilding(pos, STRUCTURE_LAB));
     }
   }
   const roadStyle: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'purple' };
   const labStyle: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'white' };
   _.each(buildings, (b) => {
-    room.visual.circle(b.site.x, b.site.y, (b.type == STRUCTURE_ROAD) ? roadStyle : labStyle);
+    room.visual.circle(b.site.x, b.site.y, (b.type === STRUCTURE_ROAD) ? roadStyle : labStyle);
   });
 
   return buildings;
@@ -118,11 +116,9 @@ function can_build_labs(room: Room, labs: StructureLab[], cs: ConstructionSite[]
   return room.terminal && num_allowed_labs(room) > labs.length + cs.length;
 }
 
-function update_labs(labs: StructureLab[]): void {
+function update_labs(_labs: StructureLab[]): void {
 
 }
-
-import { profile } from 'Profiler/Profiler'
 export default class BusinessChemistry implements Business.Model {
 
   static readonly TYPE: string = 'chem';
@@ -132,11 +128,11 @@ export default class BusinessChemistry implements Business.Model {
   private readonly _labs: StructureLab[];
   private readonly _labConstruction: ConstructionSite[];
 
-  constructor(chemistryRoom: Room, priority: number = 5) {
+  constructor(chemistryRoom: Room, priority = 5) {
     this._room = chemistryRoom;
     this._priority = priority;
-    this._labConstruction = chemistryRoom.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType == STRUCTURE_LAB });
-    this._labs = chemistryRoom.find<StructureLab>(FIND_MY_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_LAB });
+    this._labConstruction = chemistryRoom.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType === STRUCTURE_LAB });
+    this._labs = chemistryRoom.find<StructureLab>(FIND_MY_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_LAB });
 
     if (this._labs.length) {
       update_labs(this._labs);
@@ -159,14 +155,14 @@ export default class BusinessChemistry implements Business.Model {
     return false;
   }
 
-  needsEmployee(employees: Creep[]): boolean {
+  needsEmployee(_employees: Creep[]): boolean {
     return false;
   }
 
   survey() {
   }
 
-  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
+  employeeBody(_availEnergy: number, _maxEnergy: number): BodyPartConstant[] {
     return [];
   }
 
@@ -175,34 +171,22 @@ export default class BusinessChemistry implements Business.Model {
     return [];
   }
 
-  contractJobs(employees: Creep[]): Job.Model[] {
-    if (this._labs.length == 0) {
+  contractJobs(_employees: Creep[]): Job.Model[] {
+    if (this._labs.length === 0) {
       return [];
     }
 
     return [];
   }
 
-  buildings(): BuildingWork[] {
+  buildings(): WorkBuilding[] {
 
-    const work: BuildingWork[] = [];
+    const work: WorkBuilding[] = [];
 
     if (can_build_labs(this._room, this._labs, this._labConstruction)) {
-      work.push(...lab_building_work(this._room, this._labs))
+      work.push(...lab_building_work(this._room, this._labs));
     }
 
     return work;
   }
 }
-
-Business.factory.addBuilder(BusinessChemistry.TYPE, (id: string): Business.Model | undefined => {
-  const frags = id.split('-');
-  const room = Game.rooms[frags[2]];
-  if (!room) {
-    return undefined;
-  }
-  return new BusinessChemistry(room);
-});
-
-
-

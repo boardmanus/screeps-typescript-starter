@@ -1,85 +1,45 @@
-import { Architect } from "./Architect";
-import { Caretaker } from "./Caretaker";
-import { Cloner } from "./Cloner";
-import * as Job from "Job";
-import * as Business from "Business";
-import * as Monarchy from "Monarchy";
-import { Work } from "./Work";
-import JobPickup from "JobPickup";
-import JobUnload from "JobUnload";
-import Boss from "Boss";
-import Executive from "Executive";
-import { Operation } from "Operation";
-import u from "Utility";
-import { log } from 'ScrupsLogger';
-import BusinessEnergyMining from "BusinessEnergyMining";
-import BusinessBanking from "BusinessBanking";
-import BusinessConstruction from "BusinessConstruction";
-import BusinessUpgrading from "BusinessUpgrading";
-import BusinessCloning from "BusinessCloning";
-import BusinessExploring from "BusinessExploring";
-import BusinessMineralMining from "BusinessMineralMining";
-import BusinessTrading from "BusinessTrading";
-import BusinessChemistry from "BusinessChemistry";
-import BusinessStripMining from "BusinessStripMining";
-import BusinessDefend from "BusinessDefend";
-import BusinessColonizing from "BusinessColonizing";
-import Room$ from "RoomCache";
+import Architect from 'Architect';
+import Caretaker from 'Caretaker';
+import Cloner from 'Cloner';
+import * as Job from 'Job';
+import * as Business from 'Business';
+import * as Monarchy from 'Monarchy';
+import * as u from 'Utility';
+import Work from 'Work';
+import WorkTransfer from 'WorkTransfer';
+import JobPickup from 'JobPickup';
+import JobUnload from 'JobUnload';
+import Boss from 'Boss';
+import Executive from 'Executive';
+import log from 'ScrupsLogger';
+import BusinessEnergyMining from 'BusinessEnergyMining';
+import BusinessBanking from 'BusinessBanking';
+import BusinessConstruction from 'BusinessConstruction';
+import BusinessUpgrading from 'BusinessUpgrading';
+import BusinessCloning from 'BusinessCloning';
+import BusinessExploring from 'BusinessExploring';
+import BusinessMineralMining from 'BusinessMineralMining';
+import BusinessTrading from 'BusinessTrading';
+import BusinessChemistry from 'BusinessChemistry';
+import BusinessStripMining from 'BusinessStripMining';
+import BusinessDefend from 'BusinessDefend';
+import BusinessColonizing from 'BusinessColonizing';
+import Room$ from 'RoomCache';
 import { profile } from 'Profiler/Profiler';
-import { join } from "path";
-
+import Economist from 'Economist';
 
 function map_valid_to_links(linkers: (Source | StructureStorage)[], to: boolean): StructureLink[] {
   return _.filter(
     u.map_valid(linkers,
-      (s: Source | StructureStorage): StructureLink | undefined => (s._link instanceof StructureLink) ? s._link : undefined),
-    (l: StructureLink) => (to && l.freeSpace() > 100) || (!to && l.cooldown == 0 && l.available() > 100));
-}
-
-class TransferWork implements Work {
-
-  readonly from: StructureLink;
-  readonly to: StructureLink;
-  readonly amount: number;
-
-  constructor(from: StructureLink, to: StructureLink, amount: number) {
-    this.from = from;
-    this.to = to;
-    this.amount = amount;
-  }
-
-  id() {
-    return `work-transfer-${this.from}-${this.to}`;
-  }
-
-  toString(): string {
-    return this.id();
-  }
-
-  priority(): number {
-    return 0;
-  }
-
-  work(): Operation[] {
-    return [() => {
-      const res = this.from.transferEnergy(this.to, this.amount);
-      switch (res) {
-        case OK:
-          log.info(`${this}: transfered ${this.amount} of energy from ${this.from} to ${this.to}`);
-          break;
-        default:
-          log.error(`${this}: failed to transfer energy from ${this.from} to ${this.to}(${u.errstr(res)})`);
-          break;
-      }
-    }];
-  }
+      (s: Source | StructureStorage): StructureLink | undefined => ((s._link instanceof StructureLink) ? s._link : undefined)),
+    (l: StructureLink) => (to && l.freeSpace() > 100) || (!to && l.cooldown === 0 && l.available() > 100));
 }
 
 type ExecutiveMap = { [business: string]: Executive };
 type BossMap = { [job: string]: Boss };
 
 @profile
-export class Mayor implements Monarchy.Model {
+export default class Mayor implements Monarchy.Model {
 
   static readonly TYPE = 'mayor';
 
@@ -89,6 +49,7 @@ export class Mayor implements Monarchy.Model {
   private _architect: Architect;
   private _caretaker: Caretaker;
   private _cloner: Cloner;
+  private _economist: Economist;
   private _executives: ExecutiveMap;
   private _allBosses: BossMap;
   private _contractBosses: Boss[];
@@ -122,6 +83,8 @@ export class Mayor implements Monarchy.Model {
     this._lazyWorkers = [];
 
     this.init(king, room);
+
+    this._economist = new Economist(room, Object.values(this._executives));
   }
 
   init(king: Monarchy.Model, room: Room): void {
@@ -133,15 +96,15 @@ export class Mayor implements Monarchy.Model {
     this.addBusiness(new BusinessColonizing(this._room));
 
     const rooms = [this._room, ...this._remoteRooms];
-    for (const room of rooms) {
-      _.each(Room$(room).sources, (source) => {
+    _.each(rooms, (r) => {
+      _.each(Room$(r).sources, (source) => {
         this.addBusiness(new BusinessEnergyMining(source));
       });
 
-      _.each(room.find(FIND_DEPOSITS), (deposit) => {
+      _.each(r.find(FIND_DEPOSITS), (deposit) => {
         this.addBusiness(new BusinessStripMining(deposit));
       });
-    }
+    });
 
     _.each(room.find(FIND_MINERALS), (mineral) => {
       this.addBusiness(new BusinessMineralMining(mineral));
@@ -189,10 +152,10 @@ export class Mayor implements Monarchy.Model {
   }
 
   cloneRequest(request: Monarchy.CloneRequest): boolean {
-    if (request.home == this._room) {
+    if (request.home === this._room) {
       return false;
     }
-    return this._cloner.cloneRequest(request)
+    return this._cloner.cloneRequest(request);
   }
 
   toString(): string {
@@ -215,7 +178,7 @@ export class Mayor implements Monarchy.Model {
 
   initJobs(): void {
     const ceoBosses = _.flatten(_.map(this._executives, (ceo) => ceo.bosses()));
-    _.each(ceoBosses, (b) => this._allBosses[b.job.id()] = b);
+    _.each(ceoBosses, (b) => { this._allBosses[b.job.id()] = b; });
 
     const contractJobs = [
       ..._.flatten(_.map(this._executives, (ceo) => ceo.contracts())),
@@ -244,26 +207,26 @@ export class Mayor implements Monarchy.Model {
 
       const jobId = c.memory.job;
       if (!jobId) {
-        log.warning(`${this}: no memory of job for ${c}`)
+        log.warning(`${this}: no memory of job for ${c}`);
         return;
       }
 
       const boss = this._allBosses[jobId];
       if (!boss) {
-        log.error(`${this}: ${c} has no boss for ${jobId}`)
+        log.error(`${this}: ${c} has no boss for ${jobId}`);
         c.setJob();
         return;
       }
 
       if (boss.job.completion(c) >= 1.0) {
         // Clear the job from the creep
-        log.info(`${this}: ${c} just completed ${boss.job}`)
+        log.info(`${this}: ${c} just completed ${boss.job}`);
         c.setJob();
         c.setLastJob(boss.job);
         return;
       }
 
-      log.debug(`${this}: ${c} continuing ${boss.job}`)
+      log.debug(`${this}: ${c} continuing ${boss.job}`);
       boss.assignWorker(c);
     });
   }
@@ -272,7 +235,7 @@ export class Mayor implements Monarchy.Model {
 
     _.each(this._executives, (ceo) => {
       if (ceo.canRequestEmployee()) {
-        this._king.cloneRequest({ home: this._room, ceo: ceo })
+        this._king.cloneRequest({ home: this._room, ceo });
       }
       ceo.survey();
     });
@@ -282,7 +245,7 @@ export class Mayor implements Monarchy.Model {
     const lazyWorkers = this.assignWorkers(employers, unemployed);
 
     log.info(`${this}: ${employers.length} employers`);
-    log.info(`${this}: ${noVacancies.length} bosses with no vacancies`)
+    log.info(`${this}: ${noVacancies.length} bosses with no vacancies`);
     log.info(`${this}: ${unemployed.length} unemployed workers (${unemployed})`);
     log.info(`${this}: ${lazyWorkers.length} lazy workers`);
 
@@ -290,9 +253,7 @@ export class Mayor implements Monarchy.Model {
   }
 
   bossesSurvey(): void {
-    const [usefulBosses, redundantBosses] = _.partition(this._allBosses, (boss) => {
-      return boss.hasWorkers() && !boss.jobComplete();
-    });
+    const [usefulBosses, redundantBosses] = _.partition(this._allBosses, (boss) => boss.hasWorkers() && !boss.jobComplete());
     log.info(`${this}: ${this._usefulBosses.length} bosses, ${this._redundantBosses.length} redundant`);
 
     this._usefulBosses = usefulBosses;
@@ -313,10 +274,12 @@ export class Mayor implements Monarchy.Model {
 
     /*
         log.debug(`Top 5 bosses!`)
-        _.each(_.take(prioritize_bosses(this._usefulBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
+        _.each(_.take(prioritize_bosses(this._usefulBosses), 5),
+        (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(b.workers(), (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
         log.debug(`Top 5 vacancies!`)
         const employed = _.flatten(_.map(this._usefulBosses, (b) => b.workers()));
-        _.each(_.take(prioritize_bosses(this._redundantBosses), 5), (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
+        _.each(_.take(prioritize_bosses(this._redundantBosses), 5),
+        (b) => log.debug(`${b}: p-${b.priority()}, e-${_.map(unemployed, (w) => b.job.efficiency(w))} @ ${b.job.site()}`));
       */
   }
 
@@ -327,7 +290,7 @@ export class Mayor implements Monarchy.Model {
     const bosses = this._usefulBosses;
 
     const allWork: Work[] = noWork.concat(
-      //executives,
+      // executives,
       bosses,
       this._cloner.clone(executives, bosses.concat(this._redundantBosses), this._lazyWorkers, this._allCreeps),
       this._architect.design([this._room, ...this._remoteRooms], executives),
@@ -347,7 +310,7 @@ export class Mayor implements Monarchy.Model {
       linkers.push(room.storage);
     }
 
-    const toLinks = _.sortBy(map_valid_to_links(linkers, true), (l: StructureLink) => { return l.available(); });
+    const toLinks = _.sortBy(map_valid_to_links(linkers, true), (l: StructureLink) => l.available());
     log.info(`${this}: transfer energy from ${fromLinks.length} links to ${toLinks.length} others`);
 
     const transferWork: Work[] = [];
@@ -363,61 +326,61 @@ export class Mayor implements Monarchy.Model {
           return;
         }
         amountAvailable -= transferAmount;
-        transferWork.push(new TransferWork(fl, tl, transferAmount));
-      })
+        transferWork.push(new WorkTransfer(fl, tl, transferAmount));
+      });
     });
 
     return transferWork;
   }
 
   pickupJobs(): Job.Model[] {
-    const room = this._room;
-    const allRooms = [room, ...this._remoteRooms];
+    const allRooms = [this._room, ...this._remoteRooms];
 
-    const scavengeJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
-      if (room != this._room && room.find(FIND_HOSTILE_CREEPS).length > 0) { return [] }
-      return _.map(room.find(FIND_DROPPED_RESOURCES), (r: Resource) => new JobPickup(r, r.resourceType, 7));
+    const scavengeJobs: Job.Model[] = _.flatten(_.map(allRooms, (r) => {
+      if (r !== this._room && this._room.find(FIND_HOSTILE_CREEPS).length > 0) {
+        return [];
+      }
+      return _.map(this._room.find(FIND_DROPPED_RESOURCES), (res: Resource) => new JobPickup(res, res.resourceType, 7));
     }));
-    _.each(scavengeJobs, (t) => log.error(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
     const tombstoneJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
-      if (room != this._room && room.find(FIND_HOSTILE_CREEPS).length > 0) { return [] }
+      if (room !== this._room && room.find(FIND_HOSTILE_CREEPS).length > 0) { return []; }
       return _.map(room.find(FIND_TOMBSTONES,
         { filter: (t) => t.available() > 0 }),
         (t) => {
-          const resource = <ResourceConstant>_.max(Object.keys(t.store), (r: ResourceConstant) => { return t.store[r]; });
+          const resource = _.max(Object.keys(t.store), (res: ResourceConstant) => t.store[res]) as ResourceConstant;
           return new JobPickup(t, resource, 5);
         });
     }));
-    _.each(tombstoneJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
 
-    const ruinJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => {
-      return _.map(room.find(FIND_RUINS,
-        { filter: (r) => r.available() > 0 }),
-        (r) => {
-          const resource = <ResourceConstant>_.max(Object.keys(r.store), (rc: ResourceConstant) => { return r.store[rc]; });
-          return new JobPickup(r, resource, 5);
-        });
-    }));
-    _.each(ruinJobs, (t) => log.debug(`${this}: ${t} holding=${t.site().available()}, free=${t.site().freeSpace()}, cap=${t.site().capacity()}, a=${t.site().available()}`));
+    const ruinJobs: Job.Model[] = _.flatten(_.map(allRooms, (room) => _.map(room.find(FIND_RUINS,
+      { filter: (ruin) => ruin.available() > 0 }),
+      (ruin) => {
+        const resource = _.max(Object.keys(ruin.store), (rc: ResourceConstant) => ruin.store[rc]) as ResourceConstant;
+        return new JobPickup(ruin, resource, 5);
+      })));
 
     const linkers: StructureStorage[] = [];
-    const storage = room.storage;
+    const { storage } = this._room;
     if (storage) {
       linkers.push(storage);
     }
 
-    const links = u.map_valid(linkers, (s) => (s._link && s._link instanceof StructureLink) ? s._link : undefined);
+    const links = u.map_valid(linkers, (s) => ((s._link && s._link instanceof StructureLink) ? s._link : undefined));
     const linkJobs = u.map_valid(links, (link) => {
       const energy = link.available();
       if (energy > 100) {
         const space = link.freeSpace();
-        const p = (
-          (space < 100) ? 5
-            : (space < 300) ? 4
-              : (space < 600) ? 3
-                : 2);
-
+        let p = 2;
+        if (space < 100) {
+          p = 5;
+        } else if (space < 300) {
+          p = 4;
+        } else if (space < 600) {
+          p = 3;
+        } else {
+          p = 2;
+        }
         return new JobPickup(link, RESOURCE_ENERGY, p);
       }
 
@@ -431,14 +394,11 @@ export class Mayor implements Monarchy.Model {
 
   unloadJobs(): Job.Model[] {
     const room = this._room;
-    const towers = room.find<StructureTower>(FIND_MY_STRUCTURES, {
-      filter: (s: AnyStructure) => {
-        return (s.structureType == STRUCTURE_TOWER) && s.freeSpace() > 300;
-      }
-    });
+    const towers = room.find<StructureTower>(FIND_MY_STRUCTURES,
+      { filter: (s: AnyStructure) => (s.structureType === STRUCTURE_TOWER) && s.freeSpace() > 300 });
     const foes = room.find(FIND_HOSTILE_CREEPS);
     const unloadJobs: JobUnload[] = _.map(towers, (s: StructureTower): JobUnload => {
-      const p = (foes.length) ? 10 : (s.freeSpace() / s.capacity() * 5);
+      const p = (foes.length) ? 10 : ((s.freeSpace() / s.capacity()) * 5);
       return new JobUnload(s, RESOURCE_ENERGY, p);
     });
 
@@ -448,7 +408,7 @@ export class Mayor implements Monarchy.Model {
   }
 
   report(): string[] {
-    let r = new Array<string>();
+    const r = new Array<string>();
     r.push(`** Mayoral report by ${this} `);
     r.concat(this._architect.report());
     r.concat(this._cloner.report());
@@ -461,51 +421,53 @@ export class Mayor implements Monarchy.Model {
     this._cloner.save();
     this._caretaker.save();
 
-    //this._room.memory.executives = _.map(this._executives, (e) => e.toMemory());
-    //this._room.memory.bosses = _.map(this._bosses, (boss) => boss.toMemory());
+    // this._room.memory.executives = _.map(this._executives, (e) => e.toMemory());
+    // this._room.memory.bosses = _.map(this._bosses, (boss) => boss.toMemory());
 
-    log.info(`${this}: saved.`)
+    log.info(`${this}: saved.`);
   }
 
   assignWorkers(bosses: Boss[], availableWorkers: Creep[]): Creep[] {
 
-    if (bosses.length == 0 || availableWorkers.length == 0) {
-      log.info(`${this}: no bosses or workers to assign.`)
+    if (bosses.length === 0 || availableWorkers.length === 0) {
+      log.info(`${this}: no bosses or workers to assign.`);
       return [];
     }
 
-    //    const [emptyWorkers, energizedWorkers] = _.partition(availableWorkers, (w: Creep) => { return w.available() == 0; });
-    //    const [fullWorkers, multipurposeWorkers] = _.partition(energizedWorkers, (w: Creep) => { return w.freeSpace() == 0; });
+    //    const [emptyWorkers, energizedWorkers] = _.partition(availableWorkers, (w: Creep) => { return w.available() === 0; });
+    //    const [fullWorkers, multipurposeWorkers] = _.partition(energizedWorkers, (w: Creep) => { return w.freeSpace() === 0; });
     //    const [sourceJobs, sinkJobs] = _.partition(bosses, (b: Boss) => { return b.job.satisfiesPrerequisite(Job.Prerequisite.COLLECT_ENERGY); });
 
     //    log.info(`${this}: assigning ${fullWorkers.length} full workers to ${sinkJobs.length} sink jobs`);
-    //_.each(sinkJobs, (boss) => log.debug(`${boss}: sink job  @ ${boss.job.site()}`))
+    // _.each(sinkJobs, (boss) => log.debug(`${boss}: sink job  @ ${boss.job.site()}`))
     //    const [hiringSinks, lazyFull] = assign_workers(sinkJobs, fullWorkers);
     //    log.info(`${this}: assigning ${emptyWorkers.length} empty workers to ${sourceJobs.length} source jobs ${sourceJobs}`);
-    //_.each(sourceJobs, (boss) => log.debug(`${boss}: source job @ ${boss.job.site()}`))
+    // _.each(sourceJobs, (boss) => log.debug(`${boss}: source job @ ${boss.job.site()}`))
     //    const [hiringSources, lazyEmpty] = assign_workers(sourceJobs, emptyWorkers);
     //    log.info(`${this}: assigning ${multipurposeWorkers.length} workers to ${hiringSources.length + hiringSinks.length} left - over jobs`);
     //    const [hiring, lazyMulti] = assign_workers(hiringSinks.concat(hiringSources), multipurposeWorkers);
-    //return lazyFull.concat(lazyEmpty, lazyMulti);
-    log.error(`All bosses:`);
+    // return lazyFull.concat(lazyEmpty, lazyMulti);
+    log.error('All bosses:');
     _.each(bosses, (b) => log.error(`${b} => ${b.job.site()}`));
-    const [hiring, lazy] = assign_workers(bosses, availableWorkers);
+    const [, lazy] = assign_workers(bosses, availableWorkers);
     return lazy;
   }
 }
 
+/*
 function prioritize_bosses(bosses: Boss[]): Boss[] {
-  return _.sortBy(bosses, (boss: Boss): number => { return -boss.priority(); });
+  return _.sortBy(bosses, (boss: Boss): number => -boss.priority());
 }
+*/
 
-type WorkerBossPairing = { rating: number, boss: Boss, worker: Creep };
+type WorkerBossPairing = { rating: number; boss: Boss; worker: Creep };
 function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairing[] {
   const pairings: WorkerBossPairing[] = [];
   _.each(bosses, (b: Boss) => {
     _.each(workers, (w: Creep) => {
       const rating = b.priority() * b.job.efficiency(w);
       if (rating > 0.0) {
-        pairings.push({ rating: rating, boss: b, worker: w })
+        pairings.push({ rating, boss: b, worker: w });
       }
     });
   });
@@ -514,37 +476,36 @@ function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairin
 }
 
 function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {
-  if (bosses.length == 0 || workers.length == 0) {
-    log.debug(`No bosses or workers!!!`)
+  if (bosses.length === 0 || workers.length === 0) {
+    log.debug('No bosses or workers!!!');
     return [bosses, workers];
   }
 
   let pairings: WorkerBossPairing[] = get_worker_pairings(bosses, workers);
-  if (pairings.length == 0) {
-    log.debug(`No pairings!!!`)
+  if (pairings.length === 0) {
+    log.debug('No pairings!!!');
     return [bosses, workers];
   }
 
-  log.error(`Worker-Boss Pairings:`)
+  log.error('Worker-Boss Pairings:');
   _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
 
   const assignedBosses: Boss[] = [];
   const assignedWorkers: Creep[] = [];
-  let bestPairing: WorkerBossPairing;
   do {
-    bestPairing = pairings[0];
+    const bestPairing = pairings[0];
     bestPairing.boss.assignWorker(bestPairing.worker);
     assignedBosses.push(bestPairing.boss);
     assignedWorkers.push(bestPairing.worker);
     bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
     bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
-    pairings = _.filter(pairings, (wbp: WorkerBossPairing) => { return wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker; });
-    log.error(`Refined Worker-Boss Pairings:`)
+    pairings = _.filter(pairings, (wbp: WorkerBossPairing) => wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker);
+    log.error('Refined Worker-Boss Pairings:');
     _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
   }
   while (pairings.length);
 
-  return [_.filter(bosses, (b: Boss) => { return b.needsWorkers(); }), _.difference(workers, assignedWorkers)];
+  return [_.filter(bosses, (b: Boss) => b.needsWorkers()), _.difference(workers, assignedWorkers)];
 }
 
 function assign_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {

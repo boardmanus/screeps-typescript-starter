@@ -1,34 +1,34 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import JobUnload from "JobUnload"
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-
+import * as Job from 'Job';
+import JobUnload from 'JobUnload';
+import { Operation } from 'Operation';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function withdraw_from_site(job: JobPickup, worker: Creep, site: PickupStoreSite): Operation {
   return () => {
-
     Job.visualize(job, worker);
 
     if (!worker.pos.inRangeTo(site, 1)) {
       Job.moveTo(job, worker, 1);
     }
-    const resource = u.max_stored_resource(site.store, job._resource);
+    const resource = u.max_stored_resource(site.store, job.resource);
     const available = site.available(resource);
     const res: number = worker.withdraw(site, resource);
     switch (res) {
       default:
-        log.error(`${job}: unexpected error while ${worker} tried withdrawing ${job._resource} from ${site} (${u.errstr(res)})`);
+        log.error(`${job}: unexpected error while ${worker} tried withdrawing ${job.resource} from ${site} (${u.errstr(res)})`);
         break;
       case ERR_NOT_IN_RANGE:
         break;
       case OK:
-        // Finished job.
-        const withdrawn = available - site.available(resource);
-        log.info(`${job}: ${worker} withdrew ${withdrawn} resources from ${site}`);
-        break;
+        {
+          // Finished job.
+          const withdrawn = available - site.available(resource);
+          log.info(`${job}: ${worker} withdrew ${withdrawn} resources from ${site}`);
+          break;
+        }
     }
-  }
+  };
 }
 
 function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operation {
@@ -42,8 +42,8 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
         break;
       case ERR_NOT_IN_RANGE: {
         res = Job.moveTo(job, worker, 1);
-        if (res == OK) {
-          if (worker.pickup(site) == OK) {
+        if (res === OK) {
+          if (worker.pickup(site) === OK) {
             log.info(`${job}: ... and ${worker} picked up resources from ${site}`);
           }
         }
@@ -53,14 +53,14 @@ function pickup_at_site(job: JobPickup, worker: Creep, site: Resource): Operatio
         log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 function transfer_from_site(job: JobPickup, worker: Creep, site: Creep): Operation {
   return () => {
     Job.visualize(job, worker);
-    const resource = u.max_stored_resource(site.store, job._resource);
-    let res: number = site.transfer(worker, resource);
+    const resource = u.max_stored_resource(site.store, job.resource);
+    const res: number = site.transfer(worker, resource);
     switch (res) {
       case OK:
         // Finished job.
@@ -74,25 +74,25 @@ function transfer_from_site(job: JobPickup, worker: Creep, site: Creep): Operati
         log.error(`${job}: unexpected error while ${worker} tried picking up resources-${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobPickup implements Job.Model {
 
   static readonly TYPE = 'pickup';
 
-  readonly _site: PickupSite;
-  readonly _resource: ResourceType;
-  readonly _priority: number;
+  readonly pickupSite: PickupSite;
+  readonly resource: ResourceType;
+  readonly pickupPriority: number;
 
   constructor(site: PickupSite, resource: ResourceType = RESOURCE_ENERGY, priority?: number) {
-    this._site = site;
-    this._resource = resource;
-    this._priority = priority ?? 4;
+    this.pickupSite = site;
+    this.resource = resource;
+    this.pickupPriority = priority ?? 4;
   }
 
   id(): string {
-    return `job-${JobPickup.TYPE}-${this._resource}-${this._site.id}`;
+    return `job-${JobPickup.TYPE}-${this.resource}-${this.pickupSite.id}`;
   }
 
   type(): string {
@@ -112,31 +112,31 @@ export default class JobPickup implements Job.Model {
   }
 
   priority(workers?: Creep[]): number {
-    if (!workers) return this._priority;
-    return this._priority;
+    if (!workers) return this.pickupPriority;
+    return this.pickupPriority;
   }
 
   efficiency(worker: Creep): number {
 
-    const freespace = worker.freeSpace(this._resource);
-    if (freespace == 0) {
+    const freespace = worker.freeSpace(this.resource);
+    if (freespace === 0) {
       return 0.0;
     }
 
-    if (u.find_nearby_hostiles(this._site).length > 0) {
+    if (u.find_nearby_hostiles(this.pickupSite).length > 0) {
       return 0;
     }
 
     // The energy/s with respect to travel time, and amount to pickup
-    const amount = this._site.available(this._resource);
-    const e = u.taxi_efficiency(worker, this._site, Math.min(freespace, amount));
+    const amount = this.pickupSite.available(this.resource);
+    const e = u.taxi_efficiency(worker, this.pickupSite, Math.min(freespace, amount));
 
     // If the workers last job was dropping off at this site, then
     // reduce the efficiency of a pickup from the same place.
-    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
-    if (lastJob && (lastJob.site() === this._site) && (lastJob.type() == JobUnload.TYPE)) {
-      //log.error(`${this}: ${worker} pickup from dropoff @ ${this._site} (e=0.01*${e})`)
-      //return 0.01 * e;
+    const lastJob: Job.Model = worker.getLastJob();
+    if (lastJob && (lastJob.site() === this.pickupSite) && (lastJob.type() === JobUnload.TYPE)) {
+      // log.error(`${this}: ${worker} pickup from dropoff @ ${this._site} (e=0.01*${e})`)
+      // return 0.01 * e;
       return 0.0;
     }
 
@@ -144,23 +144,23 @@ export default class JobPickup implements Job.Model {
   }
 
   site(): RoomObject {
-    return this._site;
+    return this.pickupSite;
   }
 
   isSatisfied(workers: Creep[]): boolean {
-    const space = _.sum(workers, (w) => w.freeSpace(this._resource));
-    return this._site.available(this._resource) < space;
+    const space = _.sum(workers, (w) => w.freeSpace(this.resource));
+    return this.pickupSite.available(this.resource) < space;
   }
 
   completion(worker?: Creep): number {
 
-    const available = this._site.available(this._resource);
-    if (available == 0) {
+    const available = this.pickupSite.available(this.resource);
+    if (available === 0) {
       return 1.0;
     }
 
     if (worker) {
-      if (worker.freeSpace(this._resource) == 0) {
+      if (worker.freeSpace(this.resource) === 0) {
         return 1.0;
       }
       return worker.available() / worker.capacity();
@@ -174,23 +174,14 @@ export default class JobPickup implements Job.Model {
   }
 
   work(worker: Creep): Operation[] {
-    if (this._site instanceof Resource) {
-      return [pickup_at_site(this, worker, this._site)];
+    if (this.pickupSite instanceof Resource) {
+      return [pickup_at_site(this, worker, this.pickupSite)];
     }
-    else if (this._site instanceof Creep) {
-      return [transfer_from_site(this, worker, this._site)];
+
+    if (this.pickupSite instanceof Creep) {
+      return [transfer_from_site(this, worker, this.pickupSite)];
     }
-    else {
-      return [withdraw_from_site(this, worker, this._site)];
-    }
+
+    return [withdraw_from_site(this, worker, this.pickupSite)];
   }
 }
-
-
-Job.factory.addBuilder(JobPickup.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <PickupSite>Game.getObjectById(frags[3]);
-  if (!site) return undefined;
-  const resource = <ResourceType>frags[2]
-  return new JobPickup(site, resource);
-});

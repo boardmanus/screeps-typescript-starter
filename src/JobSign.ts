@@ -1,8 +1,7 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-
+import * as Job from 'Job';
+import { Operation } from 'Operation';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function sign_at_site(job: JobSign, worker: Creep): Operation {
   return () => {
@@ -23,7 +22,7 @@ function sign_at_site(job: JobSign, worker: Creep): Operation {
         log.error(`${job}: unexpected error while ${worker} tried sign ${job._site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobSign implements Job.Model {
@@ -35,7 +34,7 @@ export default class JobSign implements Job.Model {
   readonly username: string;
   readonly message: string;
 
-  constructor(site: StructureController, message: string = "mine!", priority: number = 1) {
+  constructor(site: StructureController, message = 'mine!', priority = 1) {
     this._site = site;
     this._priority = priority;
     this.username = _.find(Game.spawns)?.owner.username ?? 'nodbody';
@@ -62,7 +61,7 @@ export default class JobSign implements Job.Model {
     return 'blue';
   }
 
-  priority(workers?: Creep[]): number {
+  priority(_workers?: Creep[]): number {
     return this._priority;
   }
 
@@ -80,7 +79,7 @@ export default class JobSign implements Job.Model {
     return workers.length > 0;
   }
 
-  completion(worker?: Creep): number {
+  completion(_worker?: Creep): number {
     return (this._site.sign?.username === this.username) ? 1.0 : 0.0;
   }
 
@@ -95,11 +94,3 @@ export default class JobSign implements Job.Model {
     return [];
   }
 }
-
-
-Job.factory.addBuilder(JobSign.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const room = Game.rooms[frags[2]];
-  if (!room || !room.controller) return undefined;
-  return new JobSign(room.controller);
-});

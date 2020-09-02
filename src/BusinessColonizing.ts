@@ -1,12 +1,13 @@
+/* eslint-disable no-bitwise */
 import * as Business from 'Business';
-import * as Job from "Job";
+import * as Job from 'Job';
 import JobClaim from 'JobClaim';
-import { BuildingWork } from 'Architect';
-import { log } from 'ScrupsLogger';
-import u from 'Utility';
+import WorkBuilding from 'WorkBuilding';
+import log from 'ScrupsLogger';
+import * as u from 'Utility';
 import Room$ from 'RoomCache';
 import JobReserve from 'JobReserve';
-import { profile } from 'Profiler/Profiler'
+import { profile } from 'Profiler/Profiler';
 
 const CLAIMER_EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CLAIM];
 const RESERVER_EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CLAIM, CLAIM];
@@ -27,52 +28,49 @@ function possible_spawn_sites(room: Room) {
   return sites;
 }
 
-function spawn_building_work(room: Room): BuildingWork[] {
+function spawn_building_work(room: Room): WorkBuilding[] {
 
-  let bestPos: RoomPosition;
-  const buildings: BuildingWork[] = [];
+  const buildings: WorkBuilding[] = [];
 
   const viableSites = possible_spawn_sites(room);
   log.info(`${room}: ${viableSites.length} viable spawn sites`);
-  if (viableSites.length == 0) {
+  if (viableSites.length === 0) {
     return [];
   }
 
   const structs: RoomObject[] = room.find(FIND_SOURCES);
   if (room.controller) {
-    structs.push(room.controller)
+    structs.push(room.controller);
   }
 
-  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => {
-    return _.sum(_.map(structs, (s) => {
-      const d = site.getRangeTo(s);
-      return d * d;
-    }));
-  });
+  const sortedSites = _.sortBy(viableSites, (site: RoomPosition) => _.sum(_.map(structs, (s) => {
+    const d = site.getRangeTo(s);
+    return d * d;
+  })));
 
   const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'dashed', stroke: 'purple' };
   let i = 0;
-  for (const site of sortedSites) {
-    style.opacity = (i == 0) ? 1.0 : 0.5 - i / sortedSites.length / 2;
+  _.each(sortedSites, (site) => {
+    style.opacity = (i === 0) ? 1.0 : 0.5 - i / sortedSites.length / 2;
     room.visual.circle(site.x + 2, site.y + 2, style);
     ++i;
-  }
+  });
 
-  bestPos = sortedSites[0];
+  const [bestPos] = sortedSites;
   bestPos.x += 2;
   bestPos.y += 2;
 
   const pstyle: PolyStyle = { fill: 'transparent', stroke: 'purple', lineStyle: 'dashed' };
-  room.visual.rect(bestPos.x - 1.5, bestPos.y - 1.5, 5, 5, pstyle)
+  room.visual.rect(bestPos.x - 1.5, bestPos.y - 1.5, 5, 5, pstyle);
 
-  buildings.push(new BuildingWork(bestPos, STRUCTURE_SPAWN));
+  buildings.push(new WorkBuilding(bestPos, STRUCTURE_SPAWN));
 
   return buildings;
 }
 
 function can_build_spawn(room: Room): boolean {
 
-  const controller = room.controller;
+  const { controller } = room;
   if (!controller || !controller.my) {
     return false;
   }
@@ -94,15 +92,15 @@ export default class BusinessColonizing implements Business.Model {
   static readonly CLAIM_FLAG_PREFIX: string = 'claim';
   static readonly RESERVE_FLAG_PREFIX: string = 'reserve';
 
-  static _claimerNum: number = 0;
+  static _claimerNum = 0;
 
   private readonly _priority: number;
   private readonly _flags: Flag[];
   private readonly _room: Room;
-  private readonly _colonizationRooms: { [roomName: string]: { flag: Flag, ops: number } };
+  private readonly _colonizationRooms: { [roomName: string]: { flag: Flag; ops: number } };
   private _jobs: Job.Model[] | undefined;
 
-  constructor(room: Room, priority: number = 5) {
+  constructor(room: Room, priority = 5) {
     this._priority = priority;
     this._room = room;
 
@@ -124,11 +122,11 @@ export default class BusinessColonizing implements Business.Model {
         croom.ops |= OP_RESERVE;
       }
 
-      if (croom.ops != 0) {
+      if (croom.ops !== 0) {
         this._colonizationRooms[f.pos.roomName] = croom;
       }
 
-      return croom.ops != 0;
+      return croom.ops !== 0;
     });
   }
 
@@ -174,8 +172,8 @@ export default class BusinessColonizing implements Business.Model {
   survey() {
   }
 
-  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
-    if (_.find(this.permanentJobs(), (j) => j.type() == JobReserve.TYPE)) {
+  employeeBody(_availEnergy: number, _maxEnergy: number): BodyPartConstant[] {
+    if (_.find(this.permanentJobs(), (j) => j.type() === JobReserve.TYPE)) {
       return RESERVER_EMPLOYEE_BODY_BASE;
     }
     return CLAIMER_EMPLOYEE_BODY_BASE;
@@ -185,7 +183,7 @@ export default class BusinessColonizing implements Business.Model {
     return this._jobs ?? u.map_valid(Object.keys(this._colonizationRooms), (key) => {
       const cr = this._colonizationRooms[key];
       if (cr.ops & OP_CLAIM) {
-        const room = cr.flag.room;
+        const { room } = cr.flag;
         if (!room) {
           return new JobClaim(cr.flag);
         }
@@ -197,8 +195,8 @@ export default class BusinessColonizing implements Business.Model {
 
         return new JobClaim(controller);
       }
-      else if (cr.ops & OP_RESERVE) {
-        const room = cr.flag.room;
+      if (cr.ops & OP_RESERVE) {
+        const { room } = cr.flag;
         if (!room) {
           return new JobReserve(cr.flag);
         }
@@ -211,15 +209,15 @@ export default class BusinessColonizing implements Business.Model {
     });
   }
 
-  contractJobs(employees: Creep[]): Job.Model[] {
+  contractJobs(_employees: Creep[]): Job.Model[] {
     return [];
   }
 
-  buildings(): BuildingWork[] {
-    const work: BuildingWork[] = [];
+  buildings(): WorkBuilding[] {
+    const work: WorkBuilding[] = [];
 
     _.each(this._colonizationRooms, (cr) => {
-      const room = cr.flag.room;
+      const { room } = cr.flag;
       if (room && can_build_spawn(room)) {
         work.push(...spawn_building_work(room));
       }
@@ -227,13 +225,3 @@ export default class BusinessColonizing implements Business.Model {
     return work;
   }
 }
-
-Business.factory.addBuilder(BusinessColonizing.TYPE, (id: string): Business.Model | undefined => {
-  const frags = id.split('-');
-  const room = Game.rooms[frags[2]];
-  if (!room) {
-    return undefined;
-  }
-
-  return new BusinessColonizing(room);
-});

@@ -1,17 +1,17 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
-const TTL_NEARLY_DEAD: number = 200;
-const TTL_RECYCLE_TIME: number = 30;
+const TTL_NEARLY_DEAD = 200;
+const TTL_RECYCLE_TIME = 30;
 
 function recycle_at_site(job: JobRecycle, worker: Creep): Operation {
   return () => {
     const site = job._site;
 
     const recycler = site.recycler();
-    const recycleSite = recycler ?? site
+    const recycleSite = recycler ?? site;
     Job.visualize(job, worker, recycleSite);
 
     if ((recycler && !worker.pos.isEqualTo(recycler.pos))
@@ -20,7 +20,7 @@ function recycle_at_site(job: JobRecycle, worker: Creep): Operation {
       return;
     }
 
-    let res: number = site.recycleCreep(worker);
+    const res: number = site.recycleCreep(worker);
     switch (res) {
       case OK:
         // Finished job.
@@ -30,7 +30,7 @@ function recycle_at_site(job: JobRecycle, worker: Creep): Operation {
         log.warning(`${job}: ${worker} failed to recycle ${worker} @ ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobRecycle implements Job.Model {
@@ -40,7 +40,7 @@ export default class JobRecycle implements Job.Model {
   readonly _site: StructureSpawn;
   readonly _priority: number;
 
-  constructor(site: StructureSpawn, priority: number = 1) {
+  constructor(site: StructureSpawn, priority = 1) {
     this._site = site;
     this._priority = priority;
   }
@@ -65,7 +65,7 @@ export default class JobRecycle implements Job.Model {
     return 'red';
   }
 
-  priority(workers?: Creep[]): number {
+  priority(_workers?: Creep[]): number {
     return this._priority;
   }
 
@@ -83,11 +83,11 @@ export default class JobRecycle implements Job.Model {
     const timeToRecycler = u.creep_movement_time(worker, site);
 
     if (worker.ticksToLive - timeToRecycler > TTL_RECYCLE_TIME) {
-      log.warning(`${this}: ${worker} nearly dead (ttl=${worker.ticksToLive} <= ${TTL_NEARLY_DEAD})`)
+      log.warning(`${this}: ${worker} nearly dead (ttl=${worker.ticksToLive} <= ${TTL_NEARLY_DEAD})`);
       return 0.0;
     }
 
-    log.warning(`${this}: ${worker} due to be recycled (ttl=${worker.ticksToLive} - ttr=${timeToRecycler} <= ${TTL_RECYCLE_TIME})`)
+    log.warning(`${this}: ${worker} due to be recycled (ttl=${worker.ticksToLive} - ttr=${timeToRecycler} <= ${TTL_RECYCLE_TIME})`);
 
     return 1000.0;
   }
@@ -96,7 +96,7 @@ export default class JobRecycle implements Job.Model {
     return this._site;
   }
 
-  isSatisfied(workers: Creep[]): boolean {
+  isSatisfied(_workers: Creep[]): boolean {
     return false;
   }
 
@@ -116,11 +116,3 @@ export default class JobRecycle implements Job.Model {
     return [recycle_at_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobRecycle.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <StructureSpawn>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  return new JobRecycle(site);
-});

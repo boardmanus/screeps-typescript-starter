@@ -1,8 +1,7 @@
-import * as Job from "Job";
-import { Operation } from "./Operation";
-import { log } from './ScrupsLogger';
-import u from "./Utility";
-
+import * as Job from 'Job';
+import { Operation } from 'Operation';
+import log from 'ScrupsLogger';
+import * as u from 'Utility';
 
 type HarvestSite = Source | Mineral | Deposit;
 
@@ -13,12 +12,12 @@ type HarvestSite = Source | Mineral | Deposit;
  */
 function harvest_from_site(job: JobHarvest, worker: Creep): Operation {
   return () => {
-    const site = job._site;
+    const site = job.harvestSite;
     Job.visualize(job, worker);
     const container = site._container;
     if (container
       && !worker.pos.inRangeTo(container.pos, 0)
-      && _.filter(container.pos.lookFor(LOOK_CREEPS), (c) => c.name != worker.name).length == 0) {
+      && _.filter(container.pos.lookFor(LOOK_CREEPS), (c) => c.name !== worker.name).length === 0) {
       Job.moveTo(job, worker, 0, container);
       return;
     }
@@ -50,26 +49,20 @@ function harvest_from_site(job: JobHarvest, worker: Creep): Operation {
         log.info(`${job}: ${worker} is harvesting at ${site}`);
         break;
     }
-  }
+  };
 }
-
-
+/*
 function harvest_per_tick(workers: Creep[]): number {
   const workParts = _.reduce(
     workers,
-    (sum: number, worker: Creep): number => {
-      return _.filter(
-        worker.body,
-        (bodypart: BodyPartDefinition): boolean => {
-          return bodypart.type == WORK;
-        }).length + sum;
-    },
+    (sum: number, worker: Creep): number => _.filter(
+      worker.body,
+      (bodypart: BodyPartDefinition): boolean => bodypart.type === WORK).length + sum,
     0);
 
   return workParts * 2;
 }
-
-
+*/
 function harvest_spaces(source: HarvestSite): RoomPosition[] {
   const positions = source.pos.surroundingPositions(1, (p: RoomPosition): boolean => {
     const terrain = p.look();
@@ -81,7 +74,7 @@ function harvest_spaces(source: HarvestSite): RoomPosition[] {
         case LOOK_STRUCTURES:
           return !t.structure || u.is_passible_structure(t.structure);
         case LOOK_TERRAIN:
-          return (t.terrain != 'wall');
+          return (t.terrain !== 'wall');
         default:
           break;
       }
@@ -94,25 +87,25 @@ function harvest_spaces(source: HarvestSite): RoomPosition[] {
 }
 
 function is_energy_harvesting_satisfied(source: Source, workers: Creep[]): boolean {
-  if (source.energy == 0) {
+  if (source.energy === 0) {
     return true;
   }
 
-  if (workers.length == 0) {
+  if (workers.length === 0) {
     return false;
   }
 
-  const remainingEnergy = source.energy - _.sum(workers, (w: Creep): number => { return w.freeSpace(); });
+  const remainingEnergy = source.energy - _.sum(workers, (w: Creep): number => w.freeSpace());
   return remainingEnergy <= 0;
 }
 
 function is_mineral_harvesting_satisfied(mineral: Mineral | Deposit, workers: Creep[]): boolean {
-  if (mineral.available() == 0) {
+  if (mineral.available() === 0) {
     return true;
   }
   return workers.length >= 1;
   /*
-  if (workers.length == 0) {
+  if (workers.length === 0) {
     return false;
   }
 
@@ -121,31 +114,34 @@ function is_mineral_harvesting_satisfied(mineral: Mineral | Deposit, workers: Cr
   */
 }
 
+/*
 function mineral_capacity(mineral: Mineral): number {
   switch (mineral.density) {
     case DENSITY_LOW: return 15000;
     case DENSITY_MODERATE: return 35000;
     case DENSITY_HIGH: return 70000;
     case DENSITY_ULTRA: return 100000;
+    default:
+      break;
   }
   return 100000;
 }
-
+*/
 
 export default class JobHarvest implements Job.Model {
 
   static readonly TYPE: string = 'harvest';
 
-  readonly _site: HarvestSite;
-  readonly _priority: number;
+  readonly harvestSite: HarvestSite;
+  readonly harvestPriority: number;
 
-  constructor(site: HarvestSite, priority: number = 5) {
-    this._site = site;
-    this._priority = priority;
+  constructor(site: HarvestSite, priority = 5) {
+    this.harvestSite = site;
+    this.harvestPriority = priority;
   }
 
   id(): string {
-    return `job-${JobHarvest.TYPE}-${this._site.id}`;
+    return `job-${JobHarvest.TYPE}-${this.harvestSite.id}`;
   }
 
   type(): string {
@@ -165,12 +161,12 @@ export default class JobHarvest implements Job.Model {
   }
 
   priority(workers?: Creep[]): number {
-    if (!workers) return this._priority;
-    return this._priority / (workers.length + 1);
+    if (!workers) return this.harvestPriority;
+    return this.harvestPriority / (workers.length + 1);
   }
 
   site(): RoomObject {
-    return this._site;
+    return this.harvestSite;
   }
 
   baseWorkerBody(): BodyPartConstant[] {
@@ -178,31 +174,31 @@ export default class JobHarvest implements Job.Model {
   }
 
   efficiency(worker: Creep): number {
-    if (worker.freeSpace() <= u.work_energy(worker, 2) || this._site.available() == 0) {
+    if (worker.freeSpace() <= u.work_energy(worker, 2) || this.harvestSite.available() === 0) {
       return 0.0;
     }
 
-    return u.work_efficiency(worker, this._site, worker.freeSpace(), HARVEST_POWER);
+    return u.work_efficiency(worker, this.harvestSite, worker.freeSpace(), HARVEST_POWER);
   }
 
   isSatisfied(workers: Creep[]): boolean {
 
-    const positions = harvest_spaces(this._site);
+    const positions = harvest_spaces(this.harvestSite);
     if (workers.length >= positions.length) {
       return true;
     }
 
-    if (this._site instanceof Source) {
-      return is_energy_harvesting_satisfied(this._site, workers);
+    if (this.harvestSite instanceof Source) {
+      return is_energy_harvesting_satisfied(this.harvestSite, workers);
     }
 
-    log.debug(`is_mineral_harvesting_satisfied? ${is_mineral_harvesting_satisfied(this._site, workers)}`);
-    return is_mineral_harvesting_satisfied(this._site, workers);
+    log.debug(`is_mineral_harvesting_satisfied? ${is_mineral_harvesting_satisfied(this.harvestSite, workers)}`);
+    return is_mineral_harvesting_satisfied(this.harvestSite, workers);
   }
 
   completion(worker?: Creep): number {
-    const avail: number = this._site.available();
-    if (avail == 0) {
+    const avail: number = this.harvestSite.available();
+    if (avail === 0) {
       return 1.0;
     }
 
@@ -214,22 +210,14 @@ export default class JobHarvest implements Job.Model {
       return worker.available() / maxHolding;
     }
 
-    return 1.0 - avail / this._site.capacity();
+    return 1.0 - avail / this.harvestSite.capacity();
   }
 
   work(worker: Creep): Operation[] {
-    if (this.completion(worker) == 1.0) {
+    if (this.completion(worker) === 1.0) {
       return [];
     }
 
     return [harvest_from_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobHarvest.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site: HarvestSite = <HarvestSite>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  return new JobHarvest(site);
-});

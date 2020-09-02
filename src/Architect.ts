@@ -1,12 +1,12 @@
-import { Expert } from "./Expert";
-import { Work } from "./Work";
-import * as Job from "Job";
-import { log } from "./ScrupsLogger";
-import Executive from "Executive";
-import BusinessEnergyMining from "BusinessEnergyMining";
-import { Operation } from "./Operation";
-import Cache from "Cache";
-import u from "./Utility";
+import { Expert } from 'Expert';
+import Work from 'Work';
+import WorkBuilding from 'WorkBuilding';
+import * as Job from 'Job';
+import log from 'ScrupsLogger';
+import Executive from 'Executive';
+import BusinessEnergyMining from 'BusinessEnergyMining';
+import Cache from 'Cache';
+import * as u from 'Utility';
 
 const ROADING_FIND_PATH_OPTIONS: PathFinderOpts = {
   plainCost: 1,
@@ -39,43 +39,39 @@ function find_roading_route(from: RoomObject, to: RoomObject): RoomPosition[] {
 }
 
 function find_controller_routes(room: Room): RoomPosition[] {
-  const controller = room.controller;
+  const { controller } = room;
   if (!controller) {
     return [];
   }
 
   const spawns: StructureSpawn[] = room.find(FIND_MY_SPAWNS);
-  const paths = _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => {
-    return find_roading_route(controller, spawn);
-  }));
+  const paths = _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => find_roading_route(controller, spawn)));
 
   return paths;
 }
 
 function find_tower_routes(room: Room): RoomPosition[] {
   const towers: StructureTower[] = room.find<StructureTower>(FIND_MY_STRUCTURES, {
-    filter: (s: Structure) => {
-      return s.structureType == STRUCTURE_TOWER;
-    }
+    filter:
+      (s: Structure) => s.structureType === STRUCTURE_TOWER
   });
-  if (towers.length == 0) {
+
+  if (towers.length === 0) {
     return [];
   }
 
   const storage: Structure[] = room.find(FIND_STRUCTURES, {
-    filter: (s: Structure) => {
-      return s.structureType == STRUCTURE_CONTAINER || s.structureType == STRUCTURE_STORAGE;
-    }
+    filter:
+      (s: Structure) => s.structureType === STRUCTURE_CONTAINER || s.structureType === STRUCTURE_STORAGE
   });
-  if (storage.length == 0) {
+
+  if (storage.length === 0) {
     return [];
   }
 
-  const paths = _.flatten(_.map(storage, (store: Structure): RoomPosition[] => {
-    return _.flatten(_.map(towers, (tower: StructureTower): RoomPosition[] => {
-      return find_roading_route(store, tower);
-    }));
-  }));
+  const paths = _.flatten(_.map(storage,
+    (store: Structure): RoomPosition[] => _.flatten(_.map(towers,
+      (tower: StructureTower): RoomPosition[] => find_roading_route(store, tower)))));
 
   return paths;
 }
@@ -84,63 +80,50 @@ function find_source_routes(ceos: Executive[]): (room: Room) => RoomPosition[] {
   return (room: Room) => {
     const sources: Source[] = _.map(_.filter(ceos,
       (ceo) => ceo.business instanceof BusinessEnergyMining),
-      (ceo) => (<BusinessEnergyMining>ceo.business)._mine);
+      (ceo) => (ceo.business as BusinessEnergyMining)._mine);
 
     const spawns: StructureSpawn[] = room.find(FIND_MY_SPAWNS);
 
-    const paths = _.flatten(_.map(sources, (source: Source): RoomPosition[] => {
-      return _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => {
-        return find_roading_route(source, spawn);
-      }));
-    }))
+    const paths = _.flatten(_.map(sources,
+      (source: Source): RoomPosition[] => _.flatten(_.map(spawns,
+        (spawn: StructureSpawn): RoomPosition[] => find_roading_route(source, spawn)))));
 
     return paths;
   };
 }
 
 function find_link_routes(room: Room): RoomPosition[] {
-  const links: StructureLink[] = room.find<StructureLink>(FIND_MY_STRUCTURES, {
-    filter: (s: Structure) => {
-      return s.structureType == STRUCTURE_LINK;
-    }
-  });
+  const links: StructureLink[] = room.find<StructureLink>(FIND_MY_STRUCTURES, { filter: (s: Structure) => s.structureType === STRUCTURE_LINK });
   const spawns: StructureSpawn[] = room.find(FIND_MY_SPAWNS);
 
-  const paths = _.flatten(_.map(links, (link: StructureLink): RoomPosition[] => {
-    return _.flatten(_.map(spawns, (spawn: StructureSpawn): RoomPosition[] => {
-      return find_roading_route(link, spawn);
-    }));
-  }));
+  const paths = _.flatten(_.map(links,
+    (link: StructureLink): RoomPosition[] => _.flatten(_.map(spawns,
+      (spawn: StructureSpawn): RoomPosition[] => find_roading_route(link, spawn)))));
 
   return paths;
 }
 
 function find_extractor_routes(room: Room): RoomPosition[] {
 
-  const storage = room.storage;
+  const { storage } = room;
   if (!storage) {
     return [];
   }
 
-  const extractors: StructureExtractor[] = room.find<StructureExtractor>(FIND_MY_STRUCTURES, {
-    filter: (s: Structure) => {
-      return s.structureType == STRUCTURE_EXTRACTOR;
-    }
-  });
+  const extractors: StructureExtractor[] = room.find<StructureExtractor>(FIND_MY_STRUCTURES,
+    { filter: (s: Structure) => s.structureType === STRUCTURE_EXTRACTOR });
 
-  const paths = _.flatten(_.map(extractors, (extractor: StructureExtractor): RoomPosition[] => {
-    return find_roading_route(extractor, storage);
-  }));
+  const paths = _.flatten(_.map(extractors, (extractor: StructureExtractor): RoomPosition[] => find_roading_route(extractor, storage)));
 
   return paths;
 }
 
 function look_for_road_filter(l: LookAtResult): boolean {
-  if (l.type == LOOK_STRUCTURES) {
-    return (l.structure && l.structure.structureType == STRUCTURE_ROAD) ? true : false;
+  if (l.type === LOOK_STRUCTURES) {
+    return !!((l.structure && l.structure.structureType === STRUCTURE_ROAD));
   }
-  else if (l.type == LOOK_CONSTRUCTION_SITES) {
-    return (l.constructionSite) ? true : false;
+  if (l.type === LOOK_CONSTRUCTION_SITES) {
+    return !!(l.constructionSite);
   }
 
   return false;
@@ -153,7 +136,7 @@ function select_road_sites(room: Room, maxSites: number, name: string, defCounte
 
     log.debug(`${room}: computing roads for ${name}`);
     const sites = _.take(_.filter(selector(room), (pos: RoomPosition) => {
-      if (pos.x == 0 || pos.y == 0 || pos.x == 49 || pos.y == 49) {
+      if (pos.x === 0 || pos.y === 0 || pos.x === 49 || pos.y === 49) {
         return false;
       }
       if (!Game.rooms[pos.roomName]) {
@@ -165,7 +148,7 @@ function select_road_sites(room: Room, maxSites: number, name: string, defCounte
     }),
       maxSites);
 
-    counters[name] = (sites.length == 0) ? defCounter : 0;
+    counters[name] = (sites.length === 0) ? defCounter : 0;
 
     return sites;
   }
@@ -175,7 +158,7 @@ function select_road_sites(room: Room, maxSites: number, name: string, defCounte
 }
 
 function possible_road_sites(room: Room, ceos: Executive[], numAllowed: number): RoomPosition[] {
-  const controller = room.controller;
+  const { controller } = room;
   if (!controller) {
     return [];
   }
@@ -205,8 +188,8 @@ function possible_road_sites(room: Room, ceos: Executive[], numAllowed: number):
 }
 
 function possible_tower_sites(protectionSite: RoomObject): RoomPosition[] {
-  let haveTower: boolean = false;
-  const room = protectionSite.room;
+  let haveTower = false;
+  const { room } = protectionSite;
   if (!room) {
     return [];
   }
@@ -220,28 +203,28 @@ function possible_tower_sites(protectionSite: RoomObject): RoomPosition[] {
     }
 
     const terrain = site.look();
-    for (const t of terrain) {
+    return _.all(terrain, (t) => {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_TOWER) {
+          if (t.constructionSite && t.constructionSite.structureType === STRUCTURE_TOWER) {
             haveTower = true;
           }
           return false;
         case LOOK_STRUCTURES:
-          if (t.structure && t.structure.structureType == STRUCTURE_TOWER) {
+          if (t.structure && t.structure.structureType === STRUCTURE_TOWER) {
             haveTower = true;
           }
           return false;
         case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
+          if (t.terrain === 'wall') {
             return false;
           }
           break;
         default:
           break;
       }
-    }
-    return true;
+      return true;
+    });
   });
 
   if (haveTower) {
@@ -252,9 +235,10 @@ function possible_tower_sites(protectionSite: RoomObject): RoomPosition[] {
   return viableSites;
 }
 
+/*
 function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
-  let haveLink: boolean = false;
-  const room = linkNeighbour.room;
+  let haveLink = false;
+  const { room } = linkNeighbour;
   if (!room) {
     return [];
   }
@@ -266,17 +250,17 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
     for (const t of terrain) {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite && t.constructionSite.structureType == STRUCTURE_LINK) {
+          if (t.constructionSite && t.constructionSite.structureType === STRUCTURE_LINK) {
             haveLink = true;
           }
           return false;
         case LOOK_STRUCTURES:
-          if (t.structure && t.structure.structureType == STRUCTURE_LINK) {
+          if (t.structure && t.structure.structureType === STRUCTURE_LINK) {
             haveLink = true;
           }
           return false;
         case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
+          if (t.terrain === 'wall') {
             return false;
           }
           break;
@@ -303,6 +287,8 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
 
   return _.take(sortedSites, 1);
 }
+*/
+
 /*
 function possible_extractor_sites(room: Room): RoomPosition[] {
   const minerals = room.find(FIND_MINERALS);
@@ -312,55 +298,7 @@ function possible_extractor_sites(room: Room): RoomPosition[] {
   return viableSites;
 }
 */
-export class BuildingWork implements Work {
-
-  readonly site: RoomPosition;
-  readonly type: BuildableStructureConstant;
-  readonly room: Room;
-
-  constructor(pos: RoomPosition, type: BuildableStructureConstant) {
-    this.site = pos
-    this.type = type;
-    this.room = Game.rooms[pos.roomName];
-  }
-
-  id() {
-    return `work-build-${this.type}-${this.site?.x}-${this.site?.y}`;
-  }
-
-  toString(): string {
-    return this.id();
-  }
-
-  priority(): number {
-    return 0;
-  }
-
-  work(): Operation[] {
-    return [() => {
-      if (!this.site) {
-        log.error(`${this}: ${this.type} site undefined!`)
-        return;
-      }
-
-      if (!this.room) {
-        log.warning(`${this}: ${this.site} room not visible!`);
-        return;
-      }
-
-      const res = this.room.createConstructionSite(this.site.x, this.site.y, this.type);
-      switch (res) {
-        case OK:
-          log.info(`${this}: created construction site`);
-          break;
-        default:
-          log.error(`${this}: failed to create construction site (${u.errstr(res)})`);
-          break;
-      }
-    }];
-  }
-}
-
+/*
 const PRIORITY_BY_LEVEL: number[] = [
   1,
   1,
@@ -376,10 +314,11 @@ const PRIORITY_BY_LEVEL: number[] = [
   5,
   5,
   5,
-  5,
+  5
 ];
+*/
 
-export class Architect implements Expert {
+export default class Architect implements Expert {
 
   private _room: Room;
 
@@ -388,7 +327,7 @@ export class Architect implements Expert {
   }
 
   id(): string {
-    return `architect-${this._room.name}`
+    return `architect-${this._room.name}`;
   }
 
   toString(): string {
@@ -399,6 +338,7 @@ export class Architect implements Expert {
     log.debug(`${this} surveying...`);
 
   }
+
   /*
     designContainers(): Work[] {
       const room = this._room;
@@ -410,7 +350,7 @@ export class Architect implements Expert {
       const allowedNumContainers = CONTROLLER_STRUCTURES.container[controller.level];
       log.info(`${this}: current num containers ${numContainers} - allowed ${allowedNumContainers}`)
 
-      if (numContainers == allowedNumContainers) {
+      if (numContainers === allowedNumContainers) {
         log.info(`${this}: already have all the required containers (${numContainers}).`)
         return [];
       }
@@ -425,19 +365,17 @@ export class Architect implements Expert {
   */
   designTowers(): Work[] {
     const room = this._room;
-    const controller = room.controller;
+    const { controller } = room;
     if (!controller) return [];
 
     const numTowers = u.find_num_building_sites(room, STRUCTURE_TOWER);
     const allowedNumTowers = CONTROLLER_STRUCTURES.tower[controller.level];
-    log.info(`${this}: current num towers ${numTowers} - allowed ${allowedNumTowers}`)
 
     if (numTowers >= allowedNumTowers) {
-      log.info(`${this}: already have all the required towers (${numTowers}).`)
       return [];
     }
 
-    let protectionSites: RoomObject[] = room.find(FIND_SOURCES);
+    const protectionSites: RoomObject[] = room.find(FIND_SOURCES);
     if (room.storage) {
       protectionSites.push(room.storage);
     }
@@ -445,12 +383,10 @@ export class Architect implements Expert {
     const exits = room.find(FIND_EXIT);
     const allTowerPositions = _.sortBy(_.flatten(_.map(
       protectionSites,
-      (obj: RoomObject): RoomPosition[] => {
-        return possible_tower_sites(obj);
-      })),
+      (obj: RoomObject): RoomPosition[] => possible_tower_sites(obj))),
       (pos) => {
         const towerCloseness = _.min(_.map(
-          room.find(FIND_MY_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_TOWER }),
+          room.find(FIND_MY_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_TOWER }),
           (t) => t.pos.getRangeTo(pos)));
 
         const exitCloseness = _.min(_.map(exits,
@@ -465,19 +401,20 @@ export class Architect implements Expert {
 
     const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'dashed', stroke: 'purple' };
     let i = 0;
-    for (const site of allTowerPositions) {
-      style.opacity = (i == 0) ? 1.0 : 0.5 - i / allTowerPositions.length / 2;
+    _.each(allTowerPositions, (site) => {
+      style.opacity = (i === 0) ? 1.0 : 0.5 - i / allTowerPositions.length / 2;
       room.visual.circle(site.x + 1.5, site.y + 1.5, style);
       ++i;
-    }
+    });
 
     const towerPositions = _.take(allTowerPositions, allowedNumTowers - numTowers);
 
     return _.map(towerPositions, (pos: RoomPosition): Work => {
       log.info(`${this}: creating new tower build work at ${pos} ...`);
-      return new BuildingWork(pos, STRUCTURE_TOWER);
+      return new WorkBuilding(pos, STRUCTURE_TOWER);
     });
   }
+
   /*
     designExtractors(): Work[] {
       const room = this._room;
@@ -496,29 +433,29 @@ export class Architect implements Expert {
       const extractorPositions = _.take(possible_extractor_sites(room), allowedNumExtractors - numExtractors);
       return _.map(extractorPositions, (pos: RoomPosition): Work => {
         log.info(`${this}: creating new extractor build work at ${pos} ...`);
-        return new BuildingWork(room, pos, STRUCTURE_EXTRACTOR);
+        return new WorkBuilding(room, pos, STRUCTURE_EXTRACTOR);
       });
     }
   */
   designRoads(rooms: Room[], ceos: Executive[]): Work[] {
-    if (rooms.length == 0) {
+    if (rooms.length === 0) {
       return [];
     }
 
     const numRoadConstructionSites = _.sum(rooms, (room) => {
-      const cs = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType == STRUCTURE_ROAD });
-      log.debug(`${this}: ${cs.length} cs in ${room.name}`);
-      return cs.length;
+      const sites = room.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType === STRUCTURE_ROAD });
+      log.debug(`${this}: ${sites.length} cs in ${room.name}`);
+      return sites.length;
     });
 
     if (numRoadConstructionSites >= 10) {
-      log.info(`${this}: already have all the allowed road construction sites (${numRoadConstructionSites}).`)
+      log.info(`${this}: already have all the allowed road construction sites (${numRoadConstructionSites}).`);
       return [];
     }
 
     const room = rooms[0];
     if (!room.memory.architect) {
-      room.memory.architect = <ArchitectMemory>{ roading: {} };
+      room.memory.architect = { roading: {} };
     }
 
     const numAllowed = 10 - numRoadConstructionSites;
@@ -530,8 +467,8 @@ export class Architect implements Expert {
       if (!roadRoom) {
         return undefined;
       }
-      log.info(`${this}: creating new road build work ${roadRoom} ... ${pos}`)
-      return new BuildingWork(pos, STRUCTURE_ROAD);
+      log.info(`${this}: creating new road build work ${roadRoom} ... ${pos}`);
+      return new WorkBuilding(pos, STRUCTURE_ROAD);
     });
   }
 
@@ -539,8 +476,8 @@ export class Architect implements Expert {
     const businessWorks: Work[] = _.flatten(_.map(ceos, (ceo) => ceo.business.buildings()));
     const roadWorks: Work[] = this.designRoads(rooms, ceos);
     const towerWorks: Work[] = this.designTowers();
-    //const extractorWorks: Work[] = this.designExtractors();
-    //const containerWorks: Work[] = this.designContainers();
+    // const extractorWorks: Work[] = this.designExtractors();
+    // const containerWorks: Work[] = this.designContainers();
     return businessWorks.concat(roadWorks, towerWorks);
   }
 
@@ -549,7 +486,7 @@ export class Architect implements Expert {
   }
 
   report(): string[] {
-    let r = new Array<string>();
+    const r = new Array<string>();
     r.push(`*** Architectural report by ${this}`);
     return r;
   }
@@ -562,7 +499,7 @@ export class Architect implements Expert {
       (s: Source): SourceMemory => {
         const sm: SourceMemory = {
           id: s.id,
-          container: s._container ? s._container.id : undefined,
+          container: s._container?.id,
           link: s._link ? s._link.id : undefined
         };
         return sm;

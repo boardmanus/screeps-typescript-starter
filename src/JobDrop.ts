@@ -1,20 +1,20 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from './ScrupsLogger'
-import JobPickup from "JobPickup";
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
+import JobPickup from 'JobPickup';
 
 function drop_at_site(job: JobDrop, worker: Creep): Operation {
   return () => {
-    const site = job._site;
+    const site = job.dropSite;
     Job.visualize(job, worker);
     if (!worker.pos.isEqualTo(site.pos)) {
-      const res = Job.moveTo(job, worker, 0);
+      Job.moveTo(job, worker, 0);
       return;
     }
 
     const resource = RESOURCE_ENERGY;
-    let res: number = worker.drop(resource);
+    const res: number = worker.drop(resource);
     switch (res) {
       case OK:
         // Finished job.
@@ -24,23 +24,23 @@ function drop_at_site(job: JobDrop, worker: Creep): Operation {
         log.warning(`${job}: ${worker} failed to drop ${worker.store[resource]} ${resource} to ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobDrop implements Job.Model {
 
   static readonly TYPE = 'drop';
 
-  readonly _site: StructureContainer;
-  readonly _priority: number;
+  readonly dropSite: StructureContainer;
+  readonly dropPriority: number;
 
-  constructor(site: StructureContainer, priority: number = 1) {
-    this._site = site;
-    this._priority = priority;
+  constructor(site: StructureContainer, priority = 1) {
+    this.dropSite = site;
+    this.dropPriority = priority;
   }
 
   id(): string {
-    return `job-${JobDrop.TYPE}-${this._site.id}`;
+    return `job-${JobDrop.TYPE}-${this.dropSite.id}`;
   }
 
   type(): string {
@@ -59,17 +59,17 @@ export default class JobDrop implements Job.Model {
     return 'purple';
   }
 
-  priority(workers?: Creep[]): number {
-    return this._priority;
+  priority(_workers?: Creep[]): number {
+    return this.dropPriority;
   }
 
   efficiency(worker: Creep): number {
-    if (worker.available() == 0) {
+    if (worker.available() === 0) {
       return 0.0;
     }
 
-    const lastJob: Job.Model = <Job.Model>worker.getLastJob();
-    if (lastJob && lastJob.site() === this._site && lastJob.type() === JobPickup.TYPE) {
+    const lastJob: Job.Model = worker.getLastJob();
+    if (lastJob && lastJob.site() === this.dropSite && lastJob.type() === JobPickup.TYPE) {
       return 0.0;
     }
 
@@ -77,10 +77,10 @@ export default class JobDrop implements Job.Model {
   }
 
   site(): RoomObject {
-    return this._site;
+    return this.dropSite;
   }
 
-  isSatisfied(workers: Creep[]): boolean {
+  isSatisfied(_workers: Creep[]): boolean {
     return true;
   }
 
@@ -97,11 +97,3 @@ export default class JobDrop implements Job.Model {
     return [drop_at_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobDrop.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <StructureContainer>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  return new JobDrop(site);
-});

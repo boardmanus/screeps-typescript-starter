@@ -1,6 +1,5 @@
 import * as Job from 'Job';
-import { BuildingWork } from 'Architect';
-import Factory from 'Factory';
+import WorkBuilding from 'WorkBuilding';
 
 export interface Model {
   id(): string;
@@ -11,13 +10,10 @@ export interface Model {
   employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[];
   permanentJobs(): Job.Model[];
   contractJobs(employees: Creep[]): Job.Model[];
-  buildings(): BuildingWork[];
+  buildings(): WorkBuilding[];
 }
 
 export type Map = { [id: string]: Model };
-
-export const factory = new Factory<Model>();
-
 
 export function id(type: string, targetId: string): string {
   return `bus-${type}-${targetId}`;

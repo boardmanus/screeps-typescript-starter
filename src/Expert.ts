@@ -1,4 +1,4 @@
-import * as Job from "Job";
+import * as Job from 'Job';
 
 /**
  * An Expert in a specific field.

@@ -1,12 +1,12 @@
-import * as Config from "../../config/config";
-import { LogLevels } from "./logLevels";
+import * as Config from '../../config/config';
+import { LogLevels } from './logLevels';
 
-function color(str: string, color: string): string {
-  return `<font color='${color}'>${str}</font>`;
+function color(str: string, c: string): string {
+  return `<font color='${c}'>${str}</font>`;
 }
 
 function time(): string {
-  return color(Game.time.toString(), "gray");
+  return color(Game.time.toString(), 'gray');
 }
 
 export class Log {
@@ -22,7 +22,7 @@ export class Log {
     _.defaultsDeep(Memory, {
       log: {
         level: Config.LOG_LEVEL,
-        showTick: Config.LOG_PRINT_TICK,
+        showTick: Config.LOG_PRINT_TICK
       }
     });
   }
@@ -59,16 +59,16 @@ export class Log {
 
     switch (level) {
       case LogLevels.ERROR:
-        out.push(color("ERROR:", "red"));
+        out.push(color('ERROR:', 'red'));
         break;
       case LogLevels.WARNING:
-        out.push(color("WARN: ", "yellow"));
+        out.push(color('WARN: ', 'yellow'));
         break;
       case LogLevels.INFO:
-        out.push(color("INFO: ", "green"));
+        out.push(color('INFO: ', 'green'));
         break;
       case LogLevels.DEBUG:
-        out.push(color("DEBUG:", "gray"));
+        out.push(color('DEBUG:', 'gray'));
         break;
       default:
         break;
@@ -79,6 +79,4 @@ export class Log {
 }
 
 export const log = new Log();
-
-declare var global: any;
 global.log = log;

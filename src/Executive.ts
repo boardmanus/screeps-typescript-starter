@@ -1,29 +1,27 @@
-import * as Job from "Job";
-import { Operation } from "Operation";
-import { Work } from "Work";
-import Boss from "Boss";
-import * as Business from "Business";
-import { log } from 'ScrupsLogger';
-import { profile } from 'Profiler/Profiler'
-
+import * as Job from 'Job';
+import { Operation } from 'Operation';
+import Work from 'Work';
+import Boss from 'Boss';
+import * as Business from 'Business';
+import log from 'ScrupsLogger';
+import { profile } from 'Profiler/Profiler';
 
 function find_best_boss(creep: Creep, busyWorkers: Creep[], bosses: Boss[]): Boss | undefined {
 
   const viableBosses = _.filter(bosses, (boss) => boss.job.efficiency(creep) > 0.0);
   const workableJobs = _.filter(viableBosses, (boss) => {
-    const workers: Creep[] = _.filter(busyWorkers, (w) => boss.job.id() == w.getJob()?.id());
+    const workers: Creep[] = _.filter(busyWorkers, (w) => boss.job.id() === w.getJob()?.id());
     return !boss.job.isSatisfied(workers);
   });
 
   const orderedBosses = _.sortBy(workableJobs, (boss) => -boss.job.priority([creep]) * boss.job.efficiency(creep));
 
-  if (orderedBosses.length == 0) {
+  if (orderedBosses.length === 0) {
     return undefined;
   }
 
   return orderedBosses[0];
 }
-
 
 @profile
 export default class Executive implements Work {
@@ -49,12 +47,13 @@ export default class Executive implements Work {
   bosses(): Boss[] {
     return this._bosses;
   }
+
   employees(): Creep[] {
     return this._employees;
   }
 
   hasEmployee(): boolean {
-    return this._employees.length != 0;
+    return this._employees.length !== 0;
   }
 
   needsEmployee(): boolean {
@@ -70,7 +69,7 @@ export default class Executive implements Work {
   }
 
   addEmployee(creep: Creep) {
-    if (_.find(this._employees, (worker) => worker.id == creep.id)) {
+    if (_.find(this._employees, (worker) => worker.id === creep.id)) {
       log.error(`${this}: tried to add the same worker (${creep}) twice!`);
       return;
     }
@@ -89,30 +88,29 @@ export default class Executive implements Work {
 
   survey(): void {
     this.business.survey();
-    if (this._bosses.length == 0) {
+    if (this._bosses.length === 0) {
       return;
     }
 
     const [lazyWorkers, busyWorkers] = _.partition(this._employees, (worker) => !worker.getJob() && !worker.spawning);
-    if (lazyWorkers.length == 0) {
+    if (lazyWorkers.length === 0) {
       log.debug(`${this}: no lazy employees (${this._employees.length} active)`);
       return;
     }
 
-    for (const worker of lazyWorkers) {
+    _.each(lazyWorkers, (worker) => {
       const bestBoss = find_best_boss(worker, busyWorkers, this._bosses);
       if (bestBoss) {
         worker.setJob(bestBoss.job);
+      } else {
+        log.warning(`${this}: no job for ${worker}! (${this._bosses.length} possible)`);
       }
-      else {
-        log.warning(`${this}: no job for ${worker}! (${this._bosses.length} possible)`)
-      }
-    }
+    });
   }
 
   work(): Operation[] {
-    //const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.getJob()?.work(worker) ?? []));
-    //log.info(`${this}: work (${executiveOperations.length} operations)`)
-    return [];//executiveOperations;
+    // const executiveOperations = _.flatten(_.map(this._employees, (worker) => worker.getJob()?.work(worker) ?? []));
+    // log.info(`${this}: work (${executiveOperations.length} operations)`)
+    return [];// executiveOperations;
   }
 }

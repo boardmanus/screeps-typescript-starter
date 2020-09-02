@@ -1,10 +1,10 @@
 import * as Business from 'Business';
-import * as Job from "Job";
+import * as Job from 'Job';
 import JobHarvest from 'JobHarvest';
 import JobPickup from 'JobPickup';
-import u from 'Utility';
-import { BuildingWork } from 'Architect';
-import { log } from 'ScrupsLogger';
+import * as u from 'Utility';
+import WorkBuilding from 'WorkBuilding';
+import log from 'ScrupsLogger';
 
 type StripMine = Mineral | Deposit;
 
@@ -19,7 +19,7 @@ function strip_mine_resource(mine: StripMine): ResourceConstant {
 }
 
 function pickup_priority(worker: Creep): number {
-  return worker.available() / worker.capacity() * 9;
+  return (worker.available() / worker.capacity()) * 9;
 }
 
 export default class BusinessStripMining implements Business.Model {
@@ -29,7 +29,7 @@ export default class BusinessStripMining implements Business.Model {
   private readonly _priority: number;
   readonly _mine: StripMine;
 
-  constructor(mine: StripMine, priority: number = 5) {
+  constructor(mine: StripMine, priority = 5) {
     this._priority = priority;
     this._mine = mine;
   }
@@ -51,15 +51,15 @@ export default class BusinessStripMining implements Business.Model {
   }
 
   needsEmployee(employees: Creep[]): boolean {
-    log.debug(`${this}: ${this._mine} has ${this._mine.available()}`)
-    return ((employees.length == 0)
+    log.debug(`${this}: ${this._mine} has ${this._mine.available()}`);
+    return ((employees.length === 0)
       && (this._mine.available() >= 900));
   }
 
   survey() {
   }
 
-  employeeBody(availEnergy: number, maxEnergy: number): BodyPartConstant[] {
+  employeeBody(_availEnergy: number, _maxEnergy: number): BodyPartConstant[] {
     return MINER_EMPLOYEE_BODY;
   }
 
@@ -73,7 +73,7 @@ export default class BusinessStripMining implements Business.Model {
 
     const jobs: Job.Model[] = [];
 
-    log.debug(`${this}: ${mine} has ${mine.available()} resources of ${strip_mine_resource(mine)}`)
+    log.debug(`${this}: ${mine} has ${mine.available()} resources of ${strip_mine_resource(mine)}`);
     if (mine.available() > 0) {
       jobs.push(new JobHarvest(mine, this._priority));
     }
@@ -89,25 +89,14 @@ export default class BusinessStripMining implements Business.Model {
       return [];
     }
 
-    let jobs: Job.Model[] = [];
+    const jobs: Job.Model[] = [];
 
     _.each(employees, (e) => jobs.push(new JobPickup(e, u.RESOURCE_ALL, pickup_priority(e))));
 
     return jobs;
   }
 
-  buildings(): BuildingWork[] {
-    return []
+  buildings(): WorkBuilding[] {
+    return [];
   }
 }
-
-Business.factory.addBuilder(BusinessStripMining.TYPE, (id: string): Business.Model | undefined => {
-  const frags = id.split('-');
-  const mine = <Mineral>Game.getObjectById(frags[2]);
-  if (!mine) {
-    return undefined;
-  }
-  return new BusinessStripMining(mine);
-});
-
-

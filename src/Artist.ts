@@ -1,6 +1,6 @@
 import { Expert } from "./Expert";
 import * as Job from "Job";
-import { log } from "./ScrupsLogger";
+import log from "./ScrupsLogger";
 
 export class Artist implements Expert {
 

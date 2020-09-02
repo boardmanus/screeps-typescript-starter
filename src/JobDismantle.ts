@@ -1,16 +1,15 @@
-import { Operation } from "./Operation";
-import * as Job from "Job";
-import u from "./Utility"
-import { log } from "lib/logger/log";
-
+import { Operation } from 'Operation';
+import * as Job from 'Job';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
 
 function dismantle_site(job: JobDismantle, worker: Creep) {
   return () => {
-    const site = job._site;
+    const site = job.dismantleSite;
     Job.visualize(job, worker);
-    const dumbPos = (worker.pos.x == 0 || worker.pos.y == 0 || worker.pos.x == 49 || worker.pos.y == 49)
+    const dumbPos = (worker.pos.x === 0 || worker.pos.y === 0 || worker.pos.x === 49 || worker.pos.y === 49);
     if (dumbPos) {
-      const res = Job.moveTo(job, worker, 0);
+      Job.moveTo(job, worker, 0);
       return;
     }
 
@@ -20,32 +19,34 @@ function dismantle_site(job: JobDismantle, worker: Creep) {
         log.info(`${job}: ${worker} dismantled stuff at ${site}`);
         break;
       case ERR_NOT_IN_RANGE:
-        const range = (site.pos.roomName == worker.pos.roomName) ? 1 : 0;
-        res = Job.moveTo(job, worker, range);
+        {
+          const range = (site.pos.roomName === worker.pos.roomName) ? 1 : 0;
+          res = Job.moveTo(job, worker, range);
+        }
         break;
       default:
         log.warning(`${job}: ${worker} failed while dismantling at ${site} (${u.errstr(res)})`);
         break;
     }
-  }
+  };
 }
 
 export default class JobDismantle implements Job.Model {
 
   static readonly TYPE = 'dismantle';
 
-  //private _state : DismantleState;
-  readonly _site: Structure;
-  readonly _priority: number;
+  // private _state : DismantleState;
+  readonly dismantleSite: Structure;
+  readonly dismantlePriority: number;
 
-  constructor(site: Structure, priority: number = 5) {
+  constructor(site: Structure, priority = 5) {
 
-    this._site = site;
-    this._priority = priority;
+    this.dismantleSite = site;
+    this.dismantlePriority = priority;
   }
 
   id(): string {
-    return `job-${JobDismantle.TYPE}-${this._site.id}`;
+    return `job-${JobDismantle.TYPE}-${this.dismantleSite.id}`;
   }
 
   type(): string {
@@ -57,7 +58,7 @@ export default class JobDismantle implements Job.Model {
   }
 
   site(): RoomObject {
-    return this._site;
+    return this.dismantleSite;
   }
 
   say(): string {
@@ -69,8 +70,8 @@ export default class JobDismantle implements Job.Model {
   }
 
   priority(workers?: Creep[]): number {
-    if (!workers) return this._priority;
-    const priority = this._priority / (workers.length + 1);
+    if (!workers) return this.dismantlePriority;
+    const priority = this.dismantlePriority / (workers.length + 1);
     return priority;
   }
 
@@ -83,7 +84,7 @@ export default class JobDismantle implements Job.Model {
     // multiply by the ratio available.
     // This should allow fuller workers to be chosen more.
     const free = worker.freeSpace(RESOURCE_ENERGY);
-    if (free == 0) {
+    if (free === 0) {
       return 0.0;
     }
 
@@ -92,11 +93,11 @@ export default class JobDismantle implements Job.Model {
       return 0;
     }
 
-    return u.work_efficiency(worker, this._site, free, 0.25);
+    return u.work_efficiency(worker, this.dismantleSite, free, 0.25);
   }
 
   completion(worker?: Creep): number {
-    const completion = this._site.hits / this._site.hitsMax;
+    const completion = this.dismantleSite.hits / this.dismantleSite.hitsMax;
     if (!worker || completion >= 1.0) {
       return completion;
     }
@@ -112,11 +113,3 @@ export default class JobDismantle implements Job.Model {
     return [dismantle_site(this, worker)];
   }
 }
-
-
-Job.factory.addBuilder(JobDismantle.TYPE, (id: string): Job.Model | undefined => {
-  const frags = id.split('-');
-  const site = <Structure>Game.getObjectById(frags[2]);
-  if (!site) return undefined;
-  return new JobDismantle(site);
-});

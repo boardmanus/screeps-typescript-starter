@@ -1,11 +1,11 @@
 import * as Business from 'Business';
-import * as Job from "Job";
+import * as Job from 'Job';
 import JobUnload from 'JobUnload';
 import JobPickup from 'JobPickup';
-import { BuildingWork } from 'Architect';
-import u from 'Utility';
-import { log } from 'ScrupsLogger';
-import { profile } from 'Profiler/Profiler'
+import WorkBuilding from 'WorkBuilding';
+import * as u from 'Utility';
+import log from 'ScrupsLogger';
+import { profile } from 'Profiler/Profiler';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -13,15 +13,13 @@ const IDEAL_CLONE_ENERGY = 1000;
 const MAX_CLONE_ENERGY = 2000;
 
 function find_vault_structures(vault: StructureStorage): AnyStructure[] {
-  return vault.pos.findInRange(FIND_STRUCTURES, 1, {
-    filter: (s) => (s.structureType == STRUCTURE_LINK)
-  });
+  return vault.pos.findInRange(FIND_STRUCTURES, 1,
+    { filter: (s) => (s.structureType === STRUCTURE_LINK) });
 }
 
 function find_vault_construction(vault: StructureStorage): ConstructionSite[] {
-  return vault.pos.findInRange(FIND_CONSTRUCTION_SITES, 1, {
-    filter: (s) => (s.structureType == STRUCTURE_LINK)
-  });
+  return vault.pos.findInRange(FIND_CONSTRUCTION_SITES, 1,
+    { filter: (s) => (s.structureType === STRUCTURE_LINK) });
 }
 
 function can_build_vault(room: Room): boolean {
@@ -29,7 +27,7 @@ function can_build_vault(room: Room): boolean {
     return false;
   }
 
-  const storageCons = room.find(FIND_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType == STRUCTURE_STORAGE });
+  const storageCons = room.find(FIND_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType === STRUCTURE_STORAGE });
   if (storageCons.length > 0) {
     return false;
   }
@@ -40,7 +38,7 @@ function can_build_vault(room: Room): boolean {
 }
 
 function possible_storage_sites(room: Room): RoomPosition[] {
-  const controller = room.controller;
+  const { controller } = room;
   const spawn = room.find(FIND_MY_SPAWNS)[0];
   if (!controller || !spawn) {
     return [];
@@ -51,29 +49,29 @@ function possible_storage_sites(room: Room): RoomPosition[] {
     const pos = new RoomPosition(step.x, step.y, room.name);
     return pos.surroundingPositions(5, (site: RoomPosition): boolean => {
       const terrain = site.look();
-      for (const t of terrain) {
+      return _.all(terrain, (t) => {
         switch (t.type) {
           case LOOK_CONSTRUCTION_SITES:
-            if (t.constructionSite?.structureType != STRUCTURE_ROAD) {
+            if (t.constructionSite?.structureType !== STRUCTURE_ROAD) {
               return false;
             }
             break;
           case LOOK_STRUCTURES:
-            if (t.structure?.structureType != STRUCTURE_ROAD) {
+            if (t.structure?.structureType !== STRUCTURE_ROAD) {
               return false;
             }
             break;
           case LOOK_TERRAIN:
-            if (t.terrain == 'wall') {
+            if (t.terrain === 'wall') {
               return false;
             }
             break;
           default:
             break;
         }
-      }
-      return true;
-    })
+        return true;
+      });
+    });
   }));
 
   log.info(`found ${viableSites.length} viable storage sites ${viableSites}`);
@@ -86,20 +84,21 @@ function storage_site_viability(pos: RoomPosition, room: Room): number {
     (a: number, p: RoomPosition): number => {
       const terrain = p.look();
       let viability = 1;
-      for (const t of terrain) {
+      _.all(terrain, (t) => {
         switch (t.type) {
           case LOOK_SOURCES:
           case LOOK_MINERALS:
-            return -2;
+            viability = -2;
+            return false;
           case LOOK_CONSTRUCTION_SITES:
             if (t.constructionSite) {
               if (!u.is_passible_structure(t.constructionSite)) {
-                return -1;
+                viability = -1;
+                return false;
               }
-              else if (t.constructionSite.structureType == STRUCTURE_ROAD) {
+              if (t.constructionSite.structureType === STRUCTURE_ROAD) {
                 viability += 0.5;
-              }
-              else {
+              } else {
                 viability -= 0.5;
               }
             }
@@ -107,62 +106,62 @@ function storage_site_viability(pos: RoomPosition, room: Room): number {
           case LOOK_STRUCTURES:
             if (t.structure) {
               if (!u.is_passible_structure(t.structure)) {
-                return -1;
+                viability = -1;
+                return false;
               }
-              else if (t.structure.structureType == STRUCTURE_ROAD) {
+              if (t.structure.structureType === STRUCTURE_ROAD) {
                 viability += 0.5;
-              }
-              else {
+              } else {
                 viability -= 0.5;
               }
             }
             break;
           case LOOK_TERRAIN:
-            if (t.terrain == 'wall') {
-              return -1;
+            if (t.terrain === 'wall') {
+              viability = -1;
+              return false;
             }
             break;
           default:
             break;
         }
-      }
+        return true;
+      });
       return a + viability;
     },
     0);
 
   const spawners = room.find(FIND_MY_SPAWNS);
-  if (spawners.length == 0) {
+  if (spawners.length === 0) {
     return spacialViability;
   }
   const locationalViability = _.min(_.map(
     spawners,
-    (s: StructureSpawn): number => {
-      return pos.findPathTo(s).length;
-    }));
+    (s: StructureSpawn): number => pos.findPathTo(s).length));
 
   // Want positions with lots of space around, and closer to spawns
   return spacialViability - locationalViability;
 }
 
-function vault_building_work(room: Room): BuildingWork[] {
+function vault_building_work(room: Room): WorkBuilding[] {
   const possibleSites = possible_storage_sites(room);
   const sortedSites = _.sortBy(possibleSites, (rp) => -storage_site_viability(rp, room));
 
   const style: CircleStyle = { fill: 'purple', radius: 0.3, lineStyle: 'solid', stroke: 'purple' };
   let i = 0;
-  for (const site of sortedSites) {
-    if (i++ == 0) continue;
+  _.each(sortedSites, (site) => {
+    if (i++ === 0) return;
     style.opacity = (0.25 - (i / sortedSites.length) / 4);
     room.visual.circle(site.x, site.y, style);
-  }
+  });
 
   const bestSites = _.take(sortedSites, 1);
   const bestStyle: CircleStyle = { fill: 'green', radius: 0.6, lineStyle: 'solid', stroke: 'green' };
-  for (const site of bestSites) {
+  _.each(sortedSites, (site) => {
     room.visual.circle(site.x, site.y, bestStyle);
-  }
+  });
 
-  return _.map(bestSites, (rp) => new BuildingWork(rp, STRUCTURE_STORAGE));
+  return _.map(bestSites, (rp) => new WorkBuilding(rp, STRUCTURE_STORAGE));
 }
 
 function can_build_link(vault: StructureStorage): boolean {
@@ -173,8 +172,8 @@ function can_build_link(vault: StructureStorage): boolean {
 }
 
 function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
-  let haveLink: boolean = false;
-  const room = linkNeighbour.room;
+  let haveLink = false;
+  const { room } = linkNeighbour;
   if (!room) {
     return [];
   }
@@ -183,34 +182,32 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
       return false;
     }
     const terrain = site.look();
-    for (const t of terrain) {
+    return _.all(terrain, (t) => {
       switch (t.type) {
         case LOOK_CONSTRUCTION_SITES:
-          if (t.constructionSite!.structureType == STRUCTURE_LINK) {
+          if (t.constructionSite!.structureType === STRUCTURE_LINK) {
             haveLink = true;
-          }
-          else if (t.constructionSite!.structureType != STRUCTURE_ROAD) {
+          } else if (t.constructionSite!.structureType !== STRUCTURE_ROAD) {
             return false;
           }
           break;
         case LOOK_STRUCTURES:
-          if (t.structure!.structureType == STRUCTURE_LINK) {
+          if (t.structure!.structureType === STRUCTURE_LINK) {
             haveLink = true;
-          }
-          else if (t.structure!.structureType != STRUCTURE_ROAD) {
+          } else if (t.structure!.structureType !== STRUCTURE_ROAD) {
             return false;
           }
           break;
         case LOOK_TERRAIN:
-          if (t.terrain == 'wall') {
+          if (t.terrain === 'wall') {
             return false;
           }
           break;
         default:
           break;
       }
-    }
-    return true;
+      return true;
+    });
   });
 
   if (haveLink) {
@@ -220,10 +217,10 @@ function possible_link_sites(linkNeighbour: Structure): RoomPosition[] {
   return viableSites;
 }
 
-function link_building_work(vault: StructureStorage): BuildingWork[] {
+function link_building_work(vault: StructureStorage): WorkBuilding[] {
   const viableSites = possible_link_sites(vault);
   log.info(`${vault}: ${viableSites.length} viable link sites`);
-  if (viableSites.length == 0) {
+  if (viableSites.length === 0) {
     return [];
   }
 
@@ -232,7 +229,7 @@ function link_building_work(vault: StructureStorage): BuildingWork[] {
     return -emptyPositions.length;
   });
 
-  return [new BuildingWork(sortedSites[0], STRUCTURE_LINK)];
+  return [new WorkBuilding(sortedSites[0], STRUCTURE_LINK)];
 }
 
 function update_vault(vault: StructureStorage): void {
@@ -240,7 +237,7 @@ function update_vault(vault: StructureStorage): void {
   vault._link = undefined;
 
   // Load information from storage, if possible
-  const storageMem: StorageMemory = vault.room.memory.storage ?? { id: vault.id }
+  const storageMem: StorageMemory = vault.room.memory.storage ?? { id: vault.id };
   if (storageMem.link) {
     vault._link = Game.getObjectById<StructureLink>(storageMem.link) ?? undefined;
   }
@@ -248,13 +245,13 @@ function update_vault(vault: StructureStorage): void {
   // The vault link has not been setup yet, search around.
   if (!vault._link) {
     const sites: (AnyStructure | ConstructionSite)[] = find_vault_structures(vault);
-    sites.push(...find_vault_construction(vault))
+    sites.push(...find_vault_construction(vault));
 
-    for (const site of sites) {
+    _.each(sites, (site) => {
       if (site.structureType === STRUCTURE_LINK) {
         vault._link = site;
       }
-    }
+    });
   }
 
   if (vault._link instanceof StructureLink) {
@@ -275,7 +272,7 @@ export default class BusinessBanking implements Business.Model {
   private readonly _vault: StructureStorage | undefined;
   private readonly _remoteRooms: Room[];
 
-  constructor(vaultRoom: Room, remoteRooms: Room[], priority: number = 5) {
+  constructor(vaultRoom: Room, remoteRooms: Room[], priority = 5) {
     this._room = vaultRoom;
     this._priority = priority;
     this._vault = vaultRoom.storage;
@@ -287,8 +284,8 @@ export default class BusinessBanking implements Business.Model {
   }
 
   id(): string {
-    //return Business.id(BusinessBanking.TYPE, this._room.name);
-    return `bus-bank-${this._room.name}`
+    // return Business.id(BusinessBanking.TYPE, this._room.name);
+    return `bus-bank-${this._room.name}`;
   }
 
   toString(): string {
@@ -327,7 +324,7 @@ export default class BusinessBanking implements Business.Model {
     return [];
   }
 
-  contractJobs(employees: Creep[]): Job.Model[] {
+  contractJobs(_employees: Creep[]): Job.Model[] {
     if (!this._vault) {
       return [];
     }
@@ -339,7 +336,7 @@ export default class BusinessBanking implements Business.Model {
       return [];
     }
 
-    let jobs: Job.Model[] = [];
+    const jobs: Job.Model[] = [];
 
     const hostiles = this._vault.room.find(FIND_HOSTILE_CREEPS).length;
     const minRatio = (hostiles > 0) ? 1.0 : 0.1;
@@ -360,9 +357,9 @@ export default class BusinessBanking implements Business.Model {
     return jobs;
   }
 
-  buildings(): BuildingWork[] {
+  buildings(): WorkBuilding[] {
 
-    const work: BuildingWork[] = [];
+    const work: WorkBuilding[] = [];
 
     if (!this._vault) {
       if (can_build_vault(this._room)) {
@@ -379,15 +376,3 @@ export default class BusinessBanking implements Business.Model {
     return work;
   }
 }
-
-Business.factory.addBuilder(BusinessBanking.TYPE, (id: string): Business.Model | undefined => {
-  const frags = id.split('-');
-  const room = Game.rooms[frags[2]];
-  if (!room) {
-    return undefined;
-  }
-  return new BusinessBanking(room, []);
-});
-
-
-

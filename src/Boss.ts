@@ -1,9 +1,8 @@
-import * as Job from "Job";
-import { Operation } from "./Operation";
-import { Work } from "./Work";
-import u from "./Utility";
-import { log } from './ScrupsLogger';
-import { profile } from 'Profiler/Profiler'
+import * as Job from 'Job';
+import { Operation } from 'Operation';
+import Work from 'Work';
+import log from 'ScrupsLogger';
+import { profile } from 'Profiler/Profiler';
 
 @profile
 export default class Boss implements Work {
@@ -53,8 +52,8 @@ export default class Boss implements Work {
   }
 
   assignWorker(worker: Creep) {
-    if (_.find(this._workers, (w: Creep) => { return worker.id == w.id; })) {
-      log.debug(`ERROR: ASSIGNED CREEP(${worker}) ALREADY ON ${this}`)
+    if (_.find(this._workers, (w: Creep) => worker.id === w.id)) {
+      log.debug(`ERROR: ASSIGNED CREEP(${worker}) ALREADY ON ${this}`);
       return;
     }
     worker.setJob(this.job);
