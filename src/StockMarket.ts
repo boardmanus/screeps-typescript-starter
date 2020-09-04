@@ -16,6 +16,10 @@ export interface Deal {
   amount: number;
 }
 
+export default function Market$(): StockMarket {
+  return Game.market.cache;
+}
+
 function order_cost_row(order: Order): string[] {
   return [
     `${order.amount} `,
@@ -76,7 +80,7 @@ const MARKET_CLI = {
       return;
     }
     console.log(`Bargains for ${resource}:`);
-    const tradeRows = _.map(_.take(StockMarket.create().findBargains(room, resource, maxPrice), limit), trade_row);
+    const tradeRows = _.map(_.take(Market$().findBargains(room, resource, maxPrice), limit), trade_row);
     const tradeFormat = Cli.getFormatting(tradeRows);
     _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, tradeFormat)));
   },
@@ -88,7 +92,7 @@ const MARKET_CLI = {
       return;
     }
     console.log(`Deals for ${resource}:`);
-    const tradeRows = _.map(_.take(StockMarket.create().findDeals(room, resource, minPrice), limit), trade_row);
+    const tradeRows = _.map(_.take(Market$().findDeals(room, resource, minPrice), limit), trade_row);
     const tradeFormat = Cli.getFormatting(tradeRows);
     _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, tradeFormat)));
   },
@@ -100,7 +104,7 @@ const MARKET_CLI = {
       return;
     }
     console.log(`Best deals for ${roomName}:${room.terminal}`);
-    const deals = StockMarket.create().bestDeals(room, resource);
+    const deals = Market$().bestDeals(room, resource);
     const tradeRows = _.map(deals, trade_row);
     const tradeFormat = Cli.getFormatting(tradeRows);
     _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, tradeFormat)));
@@ -121,7 +125,7 @@ const MARKET_CLI = {
       return;
     }
     console.log(`Possible orders for ${roomName}:${room.terminal}`);
-    const possibleOrders = StockMarket.create().possibleOrders(room, resource);
+    const possibleOrders = Market$().possibleOrders(room, resource);
     if (possibleOrders.length === 0) {
       console.log(`No orders can be made from ${roomName}.`);
       return;
@@ -139,7 +143,7 @@ const MARKET_CLI = {
       return;
     }
     console.log(`Creating sell order for ${roomName}:${room.terminal} => ${resource}`);
-    const possibleOrders = StockMarket.create().possibleOrders(room, resource);
+    const possibleOrders = Market$().possibleOrders(room, resource);
     if (possibleOrders.length === 0) {
       console.log(`No orders can be made for ${resource} from ${roomName}.`);
       return;
@@ -266,8 +270,4 @@ export class StockMarket {
     });
   }
 
-}
-
-export default function Market$(): StockMarket {
-  return Game.market.cache;
 }

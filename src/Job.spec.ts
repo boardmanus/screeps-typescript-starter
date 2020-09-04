@@ -1,13 +1,21 @@
 import { mock } from 'jest-mock-extended';
-import { mockInstanceOf } from 'screeps-jest';
 import * as Job from 'Job';
+
+global.log.debug = (..._args: any[]) => { };
+global.log.info = (..._args: any[]) => { };
+global.log.warning = (..._args: any[]) => { };
+global.log.error = (..._args: any[]) => { };
 
 describe('Job Module', () => {
 
   describe('jobMoveTo', () => {
 
     it('return a tired result if creep fatigued', () => {
-      const worker = mockInstanceOf<Creep>({ fatigue: 1 });
+
+      const worker = mock<Creep>({
+        fatigue: 1,
+        memory: { move: { path: '' } }
+      });
       const job = mock<Job.Model>();
 
       const res = Job.moveTo(job, worker, 0);

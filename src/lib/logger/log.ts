@@ -1,5 +1,5 @@
-import * as Config from '../../config/config';
 import { LogLevels } from './logLevels';
+import * as Config from '../../config/config';
 
 function color(str: string, c: string): string {
   return `<font color='${c}'>${str}</font>`;
@@ -9,7 +9,7 @@ function time(): string {
   return color(Game.time.toString(), 'gray');
 }
 
-export class Log {
+export default class Log {
 
   public get level(): number { return Memory.log?.level ?? 1; }
   public set level(value: number) { Memory.log.level = value; }
@@ -79,4 +79,6 @@ export class Log {
 }
 
 export const log = new Log();
+
+declare const global: any;
 global.log = log;

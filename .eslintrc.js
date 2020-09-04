@@ -24,7 +24,6 @@ module.exports = {
     'no-console': 'off',
     'no-param-reassign': ['error', { 'props': false }],
     'no-plusplus': 'off',
-    'object-curly-newline': ['error', { 'multiline': true }],
     'padded-blocks': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
@@ -34,6 +33,7 @@ module.exports = {
     '@typescript-eslint/camelcase': 'off',
     'function-paren-newline': 'off',
     'no-underscore-dangle': 'off',
+    'object-curly-newline': 'off',
     '@typescript-eslint/no-unused-vars': ["error", { "argsIgnorePattern": "^_" }]
   },
   overrides: [
