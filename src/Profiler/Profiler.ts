@@ -69,15 +69,15 @@ function wrapFunction(obj: object, key: PropertyKey, klassName?: string) {
 
   /// ////////
 
-  Reflect.set(obj, key, (target: any, ...args: any[]) => {
+  Reflect.set(obj, key, function wrap(this: any, ...args: any[]) {
     if (isEnabled()) {
       const start = Game.cpu.getUsed();
-      const result = originalFunction.apply(target, args);
+      const result = originalFunction.apply(this, args);
       const end = Game.cpu.getUsed();
       record(memKey, end - start);
       return result;
     }
-    return originalFunction.apply(target, args);
+    return originalFunction.apply(this, args);
   });
 }
 
@@ -86,7 +86,7 @@ export function profile(target: object, key: string | symbol, _descriptor: Typed
 export function profile(
   target: object | Function,
   key?: string | symbol,
-  _descriptor?: TypedPropertyDescriptor<Function>,
+  _descriptor?: TypedPropertyDescriptor<Function>
 ): void {
   if (!__PROFILER_ENABLED__) { return; }
 

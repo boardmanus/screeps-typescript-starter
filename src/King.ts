@@ -1,8 +1,8 @@
+import * as Monarchy from 'Monarchy';
 import Work from 'Work';
 import Mayor from 'Mayor';
-import { Operation } from 'Operation';
 import log from 'ScrupsLogger';
-import * as Monarchy from 'Monarchy';
+import { Operation } from 'Operation';
 import { RoomCache } from 'RoomCache';
 import { profile } from 'Profiler/Profiler';
 import { StockMarket } from 'StockMarket';

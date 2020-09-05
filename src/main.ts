@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import ErrorMapper from 'utils/ErrorMapper';
 import King from 'King';
 import { Operation } from 'Operation';
@@ -22,7 +23,7 @@ log.info(`Revision ID: ${data.version}`);
 
 global.Profiler = Profiler.init();
 
-const loop = ErrorMapper.wrapLoop(() => {
+export const loop = ErrorMapper.wrapLoop(() => {
 
   log.info(` ***** TICK ${Game.time} ***** `);
   Cli.create();
@@ -50,9 +51,7 @@ const loop = ErrorMapper.wrapLoop(() => {
     try {
       op();
     } catch (e) {
-      log.error(`${op}: ${e}`);
+      console.log(`<span style='color:red'>${_.escape(ErrorMapper.sourceMappedStackTrace(e))}</span>`);
     }
   });
 });
-
-export { loop as default };

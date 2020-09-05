@@ -88,9 +88,9 @@ export function moveTo(job: Model, worker: Creep, range: number, subSite?: RoomO
   const site = subSite ?? job.site();
   const err = jobMoveTo(job, worker, site, range, pathStyle);
   if (err === OK) {
-    log.info(`${job}: ${worker} moved towards ${job.site()} (${worker.memory.move.path.length} sq)`);
+    log.info(`${job}: ${worker} moved towards ${job.site()} (${worker.memory._move.path.length} sq)`);
   } else {
-    log.warning(`${job}: ${worker} failed moving to ${job.site()} (${worker.memory.move.path.length} sq) (${u.errstr(err)})`);
+    log.warning(`${job}: ${worker} failed moving to ${job.site()} (${worker.memory._move.path.length} sq) (${u.errstr(err)})`);
   }
   return err;
 }

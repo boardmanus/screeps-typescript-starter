@@ -38,6 +38,73 @@ function map_valid_to_links(linkers: (Source | StructureStorage)[], to: boolean)
 type ExecutiveMap = { [business: string]: Executive };
 type BossMap = { [job: string]: Boss };
 
+/*
+function prioritize_bosses(bosses: Boss[]): Boss[] {
+  return _.sortBy(bosses, (boss: Boss): number => -boss.priority());
+}
+*/
+
+type WorkerBossPairing = { rating: number; boss: Boss; worker: Creep };
+function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairing[] {
+  const pairings: WorkerBossPairing[] = [];
+  _.each(bosses, (b: Boss) => {
+    _.each(workers, (w: Creep) => {
+      const rating = b.priority() * b.job.efficiency(w);
+      if (rating > 0.0) {
+        pairings.push({ rating, boss: b, worker: w });
+      }
+    });
+  });
+
+  return _.sortBy(pairings, (wbp: WorkerBossPairing) => -wbp.rating);
+}
+
+function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {
+  if (bosses.length === 0 || workers.length === 0) {
+    log.debug('No bosses or workers!!!');
+    return [bosses, workers];
+  }
+
+  let pairings: WorkerBossPairing[] = get_worker_pairings(bosses, workers);
+  if (pairings.length === 0) {
+    log.debug('No pairings!!!');
+    return [bosses, workers];
+  }
+
+  log.error('Worker-Boss Pairings:');
+  _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
+
+  const assignedBosses: Boss[] = [];
+  const assignedWorkers: Creep[] = [];
+  do {
+    const bestPairing = pairings[0];
+    bestPairing.boss.assignWorker(bestPairing.worker);
+    assignedBosses.push(bestPairing.boss);
+    assignedWorkers.push(bestPairing.worker);
+    bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
+    bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
+    pairings = _.filter(pairings, (wbp: WorkerBossPairing) => wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker);
+    log.error('Refined Worker-Boss Pairings:');
+    _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
+  }
+  while (pairings.length);
+
+  return [_.filter(bosses, (b: Boss) => b.needsWorkers()), _.difference(workers, assignedWorkers)];
+}
+
+function assign_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {
+  let lazyWorkers = workers;
+  let hiringBosses = bosses;
+
+  let numJobsAndWorkers;
+  do {
+    numJobsAndWorkers = hiringBosses.length + lazyWorkers.length;
+    [hiringBosses, lazyWorkers] = assign_best_workers(hiringBosses, lazyWorkers);
+  } while (hiringBosses.length && lazyWorkers.length && (hiringBosses.length + lazyWorkers.length < numJobsAndWorkers));
+
+  return [hiringBosses, lazyWorkers];
+}
+
 @profile
 export default class Mayor implements Monarchy.Model {
 
@@ -87,7 +154,7 @@ export default class Mayor implements Monarchy.Model {
     this._economist = new Economist(room, Object.values(this._executives));
   }
 
-  init(king: Monarchy.Model, room: Room): void {
+  init(_king: Monarchy.Model, room: Room): void {
 
     const exploring = new BusinessExploring(this._room);
     this.addBusiness(exploring);
@@ -452,71 +519,4 @@ export default class Mayor implements Monarchy.Model {
     const [, lazy] = assign_workers(bosses, availableWorkers);
     return lazy;
   }
-}
-
-/*
-function prioritize_bosses(bosses: Boss[]): Boss[] {
-  return _.sortBy(bosses, (boss: Boss): number => -boss.priority());
-}
-*/
-
-type WorkerBossPairing = { rating: number; boss: Boss; worker: Creep };
-function get_worker_pairings(bosses: Boss[], workers: Creep[]): WorkerBossPairing[] {
-  const pairings: WorkerBossPairing[] = [];
-  _.each(bosses, (b: Boss) => {
-    _.each(workers, (w: Creep) => {
-      const rating = b.priority() * b.job.efficiency(w);
-      if (rating > 0.0) {
-        pairings.push({ rating, boss: b, worker: w });
-      }
-    });
-  });
-
-  return _.sortBy(pairings, (wbp: WorkerBossPairing) => -wbp.rating);
-}
-
-function assign_best_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {
-  if (bosses.length === 0 || workers.length === 0) {
-    log.debug('No bosses or workers!!!');
-    return [bosses, workers];
-  }
-
-  let pairings: WorkerBossPairing[] = get_worker_pairings(bosses, workers);
-  if (pairings.length === 0) {
-    log.debug('No pairings!!!');
-    return [bosses, workers];
-  }
-
-  log.error('Worker-Boss Pairings:');
-  _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
-
-  const assignedBosses: Boss[] = [];
-  const assignedWorkers: Creep[] = [];
-  do {
-    const bestPairing = pairings[0];
-    bestPairing.boss.assignWorker(bestPairing.worker);
-    assignedBosses.push(bestPairing.boss);
-    assignedWorkers.push(bestPairing.worker);
-    bestPairing.worker.room.visual.line(bestPairing.worker.pos, bestPairing.boss.job.site().pos, { width: 0.2, color: 'red', lineStyle: 'dotted' });
-    bestPairing.worker.room.visual.text(`${bestPairing.rating.toFixed(1)} `, bestPairing.boss.job.site().pos);
-    pairings = _.filter(pairings, (wbp: WorkerBossPairing) => wbp.boss !== bestPairing.boss && wbp.worker !== bestPairing.worker);
-    log.error('Refined Worker-Boss Pairings:');
-    _.each(pairings, (p) => log.error(`r:${p.rating}, ${p.boss}, ${p.worker}`));
-  }
-  while (pairings.length);
-
-  return [_.filter(bosses, (b: Boss) => b.needsWorkers()), _.difference(workers, assignedWorkers)];
-}
-
-function assign_workers(bosses: Boss[], workers: Creep[]): [Boss[], Creep[]] {
-  let lazyWorkers = workers;
-  let hiringBosses = bosses;
-
-  let numJobsAndWorkers;
-  do {
-    numJobsAndWorkers = hiringBosses.length + lazyWorkers.length;
-    [hiringBosses, lazyWorkers] = assign_best_workers(hiringBosses, lazyWorkers);
-  } while (hiringBosses.length && lazyWorkers.length && (hiringBosses.length + lazyWorkers.length < numJobsAndWorkers));
-
-  return [hiringBosses, lazyWorkers];
 }

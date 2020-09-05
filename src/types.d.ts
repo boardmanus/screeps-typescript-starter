@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 // memory extension samples
 interface CreepMemory {
-  move: { path: string };
+  _move: { path: string };
   lastPosition: RoomPosition | undefined;
   stuckCount: number | undefined;
   stalledCount: number | undefined;

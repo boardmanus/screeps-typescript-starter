@@ -45,7 +45,7 @@ export default class WorkBuilding implements Work {
           log.info(`${this}: created construction site`);
           break;
         default:
-          log.error(`${this}: failed to create construction site (${u.errstr(res)})`);
+          log.error(`${this}: failed to create construction site ${this.site} (${u.errstr(res)})`);
           break;
       }
     }];

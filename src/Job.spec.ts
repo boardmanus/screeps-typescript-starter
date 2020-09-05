@@ -14,7 +14,7 @@ describe('Job Module', () => {
 
       const worker = mock<Creep>({
         fatigue: 1,
-        memory: { move: { path: '' } }
+        memory: { _move: { path: '' } }
       });
       const job = mock<Job.Model>();
 

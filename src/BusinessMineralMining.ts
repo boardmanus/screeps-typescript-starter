@@ -165,7 +165,7 @@ function container_building_work(mine: Mineral): WorkBuilding | undefined {
 }
 
 function update_mine(mine: Mineral): void {
-  if (!mine.container) {
+  if (!mine._container) {
     const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
     sites.push(...find_mine_construction(mine));
     _.each(sites, (site) => {
