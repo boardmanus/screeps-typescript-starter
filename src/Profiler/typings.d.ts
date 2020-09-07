@@ -11,6 +11,8 @@ interface ProfilerMemory {
 interface ProfilerData {
   calls: number;
   time: number;
+  nestedTime: number;
+  totalTime: number;
 }
 
 interface Profiler {

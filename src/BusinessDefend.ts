@@ -60,8 +60,12 @@ export default class BusinessDefend implements Business.Model {
     this._attackers = homeRoom.find(FIND_HOSTILE_CREEPS);
     this._attackers.push(..._.flatten(_.map(remoteRooms, (room) => room.find(FIND_HOSTILE_CREEPS))));
 
-    const defendFlagPrefix = `${homeRoom.name}:${BusinessDefend.DEFEND_FLAG_PREFIX}:`;
-    this._flags = _.filter(Room$(homeRoom).ownedFlags, (f) => f.name.startsWith(defendFlagPrefix));
+    this._flags = this.defenseFlags();
+  }
+
+  private defenseFlags() {
+    const defendFlagPrefix = `${this._room.name}:${BusinessDefend.DEFEND_FLAG_PREFIX}:`;
+    return _.filter(Room$(this._room).ownedFlags, (f) => f.name.startsWith(defendFlagPrefix));
   }
 
   id(): string {

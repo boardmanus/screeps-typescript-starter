@@ -82,7 +82,7 @@ const MARKET_CLI = {
     console.log(`Bargains for ${resource}:`);
     const tradeRows = _.map(_.take(Market$().findBargains(room, resource, maxPrice), limit), trade_row);
     const tradeFormat = Cli.getFormatting(tradeRows);
-    _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, tradeFormat)));
+    _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, '', tradeFormat)));
   },
 
   find_deals: (roomName: string, resource: ResourceConstant, minPrice?: number, limit = 10) => {
@@ -94,7 +94,7 @@ const MARKET_CLI = {
     console.log(`Deals for ${resource}:`);
     const tradeRows = _.map(_.take(Market$().findDeals(room, resource, minPrice), limit), trade_row);
     const tradeFormat = Cli.getFormatting(tradeRows);
-    _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, tradeFormat)));
+    _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, '', tradeFormat)));
   },
 
   best_deals: (roomName: string, resource?: ResourceConstant) => {
@@ -107,7 +107,7 @@ const MARKET_CLI = {
     const deals = Market$().bestDeals(room, resource);
     const tradeRows = _.map(deals, trade_row);
     const tradeFormat = Cli.getFormatting(tradeRows);
-    _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, tradeFormat)));
+    _.each(tradeRows, (tradeRow) => console.log(Cli.formatRow(tradeRow, '', tradeFormat)));
     if (deals.length > 0) {
       const totalAmount = _.sum(deals, (trade) => trade.order.amount);
       const totalPrice = totalAmount * deals[0].order.price;
@@ -133,7 +133,7 @@ const MARKET_CLI = {
 
     const dealRows = _.map(possibleOrders, deal_row);
     const dealFormat = Cli.getFormatting(dealRows);
-    _.each(dealRows, (dealRow) => console.log(Cli.formatRow(dealRow, dealFormat)));
+    _.each(dealRows, (dealRow) => console.log(Cli.formatRow(dealRow, '', dealFormat)));
   },
 
   sell: (roomName: string, resource: ResourceConstant) => {

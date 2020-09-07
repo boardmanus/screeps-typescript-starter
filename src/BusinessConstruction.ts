@@ -101,6 +101,7 @@ export default class BusinessConstruction implements Business.Model {
   private readonly _priority: number;
   private readonly _controller: StructureController;
   private readonly _remoteRooms: Room[];
+  private readonly _allRooms: Room[];
   private readonly _allJobs: Job.Model[];
   private readonly _repairJobs: JobRepair[];
   private readonly _buildJobs: JobBuild[];
@@ -111,10 +112,40 @@ export default class BusinessConstruction implements Business.Model {
     this._priority = priority;
     this._controller = controller;
     this._remoteRooms = remoteRooms;
+    this._dismantleJobs = this.dismantleJobs(controller.room);
+    this._allRooms = [controller.room, ...this._remoteRooms];
+    this._allConstructionSites = this.allConstructionSites();
+    this._buildJobs = this.buildJobs();
+    this._repairJobs = this.repairJobs();
+    this._allJobs = [...this._buildJobs, ...this._repairJobs, ...this._dismantleJobs];
 
-    const { room } = this._controller;
+    log.info('Top 5 Buiding Jobs:');
+    _.each(this._buildJobs, (j) => log.info(`${j}: ${j.site()}, p=${j.priority()}`));
+    log.info('Top 5 Repair Jobs:');
+    _.each(this._repairJobs, (j) => log.info(`${j}: ${j.site()}, p=${j.priority()}`));
+  }
 
-    this._dismantleJobs = _.map(u.map_valid(room.find(FIND_FLAGS,
+  private allConstructionSites() {
+    return _.flatten(_.map(this._allRooms,
+      (r) => _.filter(Room$(r).constructionSites, worker_construction_filter)));
+  }
+
+  private buildJobs() {
+    return _.take(_.sortBy(_.map(this._allConstructionSites,
+      (site) => new JobBuild(site, construction_priority(site))),
+      (job) => -job.priority()), MAX_BUILD_JOBS);
+  }
+
+  private repairJobs() {
+    const repairSites = _.flatten(_.map(this._allRooms, (r) => r.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
+
+    return _.take(_.sortBy(_.map(repairSites,
+      (site) => new JobRepair(site, repair_priority(site))),
+      (job) => -job.priority()), MAX_REPAIR_JOBS);
+  }
+
+  private dismantleJobs(room: Room): JobDismantle[] {
+    return _.map(u.map_valid(room.find(FIND_FLAGS,
       { filter: (f) => f.name.startsWith('dismantle') }),
       (f) => {
         const s = room.lookForAt(LOOK_STRUCTURES, f.pos);
@@ -125,28 +156,6 @@ export default class BusinessConstruction implements Business.Model {
         return s[0];
       }),
       (site) => new JobDismantle(site));
-
-    const rooms = [room, ...this._remoteRooms];
-
-    this._allConstructionSites = _.flatten(_.map(rooms,
-      (r) => _.filter(Room$(r).constructionSites, worker_construction_filter)));
-
-    this._buildJobs = _.take(_.sortBy(_.map(this._allConstructionSites,
-      (site) => new JobBuild(site, construction_priority(site))),
-      (job) => -job.priority()), MAX_BUILD_JOBS);
-
-    const repairSites = _.flatten(_.map(rooms, (r) => r.find(FIND_STRUCTURES, { filter: worker_repair_filter })));
-
-    this._repairJobs = _.take(_.sortBy(_.map(repairSites,
-      (site) => new JobRepair(site, repair_priority(site))),
-      (job) => -job.priority()), MAX_REPAIR_JOBS);
-
-    this._allJobs = [...this._buildJobs, ...this._repairJobs, ...this._dismantleJobs];
-
-    log.info('Top 5 Buiding Jobs:');
-    _.each(this._buildJobs, (j) => log.info(`${j}: ${j.site()}, p=${j.priority()}`));
-    log.info('Top 5 Repair Jobs:');
-    _.each(this._repairJobs, (j) => log.info(`${j}: ${j.site()}, p=${j.priority()}`));
   }
 
   id(): string {

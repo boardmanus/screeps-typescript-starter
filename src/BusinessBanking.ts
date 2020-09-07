@@ -278,6 +278,10 @@ export default class BusinessBanking implements Business.Model {
     this._vault = vaultRoom.storage;
     this._remoteRooms = remoteRooms;
 
+    this.init();
+  }
+
+  private init() {
     if (this._vault) {
       update_vault(this._vault);
     }

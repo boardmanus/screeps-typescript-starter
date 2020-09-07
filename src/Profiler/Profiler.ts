@@ -1,4 +1,11 @@
+import Cli from 'Cli';
+
 export const __PROFILER_ENABLED__ = true;
+
+interface NestedTime {
+  nestedTime: number;
+}
+const profilerStack: NestedTime[] = [];
 
 /* tslint:disable:ban-types */
 export function init(): Profiler {
@@ -24,6 +31,7 @@ export function init(): Profiler {
     },
 
     start() {
+      Memory.profiler.data = {};
       Memory.profiler.start = Game.time;
       return 'Profiler started';
     },
@@ -68,13 +76,29 @@ function wrapFunction(obj: object, key: PropertyKey, klassName?: string) {
   Reflect.set(obj, savedName, originalFunction);
 
   /// ////////
-
   Reflect.set(obj, key, function wrap(this: any, ...args: any[]) {
     if (isEnabled()) {
+      let data = Memory.profiler.data[memKey];
+      if (!data) {
+        data = {
+          calls: 0,
+          time: 0,
+          nestedTime: 0,
+          totalTime: 0
+        };
+        Memory.profiler.data[memKey] = data;
+      }
+      profilerStack.push({ nestedTime: 0 });
+
       const start = Game.cpu.getUsed();
       const result = originalFunction.apply(this, args);
       const end = Game.cpu.getUsed();
-      record(memKey, end - start);
+      const dt = end - start;
+
+      const nestedTime = profilerStack.pop()!;
+      const parentNestedTime = _.last(profilerStack);
+
+      record(data, nestedTime, parentNestedTime, dt);
       return result;
     }
     return originalFunction.apply(this, args);
@@ -112,15 +136,15 @@ function isEnabled(): boolean {
   return Memory.profiler.start !== undefined;
 }
 
-function record(key: string | symbol, time: number) {
-  if (!Memory.profiler.data[String(key)]) {
-    Memory.profiler.data[String(key)] = {
-      calls: 0,
-      time: 0
-    };
+function record(data: ProfilerData, nestedTime: NestedTime, parentNestedTime: NestedTime, time: number) {
+  data.calls++;
+  data.totalTime += time;
+  data.time += time - nestedTime.nestedTime;
+  data.nestedTime += nestedTime.nestedTime;
+
+  if (parentNestedTime) {
+    parentNestedTime.nestedTime += time;
   }
-  Memory.profiler.data[String(key)].calls++;
-  Memory.profiler.data[String(key)].time += time;
 }
 
 interface OutputData {
@@ -129,6 +153,9 @@ interface OutputData {
   cpuPerCall: number;
   callsPerTick: number;
   cpuPerTick: number;
+  time: number;
+  nestedTime: number;
+  totalTime: number;
 }
 
 function outputProfilerData() {
@@ -140,67 +167,70 @@ function outputProfilerData() {
   /// ////
   // Process data
   let totalCpu = 0; // running count of average total CPU use per tick
-  let calls: number;
-  let time: number;
-  let result: Partial<OutputData>;
   const data = Reflect.ownKeys(Memory.profiler.data).map((key) => {
-    calls = Memory.profiler.data[String(key)].calls;
-    time = Memory.profiler.data[String(key)].time;
-    result = {};
-    result.name = `${String(key)}`;
-    result.calls = calls;
-    result.cpuPerCall = time / calls;
-    result.callsPerTick = calls / totalTicks;
-    result.cpuPerTick = time / totalTicks;
+    const keyData = Memory.profiler.data[String(key)];
+    const { calls, time, nestedTime, totalTime } = keyData;
+    const result: OutputData = {
+      name: `${String(key)}`,
+      calls,
+      cpuPerCall: time / calls,
+      callsPerTick: calls / totalTicks,
+      cpuPerTick: time / totalTicks,
+      time,
+      nestedTime: nestedTime ?? -1,
+      totalTime: totalTime ?? -1
+    };
     totalCpu += result.cpuPerTick;
-    return result as OutputData;
+    return result;
   });
 
   data.sort((lhs, rhs) => rhs.cpuPerTick - lhs.cpuPerTick);
 
-  /// ////
-  // Format data
-  let output = '';
+  const rows: string[][] = [];
 
-  // get function name max length
-  const longestName = (_.max(data, (d) => d.name.length)).name.length + 2;
+  // Data Header
+  rows.push([
+    'Function', 'Tot Calls', 'Calls/Tick', 'CPU/Call', 'CPU/Tick',
+    'CPU Time', 'Nested CPU', 'Total CPU',
+    '% of Tot', '% of Bket'
+  ]);
 
-  /// / Header line
-  output += _.padRight('Function', longestName);
-  output += _.padLeft('Tot Calls', 12);
-  output += _.padLeft('CPU/Call', 12);
-  output += _.padLeft('Calls/Tick', 12);
-  output += _.padLeft('CPU/Tick', 12);
-  output += _.padLeft('% of Tot\n', 12);
+  const alignLeft: boolean[] = [
+    true, false, false, false, false,
+    false, false, false,
+    false, false
+  ];
 
-  /// /  Data lines
-  data.forEach((d) => {
-    output += _.padRight(`${d.name}`, longestName);
-    output += _.padLeft(`${d.calls}`, 12);
-    output += _.padLeft(`${d.cpuPerCall.toFixed(2)}ms`, 12);
-    output += _.padLeft(`${d.callsPerTick.toFixed(2)}`, 12);
-    output += _.padLeft(`${d.cpuPerTick.toFixed(2)}ms`, 12);
-    output += _.padLeft(`${((d.cpuPerTick / totalCpu) * 100).toFixed(0)} %\n`, 12);
-  });
+  // Data rows
+  _.each(_.filter(data,
+    (d) => (d.cpuPerTick / totalCpu) * 100 > 0.5),
+    (d) => rows.push([
+      `${d.name}`, `${d.calls}`,
+      `${Math.round(d.callsPerTick)}`,
+      `${d.cpuPerCall.toFixed(2)} cpu`,
+      `${d.cpuPerTick.toFixed(2)} cpu`,
+      `${d.time.toFixed(2)} cpu`,
+      `${d.nestedTime.toFixed(2)} cpu`,
+      `${d.totalTime.toFixed(2)} cpu`,
+      `${((d.cpuPerTick / totalCpu) * 100).toPrecision(3)} %`,
+      `${((d.cpuPerTick / Game.cpu.limit) * 100).toPrecision(3)} %`
+    ]));
 
-  /// / Footer line
-  output += `${totalTicks} total ticks measured`;
-  output += `\t\t\t${totalCpu.toFixed(2)} average CPU profiled per tick`;
-  console.log(output);
+  // Data Total
+  rows.push([
+    'Totals', `${_.sum(data, (d) => d.calls)}`,
+    `${Math.round(_.sum(data, (d) => d.callsPerTick))}`,
+    `${_.sum(data, (d) => d.cpuPerCall).toFixed(2)} cpu`,
+    `${_.sum(data, (d) => d.cpuPerTick).toFixed(2)} cpu`,
+    `${_.sum(data, (d) => d.time).toFixed(2)} cpu`,
+    `${_.sum(data, (d) => d.nestedTime).toFixed(2)} cpu`,
+    `${_.sum(data, (d) => d.totalTime).toFixed(2)} cpu`,
+    `${_.sum(data, (d) => ((d.cpuPerTick / totalCpu) * 100)).toPrecision(3)} %`,
+    `${_.sum(data, (d) => ((d.cpuPerTick / Game.cpu.limit) * 100)).toPrecision(3)} %`
+  ]);
 
-  const tt = _.sum(Reflect.ownKeys(Memory.profiler.data), (key) => Memory.profiler.data[String(key)].time);
-  console.log(`Total time = ${tt} / ${totalTicks} = ${(tt / totalTicks) * 100}%`);
+  const fmt = Cli.getFormatting(rows, alignLeft);
+  _.each(rows, (row) => console.log(Cli.formatRow(row, '   ', fmt)));
+
+  console.log(`${totalTicks} total ticks measured\t\t\t${totalCpu.toPrecision(2)} average CPU profiled per tick`);
 }
-
-// debugging
-// function printObject(obj: object) {
-//   const name = obj.constructor ? obj.constructor.name : (obj as any).name;
-//   console.log("  Keys of :", name, ":");
-//   Reflect.ownKeys(obj).forEach((k) => {
-//     try {
-//       console.log(`    ${k}: ${Reflect.get(obj, k)}`);
-//     } catch (e) {
-//       // nothing
-//     }
-//   });
-// }

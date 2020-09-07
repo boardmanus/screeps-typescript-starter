@@ -9,6 +9,7 @@ import WorkBuilding from 'WorkBuilding';
 import log from 'ScrupsLogger';
 import JobBuild from 'JobBuild';
 import JobSign from 'JobSign';
+import { profile } from 'Profiler/Profiler';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE, CARRY, CARRY, WORK, WORK, WORK, WORK, WORK, WORK];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, WORK, WORK, WORK];
@@ -130,18 +131,7 @@ function container_building_work(controller: StructureController): WorkBuilding 
   return undefined;
 }
 
-function update_controller(controller: StructureController): void {
-  if (!controller._container) {
-    const sites: (AnyStructure | ConstructionSite)[] = find_controller_structures(controller);
-    sites.push(...find_controller_construction(controller));
-    _.each(sites, (site) => {
-      if (!controller._container && (site.structureType === STRUCTURE_CONTAINER)) {
-        controller._container = site;
-      }
-    });
-  }
-}
-
+@profile
 export default class BusinessUpgrading implements Business.Model {
 
   static readonly TYPE: string = 'upg';
@@ -153,7 +143,19 @@ export default class BusinessUpgrading implements Business.Model {
     this._priority = priority;
     this._controller = controller;
 
-    update_controller(this._controller);
+    this.updateController(this._controller);
+  }
+
+  private updateController(controller: StructureController): void {
+    if (!controller._container) {
+      const sites: (AnyStructure | ConstructionSite)[] = find_controller_structures(controller);
+      sites.push(...find_controller_construction(controller));
+      _.each(sites, (site) => {
+        if (!controller._container && (site.structureType === STRUCTURE_CONTAINER)) {
+          controller._container = site;
+        }
+      });
+    }
   }
 
   id(): string {

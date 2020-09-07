@@ -230,47 +230,6 @@ function link_building_work(source: Source): WorkBuilding {
   return new WorkBuilding(best_link_pos(source), STRUCTURE_LINK);
 }
 
-function update_mine(mine: Source): void {
-
-  mine._link = undefined;
-  mine._container = undefined;
-
-  // Load information from storage, if possible
-  const allSourceMem: SourceMemory[] = mine.room.memory.sources ?? [];
-  let sourceMem = _.find(allSourceMem, (sm) => sm.id === mine.id);
-  if (!sourceMem) {
-    sourceMem = { id: mine.id, container: undefined, link: undefined };
-    allSourceMem.push(sourceMem);
-  }
-
-  if (sourceMem.link) {
-    mine._link = Game.getObjectById<StructureLink>(sourceMem.link) ?? undefined;
-  }
-  if (sourceMem.container) {
-    mine._container = Game.getObjectById<StructureContainer>(sourceMem.container) ?? undefined;
-  }
-
-  if (!mine.container || !mine._link) {
-    const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
-    sites.push(...find_mine_construction(mine));
-    _.each(sites, (site) => {
-      if (!mine._link && site.structureType === STRUCTURE_LINK) {
-        mine._link = site;
-      } else if (!mine.container && (site.structureType === STRUCTURE_CONTAINER)) {
-        mine._container = site;
-      }
-    });
-  }
-
-  if (mine._link instanceof StructureLink) {
-    mine._link._isSink = false;
-  }
-
-  // Update storage
-  sourceMem.link = mine._link?.id;
-  sourceMem.container = mine._container?.id;
-}
-
 @profile
 export default class BusinessEnergyMining implements Business.Model {
 
@@ -283,7 +242,7 @@ export default class BusinessEnergyMining implements Business.Model {
     this._priority = priority;
     this._mine = mine;
 
-    update_mine(this._mine);
+    this.updateMine(this._mine);
   }
 
   id(): string {
@@ -381,7 +340,7 @@ export default class BusinessEnergyMining implements Business.Model {
       jobs.push(new JobBuild(construction, this._priority));
     }
 
-    if (mine.container && !container) {
+    if (mine._container && !container) {
       const construction = mine._container as ConstructionSite;
       jobs.push(new JobBuild(construction, this._priority));
     }
@@ -429,7 +388,7 @@ export default class BusinessEnergyMining implements Business.Model {
     const mine: Source = this._mine;
     const work: WorkBuilding[] = [];
 
-    if (!mine.container && can_build_container(mine)) {
+    if (!mine._container && can_build_container(mine)) {
       const buildingWork = container_building_work(mine);
       if (buildingWork) {
         work.push(buildingWork);
@@ -444,5 +403,46 @@ export default class BusinessEnergyMining implements Business.Model {
       log.debug(`${this}: buildings ${work}`);
     }
     return work;
+  }
+
+  private updateMine(mine: Source): void {
+
+    mine._link = undefined;
+    mine._container = undefined;
+
+    // Load information from storage, if possible
+    const allSourceMem: SourceMemory[] = mine.room.memory.sources ?? [];
+    let sourceMem = _.find(allSourceMem, (sm) => sm.id === mine.id);
+    if (!sourceMem) {
+      sourceMem = { id: mine.id, container: undefined, link: undefined };
+      allSourceMem.push(sourceMem);
+    }
+
+    if (sourceMem.link) {
+      mine._link = Game.getObjectById<StructureLink>(sourceMem.link) ?? undefined;
+    }
+    if (sourceMem.container) {
+      mine._container = Game.getObjectById<StructureContainer>(sourceMem.container) ?? undefined;
+    }
+
+    if (!mine._container || !mine._link) {
+      const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
+      sites.push(...find_mine_construction(mine));
+      _.each(sites, (site) => {
+        if (!mine._link && site.structureType === STRUCTURE_LINK) {
+          mine._link = site;
+        } else if (!mine._container && (site.structureType === STRUCTURE_CONTAINER)) {
+          mine._container = site;
+        }
+      });
+    }
+
+    if (mine._link instanceof StructureLink) {
+      mine._link._isSink = false;
+    }
+
+    // Update storage
+    sourceMem.link = mine._link?.id;
+    sourceMem.container = mine._container?.id;
   }
 }

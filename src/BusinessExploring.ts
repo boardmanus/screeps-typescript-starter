@@ -4,9 +4,11 @@ import JobScout from 'JobScout';
 import WorkBuilding from 'WorkBuilding';
 import * as u from 'Utility';
 import Room$ from 'RoomCache';
+import { profile } from 'Profiler/Profiler';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, MOVE];
 
+@profile
 export default class BusinessExploring implements Business.Model {
 
   static readonly TYPE: string = 'explore';
@@ -26,9 +28,13 @@ export default class BusinessExploring implements Business.Model {
   constructor(room: Room, priority = 5) {
     this._priority = priority;
     this._room = room;
+    this._flags = this.exploringFlags();
+    this._remoteRooms = u.map_valid(_.filter(this._flags, (f) => f.room && f.room.name !== room.name), (f) => f.room);
+  }
 
-    const flagPrefix = BusinessExploring.flag_prefix(room);
-    this._flags = _.filter(Room$(room).ownedFlags, (f) => {
+  private exploringFlags() {
+    const flagPrefix = BusinessExploring.flag_prefix(this._room);
+    return _.filter(Room$(this._room).ownedFlags, (f) => {
       let valid = f.name.startsWith(flagPrefix);
       if (valid && f.room && (f.room.find(FIND_MY_SPAWNS).length > 0)) {
         f.remove();
@@ -36,7 +42,6 @@ export default class BusinessExploring implements Business.Model {
       }
       return valid;
     });
-    this._remoteRooms = u.map_valid(_.filter(this._flags, (f) => f.room && f.room.name !== room.name), (f) => f.room);
   }
 
   id(): string {

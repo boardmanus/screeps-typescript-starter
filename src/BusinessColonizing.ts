@@ -103,31 +103,8 @@ export default class BusinessColonizing implements Business.Model {
   constructor(room: Room, priority = 5) {
     this._priority = priority;
     this._room = room;
-
-    const claimFlagPrefix = `${room.name}:${BusinessColonizing.CLAIM_FLAG_PREFIX}:`;
-    const reserveFlagPrefix = `${room.name}:${BusinessColonizing.RESERVE_FLAG_PREFIX}:`;
     this._colonizationRooms = {};
-
-    this._flags = _.filter(Room$(room).ownedFlags, (f) => {
-      if (f.room && ((f.room.find(FIND_MY_SPAWNS).length > 0) || !f.room.controller)) {
-        f.remove();
-        return false;
-      }
-
-      const croom = this._colonizationRooms[f.pos.roomName] ?? { flag: f, ops: 0 };
-      if (f.name.startsWith(claimFlagPrefix)) {
-        croom.ops |= OP_CLAIM;
-      }
-      if (f.name.startsWith(reserveFlagPrefix)) {
-        croom.ops |= OP_RESERVE;
-      }
-
-      if (croom.ops !== 0) {
-        this._colonizationRooms[f.pos.roomName] = croom;
-      }
-
-      return croom.ops !== 0;
-    });
+    this._flags = this.colonizationFlags();
   }
 
   id(): string {
@@ -223,5 +200,30 @@ export default class BusinessColonizing implements Business.Model {
       }
     });
     return work;
+  }
+
+  private colonizationFlags() {
+    const claimFlagPrefix = `${this._room.name}:${BusinessColonizing.CLAIM_FLAG_PREFIX}:`;
+    const reserveFlagPrefix = `${this._room.name}:${BusinessColonizing.RESERVE_FLAG_PREFIX}:`;
+    return _.filter(Room$(this._room).ownedFlags, (f) => {
+      if (f.room && ((f.room.find(FIND_MY_SPAWNS).length > 0) || !f.room.controller)) {
+        f.remove();
+        return false;
+      }
+
+      const croom = this._colonizationRooms[f.pos.roomName] ?? { flag: f, ops: 0 };
+      if (f.name.startsWith(claimFlagPrefix)) {
+        croom.ops |= OP_CLAIM;
+      }
+      if (f.name.startsWith(reserveFlagPrefix)) {
+        croom.ops |= OP_RESERVE;
+      }
+
+      if (croom.ops !== 0) {
+        this._colonizationRooms[f.pos.roomName] = croom;
+      }
+
+      return croom.ops !== 0;
+    });
   }
 }

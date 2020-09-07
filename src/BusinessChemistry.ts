@@ -3,6 +3,7 @@ import * as Job from 'Job';
 import WorkBuilding from 'WorkBuilding';
 import * as u from 'Utility';
 import log from 'ScrupsLogger';
+import Room$ from 'RoomCache';
 
 interface Pos {
   x: number;
@@ -117,8 +118,8 @@ function can_build_labs(room: Room, labs: StructureLab[], cs: ConstructionSite[]
 }
 
 function update_labs(_labs: StructureLab[]): void {
-
 }
+
 export default class BusinessChemistry implements Business.Model {
 
   static readonly TYPE: string = 'chem';
@@ -131,9 +132,12 @@ export default class BusinessChemistry implements Business.Model {
   constructor(chemistryRoom: Room, priority = 5) {
     this._room = chemistryRoom;
     this._priority = priority;
-    this._labConstruction = chemistryRoom.find(FIND_MY_CONSTRUCTION_SITES, { filter: (cs) => cs.structureType === STRUCTURE_LAB });
+    this._labConstruction = _.filter(Room$(chemistryRoom).constructionSites, (cs) => cs.structureType === STRUCTURE_LAB);
     this._labs = chemistryRoom.find<StructureLab>(FIND_MY_STRUCTURES, { filter: (s) => s.structureType === STRUCTURE_LAB });
+    this.init();
+  }
 
+  private init() {
     if (this._labs.length) {
       update_labs(this._labs);
     }

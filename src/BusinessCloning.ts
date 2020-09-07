@@ -7,6 +7,7 @@ import WorkBuilding from 'WorkBuilding';
 import log from 'ScrupsLogger';
 import * as u from 'Utility';
 import { profile } from 'Profiler/Profiler';
+import Room$ from 'RoomCache';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -21,23 +22,6 @@ function find_surrounding_recyclers(spawn: StructureSpawn): (StructureContainer 
   }
 
   return spawn.room.find(FIND_CONSTRUCTION_SITES, { filter: (cs) => (cs.structureType === STRUCTURE_CONTAINER) && spawn.pos.inRangeTo(cs.pos, 1) });
-}
-
-function update_spawns(spawns: StructureSpawn[]): void {
-  _.each(spawns, (spawn) => {
-    if (!spawn._recycler) {
-      const recyclers = find_surrounding_recyclers(spawn);
-      if (recyclers.length) {
-        [spawn._recycler] = recyclers;
-      }
-    }
-    if (spawn.spawning) {
-      const creep = Game.creeps[spawn.spawning.name];
-      if (creep && !creep.memory.home) {
-        creep.memory.home = spawn.room.name;
-      }
-    }
-  });
 }
 
 function find_active_building_sites<T extends Structure>(room: Room, type: StructureConstant): T[] {
@@ -318,32 +302,27 @@ export default class BusinessCloning implements Business.Model {
     this._room = room;
     this._spawns = find_active_building_sites(room, STRUCTURE_SPAWN);
     this._extensions = find_active_building_sites(room, STRUCTURE_EXTENSION);
+    this._workerHealthRatio = this.workerHealthRatio();
+    this._unloadJobs = this.unloadJobs();
 
-    const creeps = room.find(FIND_MY_CREEPS);
-    const nearlyDeadWorkers = _.filter(creeps, (c) => c.ticksToLive && c.ticksToLive < 200).length;
-    const maxWorkers = 8;
-    this._workerHealthRatio = (creeps.length - nearlyDeadWorkers) / maxWorkers;
+    this.updateSpawns(this._spawns);
+  }
 
-    const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
-    log.debug(`${this}: roomHealth=${roomHealth}`);
-    const extPriority = 6 + (1.0 - roomHealth) * this._priority;
-    const extJobs: JobUnload[] = _.map(_.take(_.sortBy(_.filter(this._extensions,
-      (e) => e.freeSpace() > 0),
-      (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
-      5),
-      (e) => new JobUnload(e, RESOURCE_ENERGY, extPriority));
-
-    if (extJobs.length < 5) {
-      const spawnPriority = 5 + (1.0 - roomHealth) * this._priority;
-      const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
-        (s) => s.freeSpace() > 0),
-        (s) => new JobUnload(s, RESOURCE_ENERGY, spawnPriority));
-      extJobs.push(...spawnJobs);
-    }
-
-    this._unloadJobs = extJobs;
-
-    update_spawns(this._spawns);
+  private updateSpawns(spawns: StructureSpawn[]): void {
+    _.each(spawns, (spawn) => {
+      if (!spawn._recycler) {
+        const recyclers = find_surrounding_recyclers(spawn);
+        if (recyclers.length) {
+          [spawn._recycler] = recyclers;
+        }
+      }
+      if (spawn.spawning) {
+        const creep = Game.creeps[spawn.spawning.name];
+        if (creep && !creep.memory.home) {
+          creep.memory.home = spawn.room.name;
+        }
+      }
+    });
   }
 
   id(): string {
@@ -429,5 +408,32 @@ export default class BusinessCloning implements Business.Model {
 
     const buildings = [...extWork, ...recycleWork];
     return buildings;
+  }
+
+  private workerHealthRatio(): number {
+    const { creeps } = Room$(this._room);
+    const nearlyDeadWorkers = _.filter(creeps, (c) => c.ticksToLive && c.ticksToLive < 200).length;
+    const maxWorkers = 8;
+    return (creeps.length - nearlyDeadWorkers) / maxWorkers;
+  }
+
+  private unloadJobs(): Job.Model[] {
+    const roomHealth = Math.min(this._workerHealthRatio, this._room.energyAvailable / this._room.energyCapacityAvailable);
+    log.debug(`${this}: roomHealth=${roomHealth}`);
+    const extPriority = 6 + (1.0 - roomHealth) * this._priority;
+    const extJobs: JobUnload[] = _.map(_.take(_.sortBy(_.filter(this._extensions,
+      (e) => e.freeSpace() > 0),
+      (e) => e.pos.x * e.pos.x + e.pos.y * e.pos.y - e.freeSpace()),
+      5),
+      (e) => new JobUnload(e, RESOURCE_ENERGY, extPriority));
+
+    if (extJobs.length < 5) {
+      const spawnPriority = 5 + (1.0 - roomHealth) * this._priority;
+      const spawnJobs: JobUnload[] = _.map(_.filter(this._spawns,
+        (s) => s.freeSpace() > 0),
+        (s) => new JobUnload(s, RESOURCE_ENERGY, spawnPriority));
+      extJobs.push(...spawnJobs);
+    }
+    return extJobs;
   }
 }

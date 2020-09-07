@@ -164,20 +164,6 @@ function container_building_work(mine: Mineral): WorkBuilding | undefined {
   return new WorkBuilding(bestSite, STRUCTURE_CONTAINER);
 }
 
-function update_mine(mine: Mineral): void {
-  if (!mine._container) {
-    const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
-    sites.push(...find_mine_construction(mine));
-    _.each(sites, (site) => {
-      if (site.structureType === STRUCTURE_CONTAINER) {
-        mine._container = site;
-      } else if (site.structureType === STRUCTURE_EXTRACTOR) {
-        mine._extractor = site;
-      }
-    });
-  }
-}
-
 export default class BusinessMineralMining implements Business.Model {
 
   static readonly TYPE: string = 'mm';
@@ -189,7 +175,21 @@ export default class BusinessMineralMining implements Business.Model {
     this._priority = priority;
     this._mine = mine;
 
-    update_mine(this._mine);
+    this.updateMine(this._mine);
+  }
+
+  private updateMine(mine: Mineral): void {
+    if (!mine._container) {
+      const sites: (AnyStructure | ConstructionSite)[] = find_mine_structures(mine);
+      sites.push(...find_mine_construction(mine));
+      _.each(sites, (site) => {
+        if (site.structureType === STRUCTURE_CONTAINER) {
+          mine._container = site;
+        } else if (site.structureType === STRUCTURE_EXTRACTOR) {
+          mine._extractor = site;
+        }
+      });
+    }
   }
 
   id(): string {
@@ -291,7 +291,7 @@ export default class BusinessMineralMining implements Business.Model {
       return [];
     }
 
-    if (!mine.container && can_build_container(mine)) {
+    if (!mine._container && can_build_container(mine)) {
       const workBuilding = container_building_work(mine);
       if (workBuilding) {
         work.push(workBuilding);

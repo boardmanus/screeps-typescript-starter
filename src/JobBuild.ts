@@ -40,13 +40,12 @@ export default class JobBuild implements Job.Model {
   readonly _priority: number;
 
   constructor(site: ConstructionSite, priority = 5) {
-
     this._site = site;
     this._priority = priority;
   }
 
   id(): string {
-    return `job-${JobBuild.TYPE}-${this._site.id}`;
+    return `job-${JobBuild.TYPE}-${this._site?.id}`;
   }
 
   type(): string {
