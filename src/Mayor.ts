@@ -27,6 +27,7 @@ import BusinessColonizing from 'BusinessColonizing';
 import Room$ from 'RoomCache';
 import { profile } from 'Profiler/Profiler';
 import Economist from 'Economist';
+import CentralCity from 'layout/CentralCity';
 
 function map_valid_to_links(linkers: (Source | StructureStorage)[], to: boolean): StructureLink[] {
   return _.filter(
@@ -148,6 +149,8 @@ export default class Mayor implements Monarchy.Model {
     this._usefulBosses = [];
     this._redundantBosses = [];
     this._lazyWorkers = [];
+
+    room.layout = CentralCity;
 
     this.init(king, room);
 

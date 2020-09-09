@@ -88,6 +88,7 @@ export default class JobDismantle implements Job.Model {
       return 0.0;
     }
 
+    // Need at least 4 work parts to collect energy from a dismantle job
     const numWorkParts = worker.getActiveBodyparts(WORK);
     if (numWorkParts < 4) {
       return 0;

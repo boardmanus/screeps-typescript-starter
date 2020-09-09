@@ -1,5 +1,6 @@
 interface Room {
-  cache: any | undefined;
+  cache: any;
+  layout: any;
 }
 
 interface Market {

@@ -8,6 +8,7 @@ import log from 'ScrupsLogger';
 import * as u from 'Utility';
 import { profile } from 'Profiler/Profiler';
 import Room$ from 'RoomCache';
+import { Layout } from 'layout/Layout';
 
 const EMPLOYEE_BODY_BASE: BodyPartConstant[] = [MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY];
 const EMPLOYEE_BODY_TEMPLATE: BodyPartConstant[] = [MOVE, CARRY];
@@ -28,6 +29,32 @@ function find_active_building_sites<T extends Structure>(room: Room, type: Struc
   return room.find<T>(FIND_MY_STRUCTURES, { filter: (s) => s.isActive && (s.structureType === type) });
 }
 
+function is_buildable(room: Room, x: number, y: number): boolean {
+  const lookies = room.lookAt(x, y);
+  return _.all(lookies, (l) => {
+    switch (l.type) {
+      case LOOK_CONSTRUCTION_SITES:
+        if (l.constructionSite!.structureType !== STRUCTURE_ROAD) {
+          return false;
+        }
+        break;
+      case LOOK_STRUCTURES:
+        if (l.structure!.structureType !== STRUCTURE_ROAD) {
+          return false;
+        }
+        break;
+      case LOOK_TERRAIN:
+        if (l.terrain === 'wall') {
+          return false;
+        }
+        break;
+      default:
+        break;
+    }
+    return true;
+  });
+}
+
 function find_new_ext_building_sites(spawns: StructureSpawn[], exts: StructureExtension[]): RoomPosition[] {
 
   if (spawns.length === 0) {
@@ -35,10 +62,11 @@ function find_new_ext_building_sites(spawns: StructureSpawn[], exts: StructureEx
   }
 
   const mainSpawn = spawns[0];
-  const extConstruction = mainSpawn.room.find(FIND_CONSTRUCTION_SITES, { filter: (cs) => (cs.structureType === STRUCTURE_EXTENSION) });
+  const { room } = mainSpawn;
+  const extConstruction = room.find(FIND_CONSTRUCTION_SITES, { filter: (cs) => (cs.structureType === STRUCTURE_EXTENSION) });
 
   const numExtensions: number = exts.length + extConstruction.length;
-  const rcl = mainSpawn.room.controller?.level ?? 0;
+  const rcl = room.controller?.level ?? 0;
   const allowedNumExtensions = CONTROLLER_STRUCTURES.extension[rcl];
 
   if (numExtensions === allowedNumExtensions) {
@@ -51,6 +79,14 @@ function find_new_ext_building_sites(spawns: StructureSpawn[], exts: StructureEx
   }
 
   const desiredNumExtensions = allowedNumExtensions - numExtensions;
+  const cityLayout: Layout = room.layout;
+  if (cityLayout) {
+    return _.map(_.take(_.sortBy(_.filter(cityLayout.extension,
+      (pos) => is_buildable(room, pos.x + mainSpawn.pos.x, pos.y + mainSpawn.pos.y)),
+      (pos) => (pos.x * pos.x + pos.y * pos.y)),
+      desiredNumExtensions),
+      (pos) => new RoomPosition(pos.x + mainSpawn.pos.x, pos.y + mainSpawn.pos.y, room.name));
+  }
 
   const extensionPos: RoomPosition[] = _.take(_.sortBy(
     possible_extension_sites(mainSpawn, desiredNumExtensions),
@@ -60,6 +96,7 @@ function find_new_ext_building_sites(spawns: StructureSpawn[], exts: StructureEx
   return extensionPos;
 }
 
+/*
 function find_new_recycle_sites(spawns: StructureSpawn[], _exts: StructureExtension[]): RoomPosition[] {
 
   if (spawns.length === 0) {
@@ -89,6 +126,7 @@ function find_new_recycle_sites(spawns: StructureSpawn[], _exts: StructureExtens
 
   return _.take(possibleSites, 1);
 }
+*/
 
 function possible_extension_sites(spawn: StructureSpawn, _numExtensions: number): RoomPosition[] {
   const viableSites = spawn.pos.surroundingPositions(10, (site: RoomPosition) => {
@@ -399,14 +437,7 @@ export default class BusinessCloning implements Business.Model {
         return new WorkBuilding(pos, STRUCTURE_EXTENSION);
       });
 
-    const recycleWork = _.map(
-      find_new_recycle_sites(this._spawns, this._extensions),
-      (pos) => {
-        log.info(`${this}: creating new recycle container work @ ${pos}`);
-        return new WorkBuilding(pos, STRUCTURE_CONTAINER);
-      });
-
-    const buildings = [...extWork, ...recycleWork];
+    const buildings = [...extWork];
     return buildings;
   }
 
